@@ -1352,6 +1352,44 @@ class SchedulingPipelineTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "first_lesson_period 时也需要填写 first_lesson_date"):
             scheduler.load_input_data(payload)
 
+    def test_parse_direct_requirements_preserves_filters_and_legacy_group_field(self) -> None:
+        requirements = scheduler.parse_direct_requirements(
+            "C1",
+            [
+                {
+                    "subject_category": "公共课",
+                    "subject": "英语",
+                    "quarter": "暑假",
+                    "stage": "基础",
+                    "course_module": "词汇",
+                    "teacher_group": "阅读类",
+                    "teacher_id": "T1",
+                    "teacher_name": "张老师",
+                    "total_hours": 4,
+                    "block_hours": 2,
+                    "course_code": "ENG001",
+                    "course_name": "-",
+                    "room_ids": "R1|R2",
+                    "start_date": "2026-07-01",
+                    "end_date": "2026-07-07",
+                    "allowed_periods": "AM|晚上",
+                    "allowed_weekdays": "周一|周三",
+                    "excluded_weekdays": "周日",
+                }
+            ],
+            {"R2", "R3"},
+        )
+
+        requirement = requirements[0]
+
+        self.assertEqual(requirement.course_group, "阅读类")
+        self.assertEqual(requirement.room_ids, {"R2"})
+        self.assertEqual(requirement.allowed_periods, {"AM", "EVENING"})
+        self.assertEqual(requirement.allowed_weekdays, {0, 2})
+        self.assertEqual(requirement.excluded_weekdays, {6})
+        self.assertEqual(requirement.course_code, "ENG001")
+        self.assertEqual(requirement.course_name, "")
+
     def test_scheduler_respects_teacher_unavailability_date_period(self) -> None:
         payload = {
             "time_slots": [

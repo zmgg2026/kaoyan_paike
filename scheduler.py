@@ -1612,55 +1612,75 @@ def parse_direct_requirements(
     class_room_ids: Optional[Set[str]],
     allow_area_field_as_room_ids: bool = False,
 ) -> List[Requirement]:
-    requirements: List[Requirement] = []
-    for raw_req in raw_requirements:
-        total_hours = int(raw_req["total_hours"])
-        block_hours = int(raw_req["block_hours"])
-        validate_hours(total_hours, block_hours, f"班级 {class_id}/{raw_req['subject']}")
-        teacher_assignment = parse_teacher_assignment(raw_req)
+    return [
+        parse_direct_requirement(class_id, raw_req, class_room_ids, allow_area_field_as_room_ids)
+        for raw_req in raw_requirements
+    ]
 
-        requirements.append(
-            Requirement(
-                subject_category=raw_req.get("subject_category", ""),
-                subject=raw_req["subject"],
-                quarter=raw_req.get("quarter"),
-                stage=raw_req.get("stage"),
-                course_module=raw_req.get("course_module"),
-                course_group=raw_req.get("course_group", raw_req.get("teacher_group")),
-                teacher_id=teacher_assignment.teacher_id,
-                teacher_name=teacher_assignment.teacher_name,
-                total_hours=total_hours,
-                block_hours=block_hours,
-                course_code=blank_marker_to_empty(raw_req.get("course_code")),
-                course_name=blank_marker_to_empty(raw_req.get("course_name")),
-                room_ids=merge_room_constraints(
-                    parse_room_id_fields(
-                        raw_req,
-                        allow_area_field_as_room_ids,
-                        ("room_ids", "teaching_area_ids"),
-                    ),
-                    class_room_ids,
-                    f"班级 {class_id}/{raw_req['subject']}",
-                ),
-                start_date=validate_date(raw_req.get("start_date"), f"班级 {class_id}/{raw_req['subject']}/start_date"),
-                end_date=validate_date(raw_req.get("end_date"), f"班级 {class_id}/{raw_req['subject']}/end_date"),
-                allowed_periods=parse_period_set(
-                    raw_req.get("allowed_periods"),
-                    f"班级 {class_id}/{raw_req['subject']}/allowed_periods",
-                ),
-                allowed_weekdays=parse_weekday_set(
-                    raw_req.get("allowed_weekdays"),
-                    f"班级 {class_id}/{raw_req['subject']}/allowed_weekdays",
-                ),
-                excluded_weekdays=parse_weekday_set(
-                    raw_req.get("excluded_weekdays"),
-                    f"班级 {class_id}/{raw_req['subject']}/excluded_weekdays",
-                ),
-                schedule_rules=(),
-            )
-        )
 
-    return requirements
+def parse_direct_requirement(
+    class_id: str,
+    raw_req: dict,
+    class_room_ids: Optional[Set[str]],
+    allow_area_field_as_room_ids: bool = False,
+) -> Requirement:
+    subject = raw_req["subject"]
+    total_hours = int(raw_req["total_hours"])
+    block_hours = int(raw_req["block_hours"])
+    validate_hours(total_hours, block_hours, f"班级 {class_id}/{subject}")
+    teacher_assignment = parse_teacher_assignment(raw_req)
+
+    return Requirement(
+        subject_category=raw_req.get("subject_category", ""),
+        subject=subject,
+        quarter=raw_req.get("quarter"),
+        stage=raw_req.get("stage"),
+        course_module=raw_req.get("course_module"),
+        course_group=raw_req.get("course_group", raw_req.get("teacher_group")),
+        teacher_id=teacher_assignment.teacher_id,
+        teacher_name=teacher_assignment.teacher_name,
+        total_hours=total_hours,
+        block_hours=block_hours,
+        course_code=blank_marker_to_empty(raw_req.get("course_code")),
+        course_name=blank_marker_to_empty(raw_req.get("course_name")),
+        room_ids=direct_requirement_room_ids(
+            class_id,
+            subject,
+            raw_req,
+            class_room_ids,
+            allow_area_field_as_room_ids,
+        ),
+        start_date=validate_date(raw_req.get("start_date"), f"班级 {class_id}/{subject}/start_date"),
+        end_date=validate_date(raw_req.get("end_date"), f"班级 {class_id}/{subject}/end_date"),
+        allowed_periods=parse_period_set(
+            raw_req.get("allowed_periods"),
+            f"班级 {class_id}/{subject}/allowed_periods",
+        ),
+        allowed_weekdays=parse_weekday_set(
+            raw_req.get("allowed_weekdays"),
+            f"班级 {class_id}/{subject}/allowed_weekdays",
+        ),
+        excluded_weekdays=parse_weekday_set(
+            raw_req.get("excluded_weekdays"),
+            f"班级 {class_id}/{subject}/excluded_weekdays",
+        ),
+        schedule_rules=(),
+    )
+
+
+def direct_requirement_room_ids(
+    class_id: str,
+    subject: str,
+    raw_req: dict,
+    class_room_ids: Optional[Set[str]],
+    allow_area_field_as_room_ids: bool,
+) -> Optional[Set[str]]:
+    requirement_room_ids = parse_room_id_fields(
+        raw_req,
+        allow_area_field_as_room_ids,
+        ("room_ids", "teaching_area_ids"),
+    )
+    return merge_room_constraints(requirement_room_ids, class_room_ids, f"班级 {class_id}/{subject}")
 
 
 def merge_room_constraints(
