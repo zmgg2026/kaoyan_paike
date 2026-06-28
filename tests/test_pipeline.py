@@ -341,6 +341,35 @@ class SchedulingPipelineTest(unittest.TestCase):
             self.assertIn("| 英语1班 | 考研寒暑营-英语 | 英语 | 基础 | 阅读类 |", report)
             self.assertIn("missing_class_teacher_assignments_", report)
 
+    def test_pipeline_failure_writes_same_missing_teacher_diagnostics(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / "incoming"
+            data_dir = root / "data"
+            output_dir = root / "outputs"
+            write_minimal_csv_source(source)
+            write_csv(
+                source / "class_teacher_assignments.csv",
+                ["class_id", "subject", "stage", "course_module", "course_group", "teacher_id", "teacher_name"],
+                [],
+            )
+
+            with self.assertRaisesRegex(PipelineError, "缺少课程老师安排"):
+                run_pipeline(pipeline_args(source, data_dir, output_dir, timestamp="20260629_010000"))
+
+            self.assertFalse((data_dir / "classes.json").exists())
+            missing_path = output_dir / "missing_class_teacher_assignments_20260629_010000.csv"
+            self.assertTrue(missing_path.exists())
+            with missing_path.open(encoding="utf-8") as handle:
+                rows = list(csv.DictReader(handle))
+            self.assertEqual({row["class_id"] for row in rows}, {"C1", "C2"})
+            self.assertTrue(all(row["class_schedule_mode"] == "本班实际排课" for row in rows))
+            self.assertTrue(all("assignment_extra_time_requirement" in row for row in rows))
+            report = (output_dir / "import_report_20260629_010000.md").read_text(encoding="utf-8")
+            self.assertIn("状态: 失败", report)
+            self.assertIn("## 缺老师补录摘要", report)
+            self.assertIn("missing_class_teacher_assignments_20260629_010000.csv", report)
+
     def test_numbered_template_sheets_use_english_header_row(self) -> None:
         try:
             from openpyxl import Workbook

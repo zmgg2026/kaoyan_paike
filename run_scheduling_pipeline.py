@@ -5,7 +5,7 @@ import argparse
 import re
 import shutil
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date, datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Set
@@ -205,12 +205,33 @@ class MissingTeacherRequirement:
     course_group: str
 
 
+@dataclass
+class MissingTeacherDiagnostics:
+    requirements: List[MissingTeacherRequirement] = field(default_factory=list)
+    rows: List[Dict[str, str]] = field(default_factory=list)
+
+
 class PipelineError(RuntimeError):
     pass
 
 
 def empty_source_row_counts() -> Dict[str, int]:
     return {table: 0 for table in SOURCE_TABLES}
+
+
+@dataclass
+class PipelineRunContext:
+    timestamp: str
+    source: Path
+    data_dir: Path
+    output_dir: Path
+    report_path: Path
+    tables: Dict[str, LoadedTable] = field(default_factory=dict)
+    row_counts: Dict[str, int] = field(default_factory=empty_source_row_counts)
+    warnings: List[str] = field(default_factory=list)
+    generated_files: List[Path] = field(default_factory=list)
+    state: Optional[Dict[str, Any]] = None
+    time_slots: Optional[List[Dict[str, Any]]] = None
 
 
 def row_counts_for_tables(tables: Dict[str, LoadedTable]) -> Dict[str, int]:
@@ -848,47 +869,114 @@ def write_missing_teacher_rows_template(
     return path
 
 
-def run_pipeline(args: argparse.Namespace) -> PipelineResult:
+def build_pipeline_context(args: argparse.Namespace, report_prefix: str) -> PipelineRunContext:
     timestamp = args.timestamp or datetime.now().strftime("%Y%m%d_%H%M%S")
     source = Path(args.source).resolve()
     data_dir = Path(args.data_dir).resolve()
     output_dir = Path(args.output_dir).resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
-    report_path = output_dir / f"import_report_{timestamp}.md"
-
     data_admin_server.DATA_DIR = data_dir
+    return PipelineRunContext(
+        timestamp=timestamp,
+        source=source,
+        data_dir=data_dir,
+        output_dir=output_dir,
+        report_path=output_dir / f"{report_prefix}_{timestamp}.md",
+    )
 
-    tables: Dict[str, LoadedTable] = {}
-    row_counts = empty_source_row_counts()
-    warnings: List[str] = []
+
+def prepare_pipeline_context(
+    context: PipelineRunContext,
+    args: argparse.Namespace,
+    *,
+    no_time_slots_error: str,
+) -> None:
+    context.tables = load_source_tables(context.source)
+    context.row_counts = row_counts_for_tables(context.tables)
+    state, time_slots = prepare_state_for_scheduling(
+        args=args,
+        tables=context.tables,
+        output_dir=context.output_dir,
+        timestamp=context.timestamp,
+        warnings=context.warnings,
+        generated_files=context.generated_files,
+        no_time_slots_error=no_time_slots_error,
+    )
+    context.state = state
+    context.time_slots = time_slots
+    validate_scheduler_input(state, time_slots)
+
+
+def merge_business_warnings(exc: Exception, warnings: List[str]) -> None:
+    if isinstance(exc, BusinessDataError):
+        warnings.extend(warning for warning in exc.warnings if warning not in warnings)
+
+
+def missing_teacher_diagnostics_for_error(
+    error: str,
+    context: PipelineRunContext,
+) -> MissingTeacherDiagnostics:
+    requirements = parse_missing_teacher_requirements(error)
+    rows = missing_teacher_rows_for_requirements(requirements, context.state)
+    if rows:
+        missing_teacher_path = write_missing_teacher_rows_template(
+            context.output_dir,
+            context.timestamp,
+            rows,
+        )
+        if missing_teacher_path:
+            context.generated_files.append(missing_teacher_path)
+    return MissingTeacherDiagnostics(requirements=requirements, rows=rows)
+
+
+def write_pipeline_report(
+    context: PipelineRunContext,
+    *,
+    backup_path: Optional[Path] = None,
+    scheduler_input_path: Optional[Path] = None,
+    schedule_csv_path: Optional[Path] = None,
+    schedule_html_path: Optional[Path] = None,
+    missing_teacher_rows: Optional[List[Dict[str, str]]] = None,
+    error: Optional[str] = None,
+) -> None:
+    write_report(
+        context.report_path,
+        source=context.source,
+        tables=context.tables,
+        row_counts=context.row_counts,
+        warnings=context.warnings,
+        backup_path=backup_path,
+        scheduler_input_path=scheduler_input_path,
+        schedule_csv_path=schedule_csv_path,
+        schedule_html_path=schedule_html_path,
+        generated_files=context.generated_files,
+        missing_teacher_rows=missing_teacher_rows,
+        error=error,
+    )
+
+
+def run_pipeline(args: argparse.Namespace) -> PipelineResult:
+    context = build_pipeline_context(args, "import_report")
     backup_path: Optional[Path] = None
     scheduler_input_path: Optional[Path] = None
     schedule_csv_path: Optional[Path] = None
     schedule_html_path: Optional[Path] = None
-    generated_files: List[Path] = []
-    state: Optional[Dict[str, Any]] = None
-    missing_teacher_rows: List[Dict[str, str]] = []
 
     try:
-        tables = load_source_tables(source)
-        row_counts = row_counts_for_tables(tables)
-        state, time_slots = prepare_state_for_scheduling(
+        prepare_pipeline_context(
+            context,
             args=args,
-            tables=tables,
-            output_dir=output_dir,
-            timestamp=timestamp,
-            warnings=warnings,
-            generated_files=generated_files,
             no_time_slots_error="没有可用课节，请检查 02_课节表 is_usable 或 16_全局停课日期表。",
         )
-        validate_scheduler_input(state, time_slots)
-        backup_path = backup_data_dir(data_dir, output_dir, timestamp)
+        if context.state is None or context.time_slots is None:
+            raise PipelineError("排课上下文未初始化")
+        backup_path = backup_data_dir(context.data_dir, context.output_dir, context.timestamp)
 
-        data_admin_server.save_state(state)
-        export_result = data_admin_server.export_scheduler_input(state, time_slots=time_slots)
+        data_admin_server.save_state(context.state)
+        export_result = data_admin_server.export_scheduler_input(context.state, time_slots=context.time_slots)
         scheduler_input_path = Path(export_result["path"])
-        pending_schedule_csv_path = output_dir / f"schedule_{timestamp}.csv"
-        pending_schedule_html_path = output_dir / f"schedule_{timestamp}.html"
+        pending_schedule_csv_path = context.output_dir / f"schedule_{context.timestamp}.csv"
+        pending_schedule_html_path = context.output_dir / f"schedule_{context.timestamp}.html"
 
         schedule_input = scheduler.load_input(scheduler_input_path)
         assignments = scheduler.schedule(schedule_input)
@@ -897,42 +985,23 @@ def run_pipeline(args: argparse.Namespace) -> PipelineResult:
         schedule_csv_path = pending_schedule_csv_path
         schedule_html_path = pending_schedule_html_path
 
-        write_report(
-            report_path,
-            source=source,
-            tables=tables,
-            row_counts=row_counts,
-            warnings=warnings,
+        write_pipeline_report(
+            context,
             backup_path=backup_path,
             scheduler_input_path=scheduler_input_path,
             schedule_csv_path=schedule_csv_path,
             schedule_html_path=schedule_html_path,
-            generated_files=generated_files,
         )
     except Exception as exc:
-        if isinstance(exc, BusinessDataError):
-            warnings.extend(warning for warning in exc.warnings if warning not in warnings)
-        missing_teacher_requirements = parse_missing_teacher_requirements(str(exc))
-        missing_teacher_rows = missing_teacher_rows_for_requirements(missing_teacher_requirements, state)
-        if missing_teacher_rows:
-            missing_teacher_path = write_missing_teacher_rows_template(
-                output_dir,
-                timestamp,
-                missing_teacher_rows,
-            )
-            generated_files.append(missing_teacher_path)
-        write_report(
-            report_path,
-            source=source,
-            tables=tables,
-            row_counts=row_counts,
-            warnings=warnings,
+        merge_business_warnings(exc, context.warnings)
+        diagnostics = missing_teacher_diagnostics_for_error(str(exc), context)
+        write_pipeline_report(
+            context,
             backup_path=backup_path,
             scheduler_input_path=scheduler_input_path,
             schedule_csv_path=schedule_csv_path,
             schedule_html_path=schedule_html_path,
-            generated_files=generated_files,
-            missing_teacher_rows=missing_teacher_rows,
+            missing_teacher_rows=diagnostics.rows,
             error=str(exc),
         )
         raise
@@ -941,85 +1010,47 @@ def run_pipeline(args: argparse.Namespace) -> PipelineResult:
         scheduler_input_path=scheduler_input_path,
         schedule_csv_path=schedule_csv_path,
         schedule_html_path=schedule_html_path,
-        report_path=report_path,
+        report_path=context.report_path,
         backup_path=backup_path,
-        row_counts=row_counts,
-        warnings=warnings,
-        generated_files=generated_files,
+        row_counts=context.row_counts,
+        warnings=context.warnings,
+        generated_files=context.generated_files,
     )
 
 
 def run_preflight(args: argparse.Namespace) -> PreflightResult:
-    timestamp = args.timestamp or datetime.now().strftime("%Y%m%d_%H%M%S")
-    source = Path(args.source).resolve()
-    data_dir = Path(args.data_dir).resolve()
-    output_dir = Path(args.output_dir).resolve()
-    output_dir.mkdir(parents=True, exist_ok=True)
-    report_path = output_dir / f"preflight_report_{timestamp}.md"
-
-    data_admin_server.DATA_DIR = data_dir
-    tables: Dict[str, LoadedTable] = {}
-    row_counts = empty_source_row_counts()
-    warnings: List[str] = []
-    generated_files: List[Path] = []
-    state: Optional[Dict[str, Any]] = None
+    context = build_pipeline_context(args, "preflight_report")
     error = ""
     passed = False
-    missing_teacher_requirements: List[MissingTeacherRequirement] = []
-    missing_teacher_rows: List[Dict[str, str]] = []
+    diagnostics = MissingTeacherDiagnostics()
 
     try:
-        tables = load_source_tables(source)
-        row_counts = row_counts_for_tables(tables)
-        state, _time_slots = prepare_state_for_scheduling(
+        prepare_pipeline_context(
+            context,
             args=args,
-            tables=tables,
-            output_dir=output_dir,
-            timestamp=timestamp,
-            warnings=warnings,
-            generated_files=generated_files,
             no_time_slots_error="上传前校验未找到任何可用课节，请检查 02_课节表 is_usable 或 16_全局停课日期表。",
         )
-        validate_scheduler_input(state, _time_slots)
         passed = True
     except Exception as exc:
-        if isinstance(exc, BusinessDataError):
-            warnings.extend(warning for warning in exc.warnings if warning not in warnings)
+        merge_business_warnings(exc, context.warnings)
         error = str(exc)
 
     if error:
-        missing_teacher_requirements = parse_missing_teacher_requirements(error)
-        missing_teacher_rows = missing_teacher_rows_for_requirements(missing_teacher_requirements, state)
-        if missing_teacher_rows:
-            missing_teacher_path = write_missing_teacher_rows_template(
-                output_dir,
-                timestamp,
-                missing_teacher_rows,
-            )
-            generated_files.append(missing_teacher_path)
+        diagnostics = missing_teacher_diagnostics_for_error(error, context)
 
-    write_report(
-        report_path,
-        source=source,
-        tables=tables,
-        row_counts=row_counts,
-        warnings=warnings,
-        backup_path=None,
-        scheduler_input_path=None,
-        schedule_csv_path=None,
-        schedule_html_path=None,
-        generated_files=generated_files,
-        missing_teacher_rows=missing_teacher_rows,
+    write_pipeline_report(
+        context,
+        missing_teacher_rows=diagnostics.rows,
         error=None if passed else error,
     )
     return PreflightResult(
         passed=passed,
-        report_path=report_path,
-        row_counts=row_counts,
-        warnings=warnings,
-        generated_files=generated_files,
-        missing_teacher_requirements=missing_teacher_requirements,
-        missing_teacher_rows=missing_teacher_rows,
+        report_path=context.report_path,
+        row_counts=context.row_counts,
+        warnings=context.warnings,
+        generated_files=context.generated_files,
+        missing_teacher_requirements=diagnostics.requirements,
+        missing_teacher_rows=diagnostics.rows,
         error=error,
     )
 
