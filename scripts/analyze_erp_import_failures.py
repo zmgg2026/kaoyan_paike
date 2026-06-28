@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import re
+import sys
 from collections import Counter, defaultdict
 from datetime import datetime
 from pathlib import Path
@@ -14,15 +15,16 @@ from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
 from scripts.csv_utils import read_csv_rows, write_csv_rows
+from scripts.field_utils import normalize_excel_text as clean
 
 
 DEFAULT_OUTPUT_DIR = Path("outputs")
 DEFAULT_ROOMS = Path("data/rooms.csv")
-
-
-def clean(value: object) -> str:
-    return str(value or "").strip()
 
 
 def read_rows(path: Path) -> List[Dict[str, str]]:

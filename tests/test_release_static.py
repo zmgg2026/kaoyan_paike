@@ -142,6 +142,27 @@ class ReleaseStaticTest(unittest.TestCase):
 
         self.assertEqual([], offenders)
 
+    def test_erp_excel_modules_use_shared_excel_text_normalization(self) -> None:
+        modules = [
+            ROOT / "scripts" / "analyze_erp_import_failures.py",
+            ROOT / "scripts" / "build_erp_lesson_id_map.py",
+            ROOT / "scripts" / "build_erp_reverse_import_from_result.py",
+            ROOT / "scripts" / "build_erp_retry_import.py",
+            ROOT / "scripts" / "build_failed_erp_class_schedule_review.py",
+            ROOT / "scripts" / "export_erp_lesson_import.py",
+        ]
+        offenders = []
+        for path in modules:
+            source = path.read_text(encoding="utf-8")
+            if "normalize_excel_text as clean" not in source:
+                offenders.append(f"{path.relative_to(ROOT)} does not import normalize_excel_text as clean")
+            if re.search(r"(?m)^def clean\(", source):
+                offenders.append(f"{path.relative_to(ROOT)} defines local clean")
+            if "ROOT = Path(__file__).resolve().parents[1]" not in source or "sys.path.insert(0, str(ROOT))" not in source:
+                offenders.append(f"{path.relative_to(ROOT)} is missing direct-script import bootstrap")
+
+        self.assertEqual([], offenders)
+
     def test_schedule_display_owns_shared_calendar_helpers_for_repair_outputs(self) -> None:
         modules = [
             ROOT / "scripts" / "build_failed_erp_class_schedule_review.py",

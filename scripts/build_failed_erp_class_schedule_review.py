@@ -20,6 +20,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from scripts.csv_utils import read_csv_rows
+from scripts.field_utils import normalize_excel_text as clean
 from scripts.schedule_display import weekday_label
 
 
@@ -44,14 +45,6 @@ HEADER_FILL = "D9EAF7"
 FAILED_FILL = "FFF2CC"
 RELATED_FILL = "E2F0D9"
 THIN = Side(style="thin", color="C8D0D8")
-
-
-def clean(value: object) -> str:
-    if value is None:
-        return ""
-    if isinstance(value, float) and value.is_integer():
-        return str(int(value))
-    return str(value).strip()
 
 
 def normalize_date(value: object) -> str:

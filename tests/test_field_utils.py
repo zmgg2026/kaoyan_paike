@@ -2,7 +2,14 @@ from __future__ import annotations
 
 import unittest
 
-from scripts.field_utils import normalize_text, parse_bool, parse_bool_default, parse_enabled, split_pipe_values
+from scripts.field_utils import (
+    normalize_excel_text,
+    normalize_text,
+    parse_bool,
+    parse_bool_default,
+    parse_enabled,
+    split_pipe_values,
+)
 
 
 class FieldUtilsTest(unittest.TestCase):
@@ -10,6 +17,12 @@ class FieldUtilsTest(unittest.TestCase):
         self.assertEqual(normalize_text(None), "")
         self.assertEqual(normalize_text("  C1  "), "C1")
         self.assertEqual(normalize_text(0), "0")
+
+    def test_normalize_excel_text_drops_integer_float_suffixes(self) -> None:
+        self.assertEqual(normalize_excel_text(None), "")
+        self.assertEqual(normalize_excel_text(123.0), "123")
+        self.assertEqual(normalize_excel_text(123.5), "123.5")
+        self.assertEqual(normalize_excel_text("  RM001  "), "RM001")
 
     def test_split_pipe_values_trims_and_drops_empty_items(self) -> None:
         self.assertEqual(split_pipe_values("A | | B"), ["A", "B"])

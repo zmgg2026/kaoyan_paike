@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import sys
 from collections import Counter, defaultdict
 from datetime import datetime
 from pathlib import Path
@@ -11,18 +12,17 @@ from typing import Dict, Iterable, List, Tuple
 
 from openpyxl import load_workbook
 
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
 from scripts.csv_utils import read_csv_rows, write_csv_rows
+from scripts.field_utils import normalize_excel_text as clean
 
 
 DEFAULT_SCHEDULE = Path("outputs/batch_schedule_maintenance.csv")
 DEFAULT_OUTPUT_DIR = Path("outputs")
 PUBLIC_SUBJECTS = {"英语", "政治", "数学", "语文"}
-
-
-def clean(value: object) -> str:
-    if value is None:
-        return ""
-    return str(value).strip()
 
 
 def split_values(value: str) -> List[str]:

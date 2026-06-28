@@ -19,6 +19,7 @@ if str(ROOT) not in sys.path:
 from scripts.schedule_data import load_class_metadata  # noqa: E402
 from scripts.schedule_modes import assignment_reference_class_id, assignment_schedule_mode  # noqa: E402
 from scripts.csv_utils import read_csv_rows, write_csv_rows  # noqa: E402
+from scripts.field_utils import normalize_excel_text as clean  # noqa: E402
 
 
 DEFAULT_FAILURES = Path("outputs/erp_import_failures_annotated_20260521_161645.csv")
@@ -71,10 +72,6 @@ POLITICS_SPLIT_CODES = {
         "16:20~18:20": ("CSHFWY000300454", "新思想"),
     },
 }
-
-
-def clean(value: object) -> str:
-    return str(value or "").strip()
 
 
 def date_key(value: str) -> str:

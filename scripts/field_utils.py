@@ -13,6 +13,14 @@ def normalize_text(value: Any) -> str:
     return str(value).strip()
 
 
+def normalize_excel_text(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, float) and value.is_integer():
+        return str(int(value))
+    return normalize_text(value)
+
+
 def split_pipe_values(values: Any) -> List[str]:
     if values is None:
         return []

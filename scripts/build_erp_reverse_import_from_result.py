@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import sys
 from collections import Counter
 from datetime import datetime
 from pathlib import Path
@@ -11,7 +12,12 @@ from typing import Dict, List, Sequence
 
 from openpyxl import load_workbook
 
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
 from scripts.csv_utils import read_csv_rows, write_csv_rows
+from scripts.field_utils import normalize_excel_text as clean
 
 
 DEFAULT_OUTPUT_DIR = Path("outputs")
@@ -46,14 +52,6 @@ INPUT_TO_OUTPUT = {
 }
 HEADER_ROW = 2
 DATA_START_ROW = 3
-
-
-def clean(value: object) -> str:
-    if value is None:
-        return ""
-    if isinstance(value, float) and value.is_integer():
-        return str(int(value))
-    return str(value).strip()
 
 
 def read_result_rows(path: Path) -> List[Dict[str, str]]:

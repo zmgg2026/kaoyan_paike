@@ -18,6 +18,7 @@ if str(ROOT) not in sys.path:
 
 from scripts.schedule_modes import assignment_reference_class_id, assignment_schedule_mode  # noqa: E402
 from scripts.csv_utils import read_csv_rows, write_csv_rows  # noqa: E402
+from scripts.field_utils import normalize_excel_text as clean  # noqa: E402
 
 
 DEFAULT_SCHEDULE = Path("outputs/batch_schedule_maintenance.csv")
@@ -42,12 +43,6 @@ ERP_HEADERS = [
     "课程",
     "课节科目",
 ]
-
-
-def clean(value: object) -> str:
-    if value is None:
-        return ""
-    return str(value).strip()
 
 
 def parse_args() -> argparse.Namespace:
