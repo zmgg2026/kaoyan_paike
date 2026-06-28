@@ -4,9 +4,10 @@ import tempfile
 import unittest
 from pathlib import Path
 
+import data_admin_server
 import formal_template
 from scripts.csv_utils import read_csv_rows
-from scripts.sync_template_workbook_to_admin_data import enrich_rows, write_csv
+from scripts.sync_template_workbook_to_admin_data import enrich_rows, output_fields_for_key, standard_output_rows, write_csv
 
 
 class TemplateSyncTest(unittest.TestCase):
@@ -96,7 +97,9 @@ class TemplateSyncTest(unittest.TestCase):
                 {
                     "id": "C1",
                     "name": "英语1班",
-                    "selected_stages": ["基础"],
+                    "selected_stages": [],
+                    "stages": ["基础"],
+                    "is_schedule_locked": True,
                     "actual_schedule_window_ids": ["2026暑假"],
                 }
             ],
@@ -116,17 +119,88 @@ class TemplateSyncTest(unittest.TestCase):
             [
                 {
                     "product_id": "P1",
-                    "window_name": "暑假",
+                    "quarter": "暑假",
                     "course_module": "词汇",
+                    "module_priority": 3,
+                    "block_hours": 4,
                     "teaching_area_ids": ["A1"],
+                }
+            ],
+        )
+        product_rules = enrich_rows(
+            "product_schedule_rules",
+            [
+                {
+                    "rule_id": "RULE1",
+                    "rule_name": "旧规则名",
+                    "scope_type": "product_ids",
+                    "product_ids": ["P1"],
+                    "product_name_keywords": ["无忧"],
+                    "subject": "英语",
+                    "stage": "基础",
+                    "course_module": "词汇",
+                    "course_group": "阅读类",
+                    "start_date": "2026-07-01",
+                    "end_date": "2026-08-31",
+                    "excluded_weekdays": ["周日"],
+                    "exception_weekdays": [],
+                    "block_hours_override": 4,
                 }
             ],
         )
 
         self.assertNotIn("actual_schedule_window_ids", classes[0])
+        self.assertNotIn("stages", classes[0])
+        self.assertNotIn("is_schedule_locked", classes[0])
+        self.assertEqual(classes[0]["selected_stages"], ["基础"])
+        self.assertTrue(classes[0]["is_manual_schedule_locked"])
         self.assertEqual(mappings[0]["local_product_id"], "P1")
         self.assertNotIn("canonical_product_id", mappings[0])
-        self.assertNotIn("teaching_area_ids", product_courses[0])
+        self.assertEqual(product_courses[0]["window_name"], "暑假")
+        self.assertEqual(product_courses[0]["module_priority_in_group"], 3)
+        for old_field in ("quarter", "module_priority", "block_hours", "teaching_area_ids"):
+            self.assertNotIn(old_field, product_courses[0])
+        self.assertEqual(product_rules[0]["product_id"], "P1")
+        self.assertEqual(product_rules[0]["block_hours"], 4)
+        for old_field in (
+            "rule_name",
+            "scope_type",
+            "product_ids",
+            "product_name_keywords",
+            "subject",
+            "stage",
+            "course_module",
+            "course_group",
+            "start_date",
+            "end_date",
+            "excluded_weekdays",
+            "exception_weekdays",
+            "block_hours_override",
+        ):
+            self.assertNotIn(old_field, product_rules[0])
+
+    def test_template_sync_standard_output_uses_admin_fieldnames(self) -> None:
+        rows = enrich_rows(
+            "product_schedule_rules",
+            [
+                {
+                    "rule_id": "RULE1",
+                    "product_id": "P1",
+                    "product_name": "产品1",
+                    "window_name": "暑假",
+                    "allowed_weekdays": ["周一"],
+                    "allowed_periods": ["AM"],
+                    "block_hours": 4,
+                    "unexpected": "不要写出",
+                }
+            ],
+        )
+
+        output = standard_output_rows("product_schedule_rules", rows, csv_export=True)
+
+        self.assertEqual(output_fields_for_key("product_schedule_rules", csv_export=True), data_admin_server.PRODUCT_RULE_FIELDNAMES)
+        self.assertLessEqual(set(output[0]), set(data_admin_server.PRODUCT_RULE_FIELDNAMES))
+        self.assertNotIn("unexpected", output[0])
 
     def test_teacher_sync_outputs_current_template_fields_only(self) -> None:
         rows = enrich_rows(

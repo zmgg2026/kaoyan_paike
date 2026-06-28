@@ -14,6 +14,7 @@ if str(ROOT) not in sys.path:
 
 from openpyxl import load_workbook
 
+import data_admin_server
 from scripts.csv_utils import write_csv_rows
 from scripts.field_utils import normalize_text, parse_bool as normalize_bool
 from scripts.schedule_modes import (
@@ -281,34 +282,48 @@ def enrich_rows(key: str, rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
             row.pop("identity", None)
             row.pop("teacher_type", None)
         elif key == "product_courses":
-            row["quarter"] = row.get("window_name", "")
-            row["module_priority"] = row.get("module_priority_in_group", 0)
-            row.setdefault("block_hours", 0)
+            if not normalize_text(row.get("window_name")):
+                row["window_name"] = normalize_text(row.get("quarter"))
+            if not row.get("module_priority_in_group"):
+                row["module_priority_in_group"] = row.get("module_priority", 0)
+            row.pop("quarter", None)
+            row.pop("module_priority", None)
+            row.pop("block_hours", None)
             row.pop("teaching_area_ids", None)
         elif key == "product_schedule_rules":
             product_id = normalize_text(row.get("product_id"))
-            row["rule_name"] = row.get("rule_name") or " / ".join(
-                item for item in (row.get("product_name"), row.get("window_name")) if item
-            ) or row.get("rule_id", "")
-            row["scope_type"] = "product_ids" if product_id else "all"
-            row["product_ids"] = [product_id] if product_id else []
-            row["product_name_keywords"] = []
-            row["subject"] = ""
-            row["stage"] = ""
-            row["course_module"] = ""
-            row["course_group"] = ""
-            row["start_date"] = ""
-            row["end_date"] = ""
-            row["excluded_weekdays"] = []
-            row["exception_weekdays"] = []
-            row["block_hours_override"] = row.get("block_hours", 0)
+            product_ids = normalize_list(row.get("product_ids"))
+            if not product_id and len(product_ids) == 1:
+                row["product_id"] = product_ids[0]
+            if not row.get("block_hours"):
+                row["block_hours"] = row.get("block_hours_override", "")
+            for old_field in (
+                "rule_name",
+                "scope_type",
+                "product_ids",
+                "product_name_keywords",
+                "subject",
+                "stage",
+                "course_module",
+                "course_group",
+                "start_date",
+                "end_date",
+                "excluded_weekdays",
+                "exception_weekdays",
+                "block_hours_override",
+            ):
+                row.pop(old_field, None)
         elif key == "products":
             row.setdefault("season_window_ids", [])
             row.setdefault("applicable_stages", [])
         elif key == "classes":
-            row["stages"] = row.get("selected_stages", [])
-            row["is_schedule_locked"] = row.get("is_manual_schedule_locked", False)
+            if not normalize_list(row.get("selected_stages")):
+                row["selected_stages"] = normalize_list(row.get("stages"))
+            if row.get("is_manual_schedule_locked") in ("", None):
+                row["is_manual_schedule_locked"] = row.get("is_schedule_locked", False)
             row.pop("actual_schedule_window_ids", None)
+            row.pop("stages", None)
+            row.pop("is_schedule_locked", None)
         elif key == "business_product_mappings":
             if not normalize_text(row.get("local_product_id")):
                 row["local_product_id"] = normalize_text(row.get("canonical_product_id"))
@@ -422,14 +437,36 @@ def csv_value(value: Any) -> str:
 
 
 def write_csv(path: Path, rows: List[Dict[str, Any]]) -> None:
+    fields = output_fields_for_key("", csv_export=True, rows=rows)
+    write_csv_rows(path, fields, rows, value_formatter=csv_value)
+
+
+def output_fields_for_key(
+    key: str,
+    *,
+    csv_export: bool,
+    rows: List[Dict[str, Any]] | None = None,
+) -> List[str]:
+    if key in data_admin_server.STANDARD_TABLE_FIELDNAMES:
+        fields = list(data_admin_server.STANDARD_TABLE_FIELDNAMES[key])
+        if key == "classes" and not csv_export:
+            fields.extend(data_admin_server.CLASS_JSON_EXTRA_FIELDNAMES)
+        return fields
     fields: List[str] = []
     seen = set()
-    for row in rows:
+    for row in rows or []:
         for field in row:
             if field not in seen:
                 seen.add(field)
                 fields.append(field)
-    write_csv_rows(path, fields, rows, value_formatter=csv_value)
+    return fields
+
+
+def standard_output_rows(key: str, rows: List[Dict[str, Any]], *, csv_export: bool = False) -> List[Dict[str, Any]]:
+    if key not in data_admin_server.STANDARD_TABLE_FIELDNAMES:
+        return rows
+    extra_fields = data_admin_server.CLASS_JSON_EXTRA_FIELDNAMES if key == "classes" and not csv_export else ()
+    return data_admin_server.standard_rows(rows, data_admin_server.STANDARD_TABLE_FIELDNAMES[key], extra_fields)
 
 
 def sync(workbook_path: Path) -> Dict[str, int]:
@@ -446,11 +483,18 @@ def sync(workbook_path: Path) -> Dict[str, int]:
 
     for key, rows in tables.items():
         stem = stems[key]
+        json_rows = standard_output_rows(key, rows, csv_export=False)
+        csv_rows = standard_output_rows(key, rows, csv_export=True)
         (DATA_DIR / f"{stem}.json").write_text(
-            json.dumps(json_doc(key, rows, workbook_path), ensure_ascii=False, indent=2) + "\n",
+            json.dumps(json_doc(key, json_rows, workbook_path), ensure_ascii=False, indent=2) + "\n",
             encoding="utf-8",
         )
-        write_csv(DATA_DIR / f"{stem}.csv", rows)
+        write_csv_rows(
+            DATA_DIR / f"{stem}.csv",
+            output_fields_for_key(key, csv_export=True),
+            csv_rows,
+            value_formatter=csv_value,
+        )
 
     return {key: len(rows) for key, rows in tables.items()}
 
