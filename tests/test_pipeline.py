@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import csv
+import contextlib
+import io
 import json
 import tempfile
 import unittest
@@ -21,6 +23,7 @@ from run_scheduling_pipeline import (
     TABLE_FIELDNAMES,
     build_parser,
     load_source_tables,
+    main as pipeline_main,
     missing_teacher_rows_for_requirements,
     parse_missing_teacher_requirements,
     row_counts_for_tables,
@@ -227,6 +230,14 @@ class SchedulingPipelineTest(unittest.TestCase):
     def tearDown(self) -> None:
         data_admin_server.DATA_DIR = ORIGINAL_DATA_DIR
 
+    def run_cli(self, argv: list[str]) -> tuple[int, str, str]:
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+            with self.assertRaises(SystemExit) as exit_context:
+                pipeline_main(argv)
+        return int(exit_context.exception.code or 0), stdout.getvalue(), stderr.getvalue()
+
     def test_default_stage_order_matches_current_business_stage_sequence(self) -> None:
         expected = ["导学", "基础", "强化", "冲刺", "一轮", "二轮", "三轮", "四轮"]
 
@@ -244,6 +255,71 @@ class SchedulingPipelineTest(unittest.TestCase):
 
         self.assertTrue(args.preflight)
         self.assertEqual(args.source, "incoming")
+
+    def test_cli_preflight_failure_prints_actionable_missing_teacher_summary(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / "incoming"
+            data_dir = root / "data"
+            output_dir = root / "outputs"
+            write_minimal_csv_source(source)
+            write_csv(
+                source / "class_teacher_assignments.csv",
+                ["class_id", "subject", "stage", "course_module", "course_group", "teacher_id", "teacher_name"],
+                [],
+            )
+
+            code, stdout, stderr = self.run_cli(
+                [
+                    "--source",
+                    str(source),
+                    "--data-dir",
+                    str(data_dir),
+                    "--output-dir",
+                    str(output_dir),
+                    "--timestamp",
+                    "20260629_cli_preflight",
+                    "--preflight",
+                ]
+            )
+
+        self.assertEqual(code, 1)
+        self.assertIn("预检报告:", stdout)
+        self.assertIn("参考文件:", stdout)
+        self.assertIn("missing_class_teacher_assignments_20260629_cli_preflight.csv", stdout)
+        self.assertIn("缺老师补录: 2 条", stdout)
+        self.assertIn("上传前校验未通过", stderr)
+        self.assertIn("错误摘要: 班级数据校验失败:", stderr)
+
+    def test_cli_pipeline_success_prints_reuse_output_paths(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / "incoming"
+            data_dir = root / "data"
+            output_dir = root / "outputs"
+            write_minimal_csv_source(source)
+
+            code, stdout, stderr = self.run_cli(
+                [
+                    "--source",
+                    str(source),
+                    "--data-dir",
+                    str(data_dir),
+                    "--output-dir",
+                    str(output_dir),
+                    "--timestamp",
+                    "20260629_cli_run",
+                ]
+            )
+
+        self.assertEqual(code, 0)
+        self.assertEqual(stderr, "")
+        self.assertIn("排课输入:", stdout)
+        self.assertIn("scheduler_input_draft.json", stdout)
+        self.assertIn("CSV 明细:", stdout)
+        self.assertIn("schedule_20260629_cli_run.csv", stdout)
+        self.assertIn("HTML 甘特图:", stdout)
+        self.assertIn("导入报告:", stdout)
 
     def test_summer_only_sunday_policy_keeps_fall_sundays(self) -> None:
         slots = generate_time_slots(

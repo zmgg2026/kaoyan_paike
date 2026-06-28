@@ -1124,77 +1124,91 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def main() -> None:
-    parser = build_parser()
-    args = parser.parse_args()
-    timestamp = args.timestamp or datetime.now().strftime("%Y%m%d_%H%M%S")
-    args.timestamp = timestamp
-    output_dir = Path(args.output_dir).resolve()
-    report_path = output_dir / f"preflight_report_{timestamp}.md" if args.preflight else output_dir / f"import_report_{timestamp}.md"
-    if args.preflight:
-        try:
-            result = run_preflight(args)
-        except Exception as exc:
-            if not report_path.exists():
-                write_report(
-                    report_path,
-                    source=Path(args.source).resolve(),
-                    tables={},
-                    row_counts=empty_source_row_counts(),
-                    warnings=[],
-                    backup_path=None,
-                    scheduler_input_path=None,
-                    schedule_csv_path=None,
-                    schedule_html_path=None,
-                    generated_files=[],
-                    error=str(exc),
-                )
-            print(f"上传前校验失败: {exc}", file=sys.stderr)
-            print(f"预检报告: {report_path}", file=sys.stderr)
-            raise SystemExit(1) from None
+def ensure_failure_report(report_path: Path, args: argparse.Namespace, error: str) -> None:
+    if report_path.exists():
+        return
+    write_report(
+        report_path,
+        source=Path(args.source).resolve(),
+        tables={},
+        row_counts=empty_source_row_counts(),
+        warnings=[],
+        backup_path=None,
+        scheduler_input_path=None,
+        schedule_csv_path=None,
+        schedule_html_path=None,
+        generated_files=[],
+        error=error,
+    )
 
-        if result.passed:
-            print("上传前校验通过")
-        else:
-            print("上传前校验未通过", file=sys.stderr)
-        print(f"预检报告: {result.report_path}")
-        if result.generated_files:
-            print("参考文件:")
-            for path in result.generated_files:
-                print(f"- {path}")
-        if result.missing_teacher_rows:
-            print(f"缺老师补录: {len(result.missing_teacher_rows)} 条")
-        if result.error:
-            print(f"错误摘要: {result.error.splitlines()[0]}", file=sys.stderr)
-        raise SystemExit(0 if result.passed else 1)
 
+def print_generated_files(paths: Sequence[Path]) -> None:
+    if not paths:
+        return
+    print("参考文件:")
+    for path in paths:
+        print(f"- {path}")
+
+
+def print_preflight_result(result: PreflightResult) -> None:
+    if result.passed:
+        print("上传前校验通过")
+    else:
+        print("上传前校验未通过", file=sys.stderr)
+    print(f"预检报告: {result.report_path}")
+    print_generated_files(result.generated_files)
+    if result.missing_teacher_rows:
+        print(f"缺老师补录: {len(result.missing_teacher_rows)} 条")
+    if result.error:
+        print(f"错误摘要: {result.error.splitlines()[0]}", file=sys.stderr)
+
+
+def run_preflight_cli(args: argparse.Namespace, report_path: Path) -> int:
     try:
-        result = run_pipeline(args)
+        result = run_preflight(args)
     except Exception as exc:
-        if not report_path.exists():
-            write_report(
-                report_path,
-                source=Path(args.source).resolve(),
-                tables={},
-                row_counts=empty_source_row_counts(),
-                warnings=[],
-                backup_path=None,
-                scheduler_input_path=None,
-                schedule_csv_path=None,
-                schedule_html_path=None,
-                generated_files=[],
-                error=str(exc),
-            )
-        print(f"排课闭环失败: {exc}", file=sys.stderr)
-        print(f"失败报告: {report_path}", file=sys.stderr)
-        raise SystemExit(1) from None
+        ensure_failure_report(report_path, args, str(exc))
+        print(f"上传前校验失败: {exc}", file=sys.stderr)
+        print(f"预检报告: {report_path}", file=sys.stderr)
+        return 1
 
+    print_preflight_result(result)
+    return 0 if result.passed else 1
+
+
+def print_pipeline_result(result: PipelineResult) -> None:
     print(f"排课输入: {result.scheduler_input_path}")
     print(f"CSV 明细: {result.schedule_csv_path}")
     print(f"HTML 甘特图: {result.schedule_html_path}")
     print(f"导入报告: {result.report_path}")
     if result.backup_path:
         print(f"数据备份: {result.backup_path}")
+
+
+def run_pipeline_cli(args: argparse.Namespace, report_path: Path) -> int:
+    try:
+        result = run_pipeline(args)
+    except Exception as exc:
+        ensure_failure_report(report_path, args, str(exc))
+        print(f"排课闭环失败: {exc}", file=sys.stderr)
+        print(f"失败报告: {report_path}", file=sys.stderr)
+        return 1
+
+    print_pipeline_result(result)
+    return 0
+
+
+def main(argv: Optional[Sequence[str]] = None) -> None:
+    parser = build_parser()
+    args = parser.parse_args(argv)
+    timestamp = args.timestamp or datetime.now().strftime("%Y%m%d_%H%M%S")
+    args.timestamp = timestamp
+    output_dir = Path(args.output_dir).resolve()
+    report_path = output_dir / f"preflight_report_{timestamp}.md" if args.preflight else output_dir / f"import_report_{timestamp}.md"
+    if args.preflight:
+        raise SystemExit(run_preflight_cli(args, report_path)) from None
+
+    raise SystemExit(run_pipeline_cli(args, report_path)) from None
 
 
 if __name__ == "__main__":
