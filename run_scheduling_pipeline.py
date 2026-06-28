@@ -199,7 +199,7 @@ TABLE_FIELDNAMES = {
     "locked_scheduled_lessons": data_admin_server.LOCKED_SCHEDULED_LESSON_FIELDNAMES,
     "teaching_area_links": data_admin_server.TEACHING_AREA_LINK_FIELDNAMES,
     "global_blackout_dates": data_admin_server.GLOBAL_BLACKOUT_FIELDNAMES,
-    "historical_scheduled_lessons": data_admin_server.LOCKED_SCHEDULED_LESSON_FIELDNAMES,
+    "historical_scheduled_lessons": data_admin_server.HISTORICAL_SCHEDULED_LESSON_FIELDNAMES,
     "business_product_mappings": data_admin_server.BUSINESS_PRODUCT_MAPPING_FIELDNAMES,
     "erp_standard_products": data_admin_server.ERP_STANDARD_PRODUCT_FIELDNAMES,
 }

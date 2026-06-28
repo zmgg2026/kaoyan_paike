@@ -218,6 +218,9 @@ LOCKED_SCHEDULED_LESSON_FIELDNAMES = [
     "is_locked",
     "notes",
 ]
+HISTORICAL_SCHEDULED_LESSON_FIELDNAMES = [
+    field for field in LOCKED_SCHEDULED_LESSON_FIELDNAMES if field != "is_locked"
+]
 TEACHER_ASSIGNMENT_FIELDNAMES = [
     "class_id",
     "class_name",
@@ -2267,7 +2270,7 @@ def write_csvs(state: Dict[str, Any]) -> None:
     write_csv(
         DATA_DIR / "historical_scheduled_lessons.csv",
         state["historical_scheduled_lessons"],
-        [field for field in LOCKED_SCHEDULED_LESSON_FIELDNAMES if field != "is_locked"],
+        HISTORICAL_SCHEDULED_LESSON_FIELDNAMES,
     )
     write_csv(
         DATA_DIR / "erp_standard_products.csv",

@@ -780,6 +780,38 @@ class SchedulingPipelineTest(unittest.TestCase):
 
         self.assertEqual(data_admin_server.GLOBAL_BLACKOUT_FIELDNAMES, header)
 
+    def test_historical_lesson_fieldnames_are_separate_from_locked_schedule(self) -> None:
+        self.assertEqual(data_admin_server.HISTORICAL_SCHEDULED_LESSON_FIELDNAMES, TABLE_FIELDNAMES["historical_scheduled_lessons"])
+        self.assertIn("is_locked", data_admin_server.LOCKED_SCHEDULED_LESSON_FIELDNAMES)
+        self.assertNotIn("is_locked", data_admin_server.HISTORICAL_SCHEDULED_LESSON_FIELDNAMES)
+        payload = {
+            "historical_scheduled_lessons": [
+                {
+                    "id": "HIST_1",
+                    "class_id": "C1",
+                    "class_name": "英语1班",
+                    "date": "2027-07-01",
+                    "period": "AM",
+                    "duration_hours": "2",
+                    "teacher_id": "T1",
+                    "teacher_name": "张老师",
+                    "room_id": "R1",
+                    "subject": "英语",
+                    "is_locked": "否",
+                }
+            ],
+            "products": [],
+            "product_courses": [],
+            "classes": [],
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            data_admin_server.DATA_DIR = Path(tmp) / "data"
+            data_admin_server.save_state(payload)
+            with (data_admin_server.DATA_DIR / "historical_scheduled_lessons.csv").open(encoding="utf-8") as handle:
+                header = next(csv.reader(handle))
+
+        self.assertEqual(data_admin_server.HISTORICAL_SCHEDULED_LESSON_FIELDNAMES, header)
+
     def test_business_product_mapping_saves_current_local_product_field_only(self) -> None:
         payload = {
             "products": [{"id": "P1", "name": "测试产品", "subject": "英语"}],
