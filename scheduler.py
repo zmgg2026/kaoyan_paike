@@ -330,6 +330,14 @@ class ScheduleInput:
     class_window_constraints: Dict[str, List[ClassWindowConstraint]] = field(default_factory=dict)
 
 
+@dataclass(frozen=True)
+class SchedulePlan:
+    tasks: List[CourseBlock]
+    task_by_id: Dict[str, CourseBlock]
+    task_ids_by_class: Dict[str, List[str]]
+    domains: Dict[str, List[Candidate]]
+
+
 def candidate_teacher_key(candidate: Candidate) -> str:
     return candidate.teacher_id or candidate.teacher_name or ""
 
@@ -2308,6 +2316,41 @@ def candidate_domains(
     }
 
 
+def build_schedule_plan(schedule_input: ScheduleInput) -> SchedulePlan:
+    tasks = build_course_blocks(schedule_input.classes)
+    task_by_id: Dict[str, CourseBlock] = {task.task_id: task for task in tasks}
+    task_ids_by_class: Dict[str, List[str]] = {class_id: [] for class_id in schedule_input.classes}
+    for task in tasks:
+        task_ids_by_class[task.class_id].append(task.task_id)
+    return SchedulePlan(
+        tasks=tasks,
+        task_by_id=task_by_id,
+        task_ids_by_class=task_ids_by_class,
+        domains=candidate_domains(tasks, schedule_input),
+    )
+
+
+def validate_schedule_plan(schedule_input: ScheduleInput, plan: SchedulePlan) -> None:
+    for task in plan.tasks:
+        if not plan.domains[task.task_id]:
+            raise ValueError(f"任务 {task.task_id} 没有可行的连续课节/老师/教学区组合")
+    validate_start_anchor_candidates(schedule_input, plan)
+
+
+def validate_start_anchor_candidates(schedule_input: ScheduleInput, plan: SchedulePlan) -> None:
+    for cls in schedule_input.classes.values():
+        if not class_has_start_anchor(cls) or not plan.task_ids_by_class[cls.id]:
+            continue
+        has_anchor_candidate = any(
+            candidate_matches_start_anchor(cls, candidate)
+            for task_id in plan.task_ids_by_class[cls.id]
+            for candidate in plan.domains[task_id]
+        )
+        if not has_anchor_candidate:
+            allowed = "、".join(sorted(allowed_start_periods(cls), key=period_sort_value))
+            raise ValueError(f"班级 {cls.id} 的首课无法排在 {cls.first_lesson_date} {allowed}")
+
+
 def room_capacity_shortfall(room: Optional[Room], class_size: Optional[int]) -> int:
     if not room or room.capacity_unlimited or not class_size or not room.capacity:
         return 0
@@ -2480,103 +2523,111 @@ class ScheduleSearchState:
 
 
 def schedule(schedule_input: ScheduleInput) -> List[Assignment]:
-    tasks = build_course_blocks(schedule_input.classes)
-
-    domains: Dict[str, List[Candidate]] = {}
-    task_by_id: Dict[str, CourseBlock] = {task.task_id: task for task in tasks}
-    task_ids_by_class: Dict[str, List[str]] = {class_id: [] for class_id in schedule_input.classes}
-    for task in tasks:
-        task_ids_by_class[task.class_id].append(task.task_id)
-
-    domains = candidate_domains(tasks, schedule_input)
-    for task in tasks:
-        if not domains[task.task_id]:
-            raise ValueError(f"任务 {task.task_id} 没有可行的连续课节/老师/教学区组合")
-
-    for cls in schedule_input.classes.values():
-        if not class_has_start_anchor(cls) or not task_ids_by_class[cls.id]:
-            continue
-        has_anchor_candidate = any(
-            candidate_matches_start_anchor(cls, candidate)
-            for task_id in task_ids_by_class[cls.id]
-            for candidate in domains[task_id]
-        )
-        if not has_anchor_candidate:
-            allowed = "、".join(sorted(allowed_start_periods(cls), key=period_sort_value))
-            raise ValueError(f"班级 {cls.id} 的首课无法排在 {cls.first_lesson_date} {allowed}")
-
+    plan = build_schedule_plan(schedule_input)
+    validate_schedule_plan(schedule_input, plan)
     greedy_result = greedy_schedule(
         schedule_input,
-        task_by_id,
-        task_ids_by_class,
-        domains,
+        plan.task_by_id,
+        plan.task_ids_by_class,
+        plan.domains,
     )
     if greedy_result is not None:
         return sorted_assignments([*schedule_input.locked_assignments, *greedy_result])
 
-    search_state = ScheduleSearchState(schedule_input, task_by_id, task_ids_by_class)
+    backtracking_result = backtracking_schedule(schedule_input, plan)
+    if backtracking_result is None:
+        raise ValueError("无法找到满足约束的排课方案，请检查教师不可排日期时段、班级排课窗口、教室资源或互斥关系")
 
-    def choose_next_task() -> str:
-        for cls in schedule_input.classes.values():
-            if search_state.class_anchor_satisfied(cls):
-                continue
-            anchor_candidates = [
-                task_id
-                for task_id in task_ids_by_class[cls.id]
-                if task_id not in search_state.assignments
-                and search_state.domain_size_after_filter(task_id, domains, anchor_only=True) > 0
-            ]
-            if anchor_candidates:
-                anchor_candidates.sort(
-                    key=lambda task_id: (
-                        search_state.domain_size_after_filter(task_id, domains, anchor_only=True),
-                        len(domains[task_id]),
-                    )
-                )
-                return anchor_candidates[0]
-            remaining_for_class = [
-                task_id
-                for task_id in task_ids_by_class[cls.id]
-                if task_id not in search_state.assignments
-            ]
-            if remaining_for_class:
-                return remaining_for_class[0]
+    return sorted_assignments([*schedule_input.locked_assignments, *backtracking_result])
 
-        candidates = search_state.remaining_task_ids()
-        ready_candidates = [
+
+def choose_backtracking_task(
+    schedule_input: ScheduleInput,
+    plan: SchedulePlan,
+    search_state: ScheduleSearchState,
+) -> str:
+    anchor_task_id = choose_anchor_backtracking_task(schedule_input, plan, search_state)
+    if anchor_task_id:
+        return anchor_task_id
+    return choose_ready_backtracking_task(schedule_input, plan, search_state)
+
+
+def choose_anchor_backtracking_task(
+    schedule_input: ScheduleInput,
+    plan: SchedulePlan,
+    search_state: ScheduleSearchState,
+) -> Optional[str]:
+    for cls in schedule_input.classes.values():
+        if search_state.class_anchor_satisfied(cls):
+            continue
+        anchor_candidates = [
             task_id
-            for task_id in candidates
-            if task_stage_ready(
-                task_by_id[task_id],
-                schedule_input.classes[task_by_id[task_id].class_id],
-                task_by_id,
-                task_ids_by_class,
-                assignments,
-            )
+            for task_id in plan.task_ids_by_class[cls.id]
+            if task_id not in search_state.assignments
+            and search_state.domain_size_after_filter(task_id, plan.domains, anchor_only=True) > 0
         ]
-        if ready_candidates:
-            candidates = ready_candidates
-        candidates.sort(
-            key=lambda task_id: (
-                search_state.domain_size_after_filter(task_id, domains),
-                len(domains[task_id]),
+        if anchor_candidates:
+            anchor_candidates.sort(
+                key=lambda task_id: (
+                    search_state.domain_size_after_filter(task_id, plan.domains, anchor_only=True),
+                    len(plan.domains[task_id]),
+                )
             )
+            return anchor_candidates[0]
+        remaining_for_class = [
+            task_id
+            for task_id in plan.task_ids_by_class[cls.id]
+            if task_id not in search_state.assignments
+        ]
+        if remaining_for_class:
+            return remaining_for_class[0]
+    return None
+
+
+def choose_ready_backtracking_task(
+    schedule_input: ScheduleInput,
+    plan: SchedulePlan,
+    search_state: ScheduleSearchState,
+) -> str:
+    candidates = search_state.remaining_task_ids()
+    ready_candidates = [
+        task_id
+        for task_id in candidates
+        if task_stage_ready(
+            plan.task_by_id[task_id],
+            schedule_input.classes[plan.task_by_id[task_id].class_id],
+            plan.task_by_id,
+            plan.task_ids_by_class,
+            search_state.assignments,
         )
-        return candidates[0]
+    ]
+    if ready_candidates:
+        candidates = ready_candidates
+    candidates.sort(
+        key=lambda task_id: (
+            search_state.domain_size_after_filter(task_id, plan.domains),
+            len(plan.domains[task_id]),
+        )
+    )
+    return candidates[0]
+
+
+def backtracking_schedule(schedule_input: ScheduleInput, plan: SchedulePlan) -> Optional[List[Assignment]]:
+    search_state = ScheduleSearchState(schedule_input, plan.task_by_id, plan.task_ids_by_class)
 
     def start_anchors_satisfied() -> bool:
         return search_state.start_anchors_satisfied()
 
     def backtrack() -> bool:
-        if len(search_state.assignments) == len(task_by_id):
+        if len(search_state.assignments) == len(plan.task_by_id):
             return start_anchors_satisfied()
 
-        task_id = choose_next_task()
-        task = task_by_id[task_id]
+        task_id = choose_backtracking_task(schedule_input, plan, search_state)
+        task = plan.task_by_id[task_id]
         cls = schedule_input.classes[task.class_id]
         options = search_state.valid_options(
             task_id,
-            domains,
+            plan.domains,
             anchor_only=not search_state.class_anchor_satisfied(cls),
         )
 
@@ -2589,9 +2640,8 @@ def schedule(schedule_input: ScheduleInput) -> List[Assignment]:
         return False
 
     if not backtrack():
-        raise ValueError("无法找到满足约束的排课方案，请检查教师不可排日期时段、班级排课窗口、教室资源或互斥关系")
-
-    return sorted_assignments([*schedule_input.locked_assignments, *search_state.assignments.values()])
+        return None
+    return list(search_state.assignments.values())
 
 
 def sorted_assignments(assignments: List[Assignment]) -> List[Assignment]:

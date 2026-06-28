@@ -1390,6 +1390,51 @@ class SchedulingPipelineTest(unittest.TestCase):
         self.assertEqual(requirement.course_code, "ENG001")
         self.assertEqual(requirement.course_name, "")
 
+    def test_schedule_fallback_backtracking_uses_search_state_assignments(self) -> None:
+        payload = {
+            "time_slots": [
+                {
+                    "id": "S1",
+                    "date": "2026-07-01",
+                    "period": "AM",
+                    "name": "上午一",
+                    "order": 1,
+                    "duration_hours": 2,
+                }
+            ],
+            "rooms": [{"id": "R1", "name": "101", "capacity": 40}],
+            "products": [],
+            "classes": [
+                {
+                    "id": "C1",
+                    "name": "回溯测试班",
+                    "preferred_room_ids": ["R1"],
+                    "requirements": [
+                        {
+                            "subject": "英语",
+                            "total_hours": 2,
+                            "block_hours": 2,
+                            "teacher_id": "T1",
+                            "teacher_name": "张老师",
+                        }
+                    ],
+                }
+            ],
+        }
+        schedule_input = scheduler.load_input_data(payload)
+        original_greedy_schedule = scheduler.greedy_schedule
+
+        try:
+            scheduler.greedy_schedule = lambda *_args, **_kwargs: None
+            assignments = scheduler.schedule(schedule_input)
+        finally:
+            scheduler.greedy_schedule = original_greedy_schedule
+
+        generated = [assignment for assignment in assignments if not assignment.task.is_locked]
+        self.assertEqual(len(generated), 1)
+        self.assertEqual(generated[0].candidate.slots[0].id, "S1")
+        self.assertEqual(generated[0].candidate.room_id, "R1")
+
     def test_scheduler_respects_teacher_unavailability_date_period(self) -> None:
         payload = {
             "time_slots": [
