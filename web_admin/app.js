@@ -95,7 +95,7 @@ const productTagFilterFields = [
   { field: "subject", label: "科目", placeholder: "全部科目" },
   { field: "course_nature", label: "课程性质", placeholder: "全部性质" },
 ];
-const stageOrder = ["导学", "专项", "基础", "强化", "冲刺", "一轮", "二轮", "三轮", "四轮", "复试"];
+const stageOrder = ["导学", "基础", "强化", "冲刺", "一轮", "二轮", "三轮", "四轮"];
 const stageOrderIndex = new Map(stageOrder.map((stage, index) => [stage, index]));
 const seasonWindowOrder = ["寒假", "春季", "暑假", "秋季"];
 const seasonWindowOrderIndex = new Map(seasonWindowOrder.map((name, index) => [name, index]));
@@ -1410,7 +1410,7 @@ function selectedOptions(select) {
 
 function stageSortParts(value) {
   const text = String(value || "").trim();
-  const numbered = text.match(/^(导学|专项)(\d+)$/);
+  const numbered = text.match(/^(导学)(\d+)$/);
   const base = numbered ? numbered[1] : text;
   return {
     rank: stageOrderIndex.has(base) ? stageOrderIndex.get(base) : Number.POSITIVE_INFINITY,

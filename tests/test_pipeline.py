@@ -219,6 +219,18 @@ class SchedulingPipelineTest(unittest.TestCase):
     def tearDown(self) -> None:
         data_admin_server.DATA_DIR = ORIGINAL_DATA_DIR
 
+    def test_default_stage_order_matches_current_business_stage_sequence(self) -> None:
+        expected = ["导学", "基础", "强化", "冲刺", "一轮", "二轮", "三轮", "四轮"]
+
+        self.assertEqual(expected, data_admin_server.DEFAULT_STAGE_ORDER)
+        self.assertEqual(expected, data_admin_server.product_stage_order({}))
+        self.assertNotIn("专项", data_admin_server.DEFAULT_STAGE_ORDER)
+        self.assertNotIn("复试", data_admin_server.DEFAULT_STAGE_ORDER)
+        self.assertEqual(
+            ["导学1", "导学2", "基础"],
+            data_admin_server.sort_stage_values(["基础", "导学2", "导学1"]),
+        )
+
     def test_cli_parser_accepts_preflight_mode(self) -> None:
         args = build_parser().parse_args(["--source", "incoming", "--preflight"])
 

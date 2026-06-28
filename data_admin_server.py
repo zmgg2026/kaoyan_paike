@@ -45,7 +45,7 @@ BATCH_SCHEDULE_PYTHON = Path(sys.executable)
 ALLOWED_UPLOAD_SUFFIXES = {".csv", ".xlsx", ".xlsm"}
 EMPLOYEE_ID_PATTERN = re.compile(r"^\d{6}$")
 PUBLIC_TEACHER_SUBJECTS = {"英语", "政治", "数学", "语文"}
-DEFAULT_STAGE_ORDER = ["导学", "专项", "基础", "强化", "冲刺", "一轮", "二轮", "三轮", "四轮", "复试"]
+DEFAULT_STAGE_ORDER = ["导学", "基础", "强化", "冲刺", "一轮", "二轮", "三轮", "四轮"]
 DEFAULT_STAGE_ORDER_INDEX = {stage: index for index, stage in enumerate(DEFAULT_STAGE_ORDER)}
 PRODUCT_FIELDNAMES = [
     "id",
@@ -1722,7 +1722,7 @@ def subject_category_for_class(
 
 def stage_sort_key(value: Any) -> Tuple[int, int, str]:
     text = normalize_text(value)
-    match = re.match(r"^(导学|专项)(\d+)$", text)
+    match = re.match(r"^(导学)(\d+)$", text)
     base = match.group(1) if match else text
     rank = DEFAULT_STAGE_ORDER_INDEX.get(base, len(DEFAULT_STAGE_ORDER) + 1)
     sub_rank = int(match.group(2)) if match else 0

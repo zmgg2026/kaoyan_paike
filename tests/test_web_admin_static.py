@@ -79,6 +79,14 @@ class WebAdminStaticTest(unittest.TestCase):
         self.assertIn('["课节明细", timeSlots.length, slotRangeLabel, ""]', source)
         self.assertNotIn("从 2026-07-01 到 2027-12-21 的课节", source)
 
+    def test_stage_order_uses_current_business_stage_sequence(self) -> None:
+        source = (ROOT / "web_admin" / "app.js").read_text(encoding="utf-8")
+
+        self.assertIn('const stageOrder = ["导学", "基础", "强化", "冲刺", "一轮", "二轮", "三轮", "四轮"];', source)
+        self.assertIn(r"const numbered = text.match(/^(导学)(\d+)$/);", source)
+        self.assertNotIn('const stageOrder = ["导学", "专项", "基础", "强化", "冲刺", "一轮", "二轮", "三轮", "四轮", "复试"];', source)
+        self.assertNotIn(r"const numbered = text.match(/^(导学|专项)(\d+)$/);", source)
+
     def test_business_mapping_editor_writes_current_local_product_field_only(self) -> None:
         source = (ROOT / "web_admin" / "app.js").read_text(encoding="utf-8")
 
