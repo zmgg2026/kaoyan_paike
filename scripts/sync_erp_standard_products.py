@@ -9,89 +9,15 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
+import data_admin_server
 from scripts.csv_utils import read_csv_rows, write_csv_rows
 
 
 ROOT = Path(__file__).resolve().parents[1]
 DATA_DIR = ROOT / "data"
 
-ERP_STANDARD_PRODUCT_FIELDNAMES = [
-    "erp_product_key",
-    "course_code",
-    "course_product_name_inner",
-    "course_product_name_outer",
-    "service_school_name",
-    "management_project",
-    "department",
-    "product_system",
-    "product_category",
-    "course_category",
-    "course_attribute",
-    "project_name",
-    "school",
-    "subject",
-    "product_brand",
-    "learning_stage",
-    "target_people",
-    "group_class_type",
-    "school_version_code",
-    "school_version_name",
-    "school_class_type",
-    "standard_student_count",
-    "opening_student_count",
-    "guaranteed_student_count",
-    "attendance_method",
-    "class_price",
-    "material_fee",
-    "duration_minutes",
-    "lesson_count",
-    "hourly_price",
-    "single_lesson_minutes",
-    "class_form",
-    "teaching_method",
-    "teaching_channel",
-    "is_enabled",
-    "is_deleted",
-    "is_teaching_method_valid",
-    "operator",
-    "operated_at",
-    "reviewer",
-    "reviewed_at",
-    "source_file",
-    "notes",
-]
-
-BUSINESS_PRODUCT_MAPPING_FIELDNAMES = [
-    "local_product_id",
-    "local_product_name",
-    "local_product_line",
-    "local_sub_product",
-    "local_product_system",
-    "local_course_nature",
-    "local_subject",
-    "erp_product_key",
-    "erp_course_code",
-    "erp_course_name",
-    "erp_version_code",
-    "erp_version_name",
-    "erp_product_system",
-    "erp_product_category",
-    "erp_project_name",
-    "erp_subject",
-    "erp_class_type",
-    "erp_duration_minutes",
-    "erp_lesson_count",
-    "erp_single_lesson_minutes",
-    "erp_class_form",
-    "erp_teaching_method",
-    "match_status",
-    "match_confidence",
-    "match_source",
-    "business_product_id",
-    "business_product_name",
-    "class_name_keywords",
-    "notes",
-]
+ERP_STANDARD_PRODUCT_FIELDNAMES = data_admin_server.ERP_STANDARD_PRODUCT_FIELDNAMES
+BUSINESS_PRODUCT_MAPPING_FIELDNAMES = data_admin_server.BUSINESS_PRODUCT_MAPPING_FIELDNAMES
 
 ERP_COLUMN_MAP = {
     "erp_product_key": None,
