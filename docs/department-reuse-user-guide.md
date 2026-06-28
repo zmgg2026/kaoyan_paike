@@ -38,7 +38,7 @@ python3 run_scheduling_pipeline.py --source examples/csv_minimal --data-dir /tmp
 python3 run_scheduling_pipeline.py --source examples/csv_minimal --data-dir /tmp/ai_schedule_demo_data --output-dir /tmp/ai_schedule_demo_outputs
 ```
 
-`verify_release.sh` 会自动跑单元测试、核心 JSON 样例和公开最小 CSV 示例；单独运行上面两条命令，适合排查 CSV 示例的预检和正式排课。这个示例只排一个班级的一次 4 小时课程，用于证明环境、模板读取、预检、正式排课、CSV/HTML 输出都正常。
+`verify_release.sh` 会自动跑脚本语法检查、全部 Python 脚本编译、发布包内容审计、单元测试、核心 JSON 样例、公开最小 CSV 示例、覆盖审计和质量审计；单独运行上面两条命令，适合排查 CSV 示例的预检和正式排课。这个示例只排一个班级的一次 4 小时课程，用于证明环境、模板读取、预检、正式排课、CSV/HTML 输出都正常。
 
 ## 2. 工作台模块怎么看
 

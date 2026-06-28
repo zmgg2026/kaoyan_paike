@@ -11,6 +11,7 @@ from typing import Iterable, List, Sequence
 
 REQUIRED_PATHS = (
     ".env.example",
+    ".github/workflows/ci.yml",
     ".gitignore",
     "README.md",
     "requirements.txt",

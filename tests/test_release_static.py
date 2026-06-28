@@ -46,6 +46,13 @@ class ReleaseStaticTest(unittest.TestCase):
         self.assertIn('find scripts -name "*.py"', script)
         self.assertIn("-m py_compile \"$script_path\"", script)
 
+    def test_ci_runs_release_verification(self) -> None:
+        workflow = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+
+        self.assertIn("actions/setup-python", workflow)
+        self.assertIn("python3 -m pip install -r requirements.txt", workflow)
+        self.assertIn("bash scripts/verify_release.sh", workflow)
+
     def test_release_path_modules_use_csv_utils_for_csv_io(self) -> None:
         modules = [
             ROOT / "business_class_import.py",
