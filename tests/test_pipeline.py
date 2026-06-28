@@ -3140,6 +3140,42 @@ class SchedulingPipelineTest(unittest.TestCase):
         self.assertIn("锁定班", html_text)
         self.assertIn("英语", html_text)
 
+    def test_parse_locked_lessons_uses_slot_ids_and_preserves_course_metadata(self) -> None:
+        slots = [
+            scheduler.TimeSlot("S2", "2026-07-01", "AM", "上午二", 2, "10:20", "12:20", 2),
+            scheduler.TimeSlot("S1", "2026-07-01", "AM", "上午一", 1, "08:00", "10:00", 2),
+        ]
+        rooms = {"R1": scheduler.Room("R1", capacity=50)}
+        assignments = scheduler.parse_locked_lessons(
+            [
+                {
+                    "id": "L1",
+                    "class_id": "LOCKED_CLASS",
+                    "class_name": "锁定班",
+                    "date": "2026-07-01",
+                    "slot_ids": "S2|S1",
+                    "room_id": "R1",
+                    "teacher_id": "无",
+                    "teacher_name": "暂无",
+                    "subject": "英语",
+                    "course_code": "ENG001",
+                    "course_name": "阅读",
+                }
+            ],
+            slots,
+            rooms,
+        )
+
+        self.assertEqual(len(assignments), 1)
+        assignment = assignments[0]
+        self.assertEqual([slot.id for slot in assignment.candidate.slots], ["S1", "S2"])
+        self.assertEqual(assignment.candidate.teacher_id, "")
+        self.assertEqual(assignment.candidate.teacher_name, "")
+        self.assertEqual(assignment.task.block_hours, 4)
+        self.assertEqual(assignment.task.course_code, "ENG001")
+        self.assertEqual(assignment.task.course_name, "阅读")
+        self.assertTrue(assignment.task.is_locked)
+
     def test_locked_lessons_block_room_slots_but_not_existing_teachers(self) -> None:
         payload = {
             "time_slots": [

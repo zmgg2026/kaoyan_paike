@@ -715,6 +715,25 @@ def parse_area_travel_minutes(raw_links: List[dict]) -> Dict[Tuple[str, str], in
 
 def parse_locked_lessons(raw_lessons: List[dict], time_slots: List[TimeSlot], rooms: Dict[str, Room]) -> List[Assignment]:
     assignments: List[Assignment] = []
+    slot_dates, slot_by_id, day_slots_by_date = locked_lesson_slot_indexes(time_slots)
+    for index, raw in enumerate(raw_lessons, start=1):
+        lesson_id = raw.get("id") or f"LOCKED_{index}"
+        class_id, room_id = locked_lesson_required_fields(raw, lesson_id, rooms)
+        slots = locked_lesson_slots(raw, time_slots, slot_dates, slot_by_id, day_slots_by_date)
+        if not slots:
+            continue
+        assignments.append(
+            Assignment(
+                task=locked_lesson_task(raw, str(lesson_id), str(class_id), str(room_id), slots),
+                candidate=locked_lesson_candidate(raw, str(room_id), slots),
+            )
+        )
+    return assignments
+
+
+def locked_lesson_slot_indexes(
+    time_slots: List[TimeSlot],
+) -> Tuple[Set[str], Dict[str, TimeSlot], Dict[str, List[TimeSlot]]]:
     slot_dates = {slot.date for slot in time_slots}
     slot_by_id = {slot.id: slot for slot in time_slots}
     day_slots_by_date: Dict[str, List[TimeSlot]] = {}
@@ -722,60 +741,69 @@ def parse_locked_lessons(raw_lessons: List[dict], time_slots: List[TimeSlot], ro
         day_slots_by_date.setdefault(slot.date, []).append(slot)
     for day_slots in day_slots_by_date.values():
         day_slots.sort(key=slot_sort_key)
-    for index, raw in enumerate(raw_lessons, start=1):
-        lesson_id = raw.get("id") or f"LOCKED_{index}"
-        class_id = raw.get("class_id")
-        lesson_date = raw.get("date")
-        room_id = raw.get("room_id")
-        if not class_id or not lesson_date or not room_id:
-            raise ValueError(f"锁定课表 {lesson_id} 需要填写 class_id、date 和 room_id")
-        if room_id not in rooms:
-            raise ValueError(f"锁定课表 {lesson_id} 使用了不存在的教室 {room_id}")
+    return slot_dates, slot_by_id, day_slots_by_date
 
-        slots = locked_lesson_slots(raw, time_slots, slot_dates, slot_by_id, day_slots_by_date)
-        if not slots:
-            continue
-        teacher_id = blank_marker_to_empty(raw.get("teacher_id"))
-        teacher_name = blank_marker_to_empty(raw.get("teacher_name"))
-        task = CourseBlock(
-            task_id=f"LOCKED:{lesson_id}",
-            class_id=class_id,
-            class_name=raw.get("class_name") or class_id,
-            product_id=raw.get("business_product_id"),
-            product_name=raw.get("business_product_name"),
-            class_size=None,
-            subject_category=raw.get("subject_category", ""),
-            subject=raw.get("subject", "已定课程"),
-            quarter=raw.get("quarter"),
-            stage=raw.get("stage"),
-            course_module=raw.get("course_module"),
-            course_group=raw.get("course_group"),
-            teacher_id=teacher_id,
-            teacher_name=teacher_name,
-            block_hours=sum(slot.duration_hours for slot in slots),
-            room_ids={room_id},
-            start_date=slots[0].date,
-            end_date=slots[-1].date,
-            allowed_periods={slots[0].period},
-            allowed_weekdays=None,
-            excluded_weekdays=None,
-            schedule_rules=(),
-            is_locked=True,
-            course_code=blank_marker_to_empty(raw.get("course_code")),
-            course_name=blank_marker_to_empty(raw.get("course_name")),
-        )
-        assignments.append(
-            Assignment(
-                task=task,
-                candidate=Candidate(
-                    slots=slots,
-                    teacher_id=teacher_id,
-                    teacher_name=teacher_name,
-                    room_id=room_id,
-                ),
-            )
-        )
-    return assignments
+
+def locked_lesson_required_fields(raw: dict, lesson_id: object, rooms: Dict[str, Room]) -> Tuple[object, object]:
+    class_id = raw.get("class_id")
+    lesson_date = raw.get("date")
+    room_id = raw.get("room_id")
+    if not class_id or not lesson_date or not room_id:
+        raise ValueError(f"锁定课表 {lesson_id} 需要填写 class_id、date 和 room_id")
+    if room_id not in rooms:
+        raise ValueError(f"锁定课表 {lesson_id} 使用了不存在的教室 {room_id}")
+    return class_id, room_id
+
+
+def locked_lesson_teacher(raw: dict) -> Tuple[str, str]:
+    return blank_marker_to_empty(raw.get("teacher_id")), blank_marker_to_empty(raw.get("teacher_name"))
+
+
+def locked_lesson_task(
+    raw: dict,
+    lesson_id: str,
+    class_id: str,
+    room_id: str,
+    slots: Tuple[TimeSlot, ...],
+) -> CourseBlock:
+    teacher_id, teacher_name = locked_lesson_teacher(raw)
+    return CourseBlock(
+        task_id=f"LOCKED:{lesson_id}",
+        class_id=class_id,
+        class_name=raw.get("class_name") or class_id,
+        product_id=raw.get("business_product_id"),
+        product_name=raw.get("business_product_name"),
+        class_size=None,
+        subject_category=raw.get("subject_category", ""),
+        subject=raw.get("subject", "已定课程"),
+        quarter=raw.get("quarter"),
+        stage=raw.get("stage"),
+        course_module=raw.get("course_module"),
+        course_group=raw.get("course_group"),
+        teacher_id=teacher_id,
+        teacher_name=teacher_name,
+        block_hours=sum(slot.duration_hours for slot in slots),
+        room_ids={room_id},
+        start_date=slots[0].date,
+        end_date=slots[-1].date,
+        allowed_periods={slots[0].period},
+        allowed_weekdays=None,
+        excluded_weekdays=None,
+        schedule_rules=(),
+        is_locked=True,
+        course_code=blank_marker_to_empty(raw.get("course_code")),
+        course_name=blank_marker_to_empty(raw.get("course_name")),
+    )
+
+
+def locked_lesson_candidate(raw: dict, room_id: str, slots: Tuple[TimeSlot, ...]) -> Candidate:
+    teacher_id, teacher_name = locked_lesson_teacher(raw)
+    return Candidate(
+        slots=slots,
+        teacher_id=teacher_id,
+        teacher_name=teacher_name,
+        room_id=room_id,
+    )
 
 
 def locked_lesson_slots(
