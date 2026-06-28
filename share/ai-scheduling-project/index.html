@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AI 排课项目复盘</title>
+  <meta name="description" content="AI 排课项目复盘、方法总结与复用手册。">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="top-nav" aria-label="页面导航">
+    <a class="brand" href="#top">AI 排课复盘</a>
+    <nav>
+      <a href="#outcome">成果</a>
+      <a href="#timeline">过程</a>
+      <a href="#method">方法</a>
+      <a href="#reuse">复用</a>
+      <a href="method-reuse.html">专题页</a>
+      <a href="#files">文档</a>
+    </nav>
+  </header>
+
+  <main id="top">
+    <section class="hero">
+      <img src="assets/hero-command-center.png" alt="AI 排课项目协同指挥中心示意图">
+      <div class="hero-overlay"></div>
+      <div class="hero-content">
+        <p class="eyebrow">项目复盘 · 方法沉淀 · 可复用模板</p>
+        <h1>AI 排课项目复盘</h1>
+        <p class="hero-lead">把分散的业务表、历史课表、排课规则、质量审计和 ERP 导入整理成一套可验证、可回退、可分享的排课工作流。</p>
+        <div class="hero-links" aria-label="核心文档">
+          <a href="method-reuse.html">方法复用专题页</a>
+          <a href="../../docs/ai-scheduling-project-retrospective.md">完整复盘文档</a>
+          <a href="../../docs/ai-scheduling-reuse-playbook.md">复用步骤清单</a>
+        </div>
+      </div>
+    </section>
+
+    <section id="outcome" class="section compact">
+      <div class="section-heading">
+        <p class="eyebrow">Outcome</p>
+        <h2>最后交付的不是一张课表，而是一套闭环</h2>
+        <p>项目最终覆盖从源数据准备、规则建模、自动排课、质量修复、ERP 对齐到只读发布的完整链路。</p>
+      </div>
+      <div class="metric-grid">
+        <article class="metric">
+          <strong>9824</strong>
+          <span>最终维护页课次明细</span>
+        </article>
+        <article class="metric">
+          <strong>110</strong>
+          <span>自动排课需求班级</span>
+        </article>
+        <article class="metric success">
+          <strong>0</strong>
+          <span>需求缺口班级</span>
+        </article>
+        <article class="metric success">
+          <strong>0.0</strong>
+          <span>需求缺口课时</span>
+        </article>
+        <article class="metric">
+          <strong>1207</strong>
+          <span>ERP 差异调整课次</span>
+        </article>
+        <article class="metric success">
+          <strong>0</strong>
+          <span>ERP 导入字段缺口</span>
+        </article>
+      </div>
+    </section>
+
+    <section class="section split">
+      <div>
+        <p class="eyebrow">Core Insight</p>
+        <h2>排课难点本质上是“数据、规则、例外和验收”的组织问题</h2>
+        <p>如果只把目标理解成“生成一个日历”，项目很快会卡在老师安排缺失、产品口径不一致、历史课时抵扣、合班主从班、固定专业课、ERP 导入失败等细节里。</p>
+        <p>这次项目的关键经验，是先把口径拆成字段，把规则拆成硬约束和软约束，再用报告驱动每一轮沟通和调整。</p>
+      </div>
+      <aside class="principle-list" aria-label="核心原则">
+        <div>
+          <strong>先校验，再排课</strong>
+          <span>上传前校验只暴露缺口，不写正式数据。</span>
+        </div>
+        <div>
+          <strong>硬规则阻断，软规则评分</strong>
+          <span>覆盖和冲突是门禁，舒适度是优化目标。</span>
+        </div>
+        <div>
+          <strong>每轮调整可回退</strong>
+          <span>保留 before、rejected、report 和 diff。</span>
+        </div>
+        <div>
+          <strong>结果必须能被分享</strong>
+          <span>本地后台不外放，只读站负责跨部门查看。</span>
+        </div>
+      </aside>
+    </section>
+
+    <section id="timeline" class="section">
+      <div class="section-heading">
+        <p class="eyebrow">Timeline</p>
+        <h2>项目推进脉络</h2>
+        <p>从基础求解器到正式发布，核心不是一次写完，而是每遇到一个真实业务问题，就把它沉淀成数据表、脚本、审计或文档。</p>
+      </div>
+      <div class="timeline">
+        <article>
+          <span>01</span>
+          <h3>基础排课器</h3>
+          <p>建立时间槽、班级、老师、教室、产品课程、冲突组和标准输出，先保证硬约束可检查。</p>
+        </article>
+        <article>
+          <span>02</span>
+          <h3>业务数据转换</h3>
+          <p>把班级查询导出、历史课表、产品映射、老师安排和合班明细转成标准排课输入。</p>
+        </article>
+        <article>
+          <span>03</span>
+          <h3>排课运行维护</h3>
+          <p>用本地网页完成模板生成、人工补齐、上传前校验、生成课表、预览和报告下载。</p>
+        </article>
+        <article>
+          <span>04</span>
+          <h3>分批与局部修复</h3>
+          <p>先排紧约束产品，再处理宽约束产品；快速局部重排失败时扩大范围或回到全量重算。</p>
+        </article>
+        <article>
+          <span>05</span>
+          <h3>质量审计优化</h3>
+          <p>引入周课量、科目分布、老师连续上课、同日跨区、同班同科 8 小时等体验指标。</p>
+        </article>
+        <article>
+          <span>06</span>
+          <h3>ERP 与只读发布</h3>
+          <p>生成 ERP 差异导入表，同步最新课次梳理，并通过只读站给跨部门同事查看。</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="section visual-row">
+      <article>
+        <img src="assets/data-pipeline.png" alt="源数据进入排课规则引擎的示意图">
+        <div>
+          <p class="eyebrow">Data Pipeline</p>
+          <h2>源数据治理</h2>
+          <p>班级、产品、课程、老师、教室、历史课表、合班和锁定课表，必须先进入同一套字段体系。</p>
+        </div>
+      </article>
+      <article>
+        <img src="assets/audit-dashboard.png" alt="课表质量审计仪表盘示意图">
+        <div>
+          <p class="eyebrow">Quality Audit</p>
+          <h2>审计驱动修复</h2>
+          <p>覆盖审计负责能不能发布，质量审计负责哪里还不舒服，ERP 检查负责能不能落系统。</p>
+        </div>
+      </article>
+    </section>
+
+    <section id="method" class="section">
+      <div class="section-heading">
+        <p class="eyebrow">Method</p>
+        <h2>一套可复用的 AI 排课方法</h2>
+        <p>这套方法适合复制到其他复杂排班、排课、资源调度场景。</p>
+      </div>
+      <div class="method-grid">
+        <article>
+          <h3>1. 明确范围</h3>
+          <p>确认本轮纳入哪些班级、产品、日期和校区，也确认哪些对象永不进入自动排课。</p>
+        </article>
+        <article>
+          <h3>2. 标准化数据</h3>
+          <p>把业务导出、历史课表、人工补充表统一成稳定 ID 和标准字段。</p>
+        </article>
+        <article>
+          <h3>3. 拆规则</h3>
+          <p>老师、教室、互斥、锁定课表是硬规则；周均衡、通勤、交替是软规则。</p>
+        </article>
+        <article>
+          <h3>4. 先预检</h3>
+          <p>预检只暴露缺口，不改正式数据；缺老师、缺映射、缺合班都先让报告说清楚。</p>
+        </article>
+        <article>
+          <h3>5. 分批运行</h3>
+          <p>先排时间窗口紧、资源约束强的产品，再排可调节空间更大的产品。</p>
+        </article>
+        <article>
+          <h3>6. 报告验收</h3>
+          <p>覆盖缺口为 0，硬冲突为 0，ERP 字段缺口为 0，质量问题有分级解释。</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="section gate-section">
+      <div>
+        <p class="eyebrow">Gate</p>
+        <h2>发布前门禁</h2>
+        <p>项目里最值得复用的一点，是把“能不能交付”从主观判断改成清晰门禁。</p>
+      </div>
+      <div class="gate-table" role="table" aria-label="发布前门禁">
+        <div role="row">
+          <strong role="cell">硬冲突</strong>
+          <span role="cell">老师、班级、教室、互斥组、锁定课表全部通过。</span>
+        </div>
+        <div role="row">
+          <strong role="cell">覆盖审计</strong>
+          <span role="cell">自动需求缺口班级数为 0，缺口课时为 0。</span>
+        </div>
+        <div role="row">
+          <strong role="cell">质量审计</strong>
+          <span role="cell">高优先级问题处理或解释，中低优先级进入后续优化。</span>
+        </div>
+        <div role="row">
+          <strong role="cell">ERP 对齐</strong>
+          <span role="cell">映射/数量异常为 0，导入字段缺口为 0。</span>
+        </div>
+        <div role="row">
+          <strong role="cell">发布安全</strong>
+          <span role="cell">只读站只开放查看和下载，不开放后台保存、导入、重排。</span>
+        </div>
+      </div>
+    </section>
+
+    <section id="reuse" class="section split reverse">
+      <img class="share-image" src="assets/share-collaboration.png" alt="团队通过只读网页分享课表结果示意图">
+      <div>
+        <p class="eyebrow">Reuse</p>
+        <h2>其他团队如何快速复用</h2>
+        <ol class="reuse-list">
+          <li>选一个小范围试点，不要一上来全量。</li>
+          <li>把班级、产品课程、老师、教室、时间槽和冲突组准备齐。</li>
+          <li>跑上传前校验，让系统先暴露缺口。</li>
+          <li>人工确认产品映射、合班、老师安排和固定课表。</li>
+          <li>生成课表后同时跑覆盖审计和质量审计。</li>
+          <li>通过 ERP 或下游系统检查后，再做只读分享。</li>
+        </ol>
+      </div>
+    </section>
+
+    <section id="files" class="section">
+      <div class="section-heading">
+        <p class="eyebrow">Files</p>
+        <h2>可继续阅读和复用的文件</h2>
+      </div>
+      <div class="file-grid">
+        <a href="method-reuse.html">
+          <strong>方法复用专题页</strong>
+          <span>更聚焦方法、关键步骤、门禁和同事复用指引的现代风格分享页。</span>
+        </a>
+        <a href="../../docs/ai-scheduling-project-retrospective.md">
+          <strong>完整项目复盘</strong>
+          <span>背景、过程、原则、指标、文件地图和复用模板。</span>
+        </a>
+        <a href="../../docs/ai-scheduling-reuse-playbook.md">
+          <strong>复用步骤清单</strong>
+          <span>其他团队落地时可直接照着走的简版流程。</span>
+        </a>
+        <a href="../../SCHEDULING_RULES_REVIEW_20260524.md">
+          <strong>排课规则复盘</strong>
+          <span>公共课产品优先级、阶段顺序、节假日、老师通勤和合班口径。</span>
+        </a>
+        <a href="../../LAUNCH_CHECKLIST.md">
+          <strong>排课试运行清单</strong>
+          <span>本地运行、模板补齐、上传校验、生成课表和验收步骤。</span>
+        </a>
+        <a href="../../PUBLIC_SCHEDULE_DEPLOY.md">
+          <strong>只读发布说明</strong>
+          <span>跨部门课表查看站的部署方式、安全边界和更新流程。</span>
+        </a>
+        <a href="../../README.md">
+          <strong>项目 README</strong>
+          <span>核心功能、输入格式、运行命令和整体项目说明。</span>
+        </a>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

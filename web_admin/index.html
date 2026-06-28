@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>排课数据管理</title>
+  <link rel="stylesheet" href="/styles.css?v=20260627-class-picker-minimal">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <strong>AI 排课工作台</strong>
+        <span>时间 · 资源 · 规则 · 交付</span>
+      </div>
+      <nav class="nav" aria-label="数据模块">
+        <span class="nav-group-label">工作台</span>
+        <button data-tab="overview" class="active">总览</button>
+        <span class="nav-group-label">全局时间</span>
+        <button data-tab="timeData">年度窗口与课节</button>
+        <span class="nav-group-label">基础资源</span>
+        <button data-tab="rooms">教学区与教室</button>
+        <button data-tab="areaLinks">教学区通勤关系</button>
+        <button data-tab="teachers">教师基础信息</button>
+        <button data-tab="teacherUnavailable">教师不可排时间</button>
+        <span class="nav-group-label">产品规则</span>
+        <button data-tab="productMeta">产品管理</button>
+        <button data-tab="businessMappings">ERP产品对应</button>
+        <button data-tab="products">产品课程课时</button>
+        <button data-tab="rules">产品窗口规则</button>
+        <span class="nav-group-label">班级需求</span>
+        <button data-tab="classMeta">班级基础信息</button>
+        <button data-tab="classWindows">班级排课窗口</button>
+        <button data-tab="classes">班级老师安排</button>
+        <button data-tab="classConflicts">班级互斥关系</button>
+        <span class="nav-group-label">控制交付</span>
+        <button data-tab="lockedLessons">锁定课表</button>
+        <button data-tab="launch">排课运行维护</button>
+        <button data-tab="publish">只读发布与复用资料</button>
+      </nav>
+    </aside>
+
+    <main class="workspace">
+      <header class="topbar">
+        <div class="topbar-row">
+          <div class="topbar-title">
+            <h1 id="pageTitle">总览</h1>
+            <p id="pageSubtitle">通过搜索和点选维护关系，修改后点击固定保存区写入本地数据。</p>
+          </div>
+          <div class="actions">
+            <span id="status" class="status topbar-status" aria-live="polite"></span>
+            <button id="reloadBtn" type="button">重新加载</button>
+            <button id="exportBtn" type="button">导出排课输入</button>
+            <button id="saveBtn" type="button" class="primary">保存数据修改</button>
+          </div>
+        </div>
+        <section class="workflow-rail compact-workflow" aria-label="排课工作流">
+          <button type="button" data-tab="timeData"><span>01</span>时间</button>
+          <button type="button" data-tab="rooms"><span>02</span>资源</button>
+          <button type="button" data-tab="productMeta"><span>03</span>产品</button>
+          <button type="button" data-tab="classMeta"><span>04</span>班级</button>
+          <button type="button" data-tab="rules"><span>05</span>控制</button>
+          <button type="button" data-tab="launch"><span>06</span>交付</button>
+        </section>
+      </header>
+
+      <section id="content" class="content"></section>
+    </main>
+  </div>
+
+  <div class="save-dock" aria-label="保存数据修改">
+    <div class="save-dock-copy">
+      <strong>保存数据修改</strong>
+      <span id="saveDockStatus">数据加载后可保存本地修改</span>
+    </div>
+    <button id="fixedSaveBtn" type="button" class="primary">保存</button>
+  </div>
+
+  <template id="emptyStateTemplate">
+    <div class="empty-state">
+      <strong>还没有数据</strong>
+      <span>点击新增按钮开始填写。</span>
+    </div>
+  </template>
+
+  <script src="/app.js?v=20260627-class-picker-minimal"></script>
+</body>
+</html>

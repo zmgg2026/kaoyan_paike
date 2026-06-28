@@ -1,0 +1,2 @@
+id,name,short_name,region_tag,address,longitude,latitude,campus,scheduling_capacity,capacity_check,is_active,room_count,active_room_count,data_source,notes
+A1,示例校区,示例校区,示例区域,,,,示例校区,60,校验,是,1,1,示例,公开示例数据

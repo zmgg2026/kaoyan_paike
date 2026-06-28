@@ -1,0 +1,2 @@
+schedule_window_id,schedule_window_name,window_year,window_order,season_window_id,season_name,start_date,end_date,default_allowed_periods,default_allowed_weekdays,is_active,notes
+2026暑假,2026暑假,2026,202607,summer,暑假,2026-07-01,2026-08-31,AM|PM,周一|周二|周三|周四|周五|周六,是,最小示例窗口

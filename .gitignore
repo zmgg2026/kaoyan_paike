@@ -1,0 +1,25 @@
+# Python cache and local environments
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+
+# macOS and editor files
+.DS_Store
+.idea/
+.vscode/
+
+# Local runtime data and generated outputs
+data/
+outputs/
+incoming/
+tmp/
+*.log
+
+# Local secrets and deployment environment
+.env
+.env.*
+!.env.example

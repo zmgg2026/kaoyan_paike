@@ -1,0 +1,3 @@
+id,date,calendar_year,schedule_window_id,window_order,weekday,season_window_id,season_name,period,half_day_id,name,order,start_time,end_time,duration_hours,is_usable,availability_source,unavailable_reason,data_source
+2026-07-01-AM-1,2026-07-01,2026,2026暑假,202607,周三,summer,暑假,AM,2026-07-01-AM,上午一,1,08:00,10:00,2,是,默认生成,,示例
+2026-07-01-AM-2,2026-07-01,2026,2026暑假,202607,周三,summer,暑假,AM,2026-07-01-AM,上午二,2,10:00,12:00,2,是,默认生成,,示例

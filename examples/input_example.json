@@ -1,0 +1,239 @@
+{
+  "time_slots": [
+    {
+      "id": "2026-05-01-AM-1",
+      "date": "2026-05-01",
+      "period": "AM",
+      "name": "上午一",
+      "order": 1,
+      "start_time": "08:00",
+      "end_time": "10:00",
+      "duration_hours": 2
+    },
+    {
+      "id": "2026-05-01-AM-2",
+      "date": "2026-05-01",
+      "period": "AM",
+      "name": "上午二",
+      "order": 2,
+      "start_time": "10:20",
+      "end_time": "12:20",
+      "duration_hours": 2
+    },
+    {
+      "id": "2026-05-01-PM-1",
+      "date": "2026-05-01",
+      "period": "PM",
+      "name": "下午一",
+      "order": 1,
+      "start_time": "14:00",
+      "end_time": "16:00",
+      "duration_hours": 2
+    },
+    {
+      "id": "2026-05-01-PM-2",
+      "date": "2026-05-01",
+      "period": "PM",
+      "name": "下午二",
+      "order": 2,
+      "start_time": "16:20",
+      "end_time": "18:20",
+      "duration_hours": 2
+    },
+    {
+      "id": "2026-05-01-EVENING-1",
+      "date": "2026-05-01",
+      "period": "EVENING",
+      "name": "晚上",
+      "order": 1,
+      "start_time": "19:00",
+      "end_time": "21:00",
+      "duration_hours": 2
+    },
+    {
+      "id": "2026-05-02-AM-1",
+      "date": "2026-05-02",
+      "period": "AM",
+      "name": "上午一",
+      "order": 1,
+      "start_time": "08:00",
+      "end_time": "10:00",
+      "duration_hours": 2
+    },
+    {
+      "id": "2026-05-02-AM-2",
+      "date": "2026-05-02",
+      "period": "AM",
+      "name": "上午二",
+      "order": 2,
+      "start_time": "10:20",
+      "end_time": "12:20",
+      "duration_hours": 2
+    },
+    {
+      "id": "2026-05-02-PM-1",
+      "date": "2026-05-02",
+      "period": "PM",
+      "name": "下午一",
+      "order": 1,
+      "start_time": "14:00",
+      "end_time": "16:00",
+      "duration_hours": 2
+    },
+    {
+      "id": "2026-05-02-PM-2",
+      "date": "2026-05-02",
+      "period": "PM",
+      "name": "下午二",
+      "order": 2,
+      "start_time": "16:20",
+      "end_time": "18:20",
+      "duration_hours": 2
+    },
+    {
+      "id": "2026-05-02-EVENING-1",
+      "date": "2026-05-02",
+      "period": "EVENING",
+      "name": "晚上",
+      "order": 1,
+      "start_time": "19:00",
+      "end_time": "21:00",
+      "duration_hours": 2
+    }
+  ],
+  "teaching_areas": [
+    { "id": "R101", "capacity": 60 },
+    { "id": "R102", "capacity": 40 }
+  ],
+  "products": [
+    {
+      "id": "P_MATH_BASIC",
+      "name": "数学基础产品",
+      "requirements": [
+        {
+          "subject_category": "公共课",
+          "subject": "数学",
+          "stage": "基础",
+          "course_module": "函数",
+          "course_group": "数学类",
+          "total_hours": 4,
+          "block_hours": 4
+        }
+      ]
+    },
+    {
+      "id": "P_ENGLISH_BASIC",
+      "name": "英语基础产品",
+      "requirements": [
+        {
+          "subject_category": "公共课",
+          "subject": "英语",
+          "stage": "基础",
+          "course_module": "词汇",
+          "course_group": "阅读类",
+          "total_hours": 2,
+          "block_hours": 2
+        },
+        {
+          "subject_category": "公共课",
+          "subject": "英语",
+          "stage": "强化",
+          "course_module": "阅读",
+          "course_group": "阅读类",
+          "total_hours": 2,
+          "block_hours": 2
+        }
+      ]
+    },
+    {
+      "id": "P_GUANZONG_BASIC",
+      "name": "管综基础产品",
+      "requirements": [
+        {
+          "subject_category": "专业课",
+          "subject": "管综",
+          "stage": "基础",
+          "course_module": "基础",
+          "course_group": "管综类",
+          "total_hours": 4,
+          "block_hours": 4
+        }
+      ]
+    }
+  ],
+  "classes": [
+    {
+      "id": "Class_A",
+      "name": "数学提高班A",
+      "size": 45,
+      "product_id": "P_MATH_BASIC",
+      "start_date": "2026-05-01",
+      "start_period": "AM",
+      "end_date": "2026-05-02",
+      "end_period": "PM",
+      "preferred_room_ids": ["R101"],
+      "teacher_assignments": [
+        {
+          "subject": "数学",
+          "stage": "基础",
+          "course_module": "函数",
+          "course_group": "数学类",
+          "teacher_id": "T_WANG",
+          "teacher_name": "王老师"
+        }
+      ]
+    },
+    {
+      "id": "Class_B",
+      "name": "英语提高班B",
+      "size": 35,
+      "product_id": "P_ENGLISH_BASIC",
+      "start_date": "2026-05-01",
+      "start_period": "PM",
+      "end_date": "2026-05-02",
+      "end_period": "PM",
+      "preferred_room_ids": ["R102"],
+      "teacher_assignments": [
+        {
+          "subject": "英语",
+          "stage": "基础",
+          "course_module": "词汇",
+          "course_group": "阅读类",
+          "teacher_id": "T_LI",
+          "teacher_name": "李老师"
+        },
+        {
+          "subject": "英语",
+          "stage": "强化",
+          "course_module": "阅读",
+          "course_group": "阅读类",
+          "teacher_id": "T_ZHAO",
+          "teacher_name": "赵老师"
+        }
+      ]
+    },
+    {
+      "id": "Class_C",
+      "name": "管综基础班C",
+      "size": 30,
+      "product_id": "P_GUANZONG_BASIC",
+      "preferred_room_ids": ["R102"],
+      "teacher_assignments": [
+        {
+          "subject": "管综",
+          "stage": "基础",
+          "course_module": "基础",
+          "course_group": "管综类",
+          "teacher_id": "T_CHEN",
+          "teacher_name": "陈老师"
+        }
+      ]
+    }
+  ],
+  "conflict_groups": [
+    {
+      "id": "Group_套班学生_1",
+      "class_ids": ["Class_A", "Class_B"]
+    }
+  ]
+}

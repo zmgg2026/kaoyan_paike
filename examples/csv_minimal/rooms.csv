@@ -1,0 +1,2 @@
+id,name,teaching_area_id,teaching_area_name,campus,capacity,room_type,is_active,data_source,notes
+R1,示例教室101,A1,示例校区,示例校区,60,标准教室,是,示例,公开示例数据

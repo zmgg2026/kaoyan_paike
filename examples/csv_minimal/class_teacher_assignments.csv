@@ -1,0 +1,2 @@
+class_id,class_name,product_id,product_name,subject,stage,course_group,class_schedule_mode,actual_scheduled_class_id,teacher_id,teacher_name,assignment_extra_time_requirement,notes
+C_DEMO_01,示例英语1班,P_ENGLISH_SUMMER,示例暑假英语产品,英语,基础,阅读类,本班实际排课,C_DEMO_01,000001,张老师,,公开示例老师安排

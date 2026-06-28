@@ -1,0 +1,2 @@
+class_window_id,class_id,class_name,product_id,schedule_window_id,window_year,window_order,season_window_id,season_name,window_sequence,schedule_window_name,earliest_date,earliest_period,latest_date,latest_period,preferred_teaching_area_ids,preferred_room_ids,preferred_room_is_required,is_class_window_included,notes
+CW_DEMO_01_SUMMER,C_DEMO_01,示例英语1班,P_ENGLISH_SUMMER,2026暑假,2026,202607,summer,暑假,1,2026暑假,2026-07-01,AM,2026-07-01,AM,A1,R1,是,是,公开示例班级窗口

@@ -1,0 +1,346 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AI 排课工作流复用指南</title>
+  <meta name="description" content="AI 排课整体架构与工作流推进框架。">
+  <link rel="stylesheet" href="method-reuse.css">
+</head>
+<body>
+  <header class="site-nav" aria-label="页面导航">
+    <a class="brand" href="index.html">AI 排课复盘</a>
+    <nav>
+      <a href="#method">架构</a>
+      <a href="#steps">步骤</a>
+      <a href="#gates">门禁</a>
+      <a href="#guide">指引</a>
+      <a href="#resources">资料</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero">
+      <img src="assets/data-pipeline.png" alt="AI 排课数据治理和规则引擎示意图">
+      <div class="hero-shade"></div>
+      <div class="hero-inner">
+        <p class="kicker">Method Playbook</p>
+        <h1><span>AI 排课工作流</span><span>复用指南</span></h1>
+        <p class="lead">把复杂排课从经验沟通整理成可检查、可迭代、可发布的工作流。</p>
+        <div class="hero-actions">
+          <a href="../../docs/ai-scheduling-reuse-playbook.md">查看步骤清单</a>
+        </div>
+      </div>
+      <div class="hero-strip" aria-label="方法摘要">
+        <span>项目复盘</span>
+        <span>方法沉淀</span>
+        <span>流程复用</span>
+        <span>协作交付</span>
+      </div>
+    </section>
+
+    <section id="method" class="section method-map">
+      <div class="section-title architecture-title">
+        <p class="kicker">01 · Overall Architecture</p>
+        <h2>整体架构：三层闭环推进</h2>
+        <p>先看清整体架构，再进入具体步骤。AI 排课的关键不是“一键生成”，而是让业务边界、计算规则和发布验收彼此接得上。</p>
+      </div>
+
+      <div class="architecture-board">
+        <aside class="architecture-overview" aria-label="AI 排课整体架构总览">
+          <div>
+            <span class="architecture-eyebrow">Architecture View</span>
+            <h3>三层闭环，先后有序。</h3>
+            <p>口径层定边界，引擎层做计算，证据层管发布。口径没定不进计算，证据不足不做发布。</p>
+          </div>
+
+          <div class="architecture-axis" aria-label="三层架构主线">
+            <article>
+              <b>01</b>
+              <strong>口径层</strong>
+              <span>确定排什么</span>
+            </article>
+            <article>
+              <b>02</b>
+              <strong>引擎层</strong>
+              <span>组织怎么算</span>
+            </article>
+            <article>
+              <b>03</b>
+              <strong>证据层</strong>
+              <span>判断能否发</span>
+            </article>
+          </div>
+
+        </aside>
+
+        <div class="architecture-layers" aria-label="AI 排课整体架构三层">
+          <article class="architecture-layer">
+            <div class="layer-head">
+              <span class="layer-index">01</span>
+              <div>
+                <small>Scope Layer</small>
+                <h3>口径层</h3>
+              </div>
+            </div>
+            <p>把本轮排课的边界先定住，避免系统把口径差异放大成结果偏差。</p>
+            <ul class="layer-list">
+              <li><b>看什么</b><span>班级、产品、日期范围、固定课表、例外对象。</span></li>
+              <li><b>交付物</b><span>范围清单、锁定课表、例外说明。</span></li>
+            </ul>
+          </article>
+          <article class="architecture-layer">
+            <div class="layer-head">
+              <span class="layer-index">02</span>
+              <div>
+                <small>Engine Layer</small>
+                <h3>引擎层</h3>
+              </div>
+            </div>
+            <p>把数据和规则变成系统能理解的语言，让排课从人工沟通进入可计算状态。</p>
+            <ul class="layer-list">
+              <li><b>看什么</b><span>课程、老师、教室、教学区、硬规则、软规则。</span></li>
+              <li><b>交付物</b><span>标准字段、规则模板、预检报告、分批运行结果。</span></li>
+            </ul>
+          </article>
+          <article class="architecture-layer">
+            <div class="layer-head">
+              <span class="layer-index">03</span>
+              <div>
+                <small>Evidence Layer</small>
+                <h3>证据层</h3>
+              </div>
+            </div>
+            <p>每轮运行都留下可复查的结果，用证据判断课表是不是可以交付。</p>
+            <ul class="layer-list">
+              <li><b>看什么</b><span>是否漏课、是否撞车、质量问题、ERP 导入差异。</span></li>
+              <li><b>交付物</b><span>覆盖审计、质量审计、差异文件、只读分享页。</span></li>
+            </ul>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="steps" class="section steps-section">
+      <div class="section-title">
+        <p class="kicker">02 · Reuse Route</p>
+        <h2>从试点闭环到正式发布</h2>
+        <p>如果你想把这套方法用到自己的排课场景，重点不是复制这次的课表，而是复用这条推进顺序：先明确范围，再整理规则，小样本跑通后再发布。</p>
+      </div>
+
+      <div class="route-map" aria-label="AI 排课复用流程图">
+        <div class="route-center">
+          <span>复用节奏</span>
+          <strong>先跑小闭环，再逐步放大</strong>
+        </div>
+        <article class="route-stage stage-1">
+          <header>
+            <span class="stage-label">A · 口径冻结</span>
+            <h3>先把本轮边界写清楚</h3>
+            <p>只解决“算哪些、不算哪些、交到哪里”。</p>
+          </header>
+          <div class="route-node"><b>01</b><strong>定边界</strong><small>班级、产品、日期、排除项、固定课表。</small></div>
+          <div class="route-node"><b>02</b><strong>收源表</strong><small>业务班级、课程模板、老师、教室、历史课表。</small></div>
+          <div class="route-output"><b>阶段输出</b><span>范围说明 + 源数据目录</span></div>
+        </article>
+        <article class="route-stage stage-2">
+          <header>
+            <span class="stage-label">B · 数据可跑</span>
+            <h3>再把业务话翻成字段</h3>
+            <p>让规则进入模板，而不是留在口头沟通里。</p>
+          </header>
+          <div class="route-node"><b>03</b><strong>统一字段</strong><small>ID、首课锚点、主从班关系、时间窗口分开。</small></div>
+          <div class="route-node"><b>04</b><strong>规则分级</strong><small>硬规则拦发布，软规则管体验排序。</small></div>
+          <div class="route-output"><b>阶段输出</b><span>标准模板 + 规则清单 + 缺口表</span></div>
+        </article>
+        <article class="route-stage stage-3">
+          <header>
+            <span class="stage-label">C · 小样本试跑</span>
+            <h3>先证明链路能闭环</h3>
+            <p>先跑 5-10 个班级，暴露问题比追求一次排满更重要。</p>
+          </header>
+          <div class="route-node"><b>05</b><strong>只读预检</strong><small>找产品映射、老师安排、合班和锁定字段缺口。</small></div>
+          <div class="route-node"><b>06</b><strong>分批运行</strong><small>紧约束班级先跑，常规班级后放大。</small></div>
+          <div class="route-output"><b>阶段输出</b><span>试点课表 + 运行报告 + 回退备份</span></div>
+        </article>
+        <article class="route-stage stage-4">
+          <header>
+            <span class="stage-label">D · 验收发布</span>
+            <h3>最后用证据决定能否发布</h3>
+            <p>发布前看报告，不靠人工浏览课表做判断。</p>
+          </header>
+          <div class="route-node"><b>07</b><strong>双审计</strong><small>覆盖缺口、硬冲突、质量问题清零或说明。</small></div>
+          <div class="route-node"><b>08</b><strong>对齐下游</strong><small>ERP 差异可解释；分享页只读开放。</small></div>
+          <div class="route-output"><b>阶段输出</b><span>审计报告 + ERP 差异 + 只读分享页</span></div>
+        </article>
+      </div>
+
+      <div class="product-rules-panel" aria-label="产品排课规则整理与呈现方式">
+        <div class="product-rules-copy">
+          <span class="architecture-eyebrow">Product Rules</span>
+          <h3>为什么要单独看产品排课规则</h3>
+          <p>不同产品的上课节奏不一样：有的暑假白天密集排，有的秋季只能晚上或周末排。规则整理得越清楚，后续越容易判断课表是否合理，也越容易被系统自动检查。</p>
+        </div>
+
+        <div class="product-rules-steps">
+          <article>
+            <b>01</b>
+            <strong>先看适用对象</strong>
+            <span>这条规则管哪些产品：全年营、寒暑营、无忧秋，还是某个具体产品或课程阶段。</span>
+          </article>
+          <article>
+            <b>02</b>
+            <strong>再看排课窗口</strong>
+            <span>什么时候能排，能排上午、下午还是晚上，周几可用，单次是 2 小时还是 4 小时。</span>
+          </article>
+          <article>
+            <b>03</b>
+            <strong>最后看例外状态</strong>
+            <span>特殊星期、临时调整、还没确认的口径要单独标出来，不能藏在备注里。</span>
+          </article>
+        </div>
+
+        <div class="product-rule-example" aria-label="产品排课规则展示示例">
+          <div class="product-rule-head">
+            <span>页面怎么呈现</span>
+            <strong>寒暑营 / 无忧寒</strong>
+          </div>
+          <div class="product-rule-rows">
+            <div>
+              <span>暑假节奏</span>
+              <b>周一到周六 · AM / PM · 4 小时连排</b>
+            </div>
+            <div>
+              <span>秋季节奏</span>
+              <b>周二到周五 · EVENING · 2 小时课块</b>
+            </div>
+            <div>
+              <span>差异说明</span>
+              <b>为什么同一产品在不同月份会进入不同排课方式。</b>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="gates" class="section gate-panel">
+      <div class="section-title">
+        <p class="kicker">03 · Delivery Gates</p>
+        <h2>发布前看 5 个信号</h2>
+        <p>课表不是浏览一遍就发布，而是看五个信号是否过关：不撞车、不漏课、问题有结论、系统能接、分享只读。</p>
+      </div>
+      <div class="gate-summary">
+        <strong>发布判断</strong>
+        <span>硬冲突和覆盖缺口必须清零；体验问题可以分级处理，但要被看见、被解释。</span>
+      </div>
+      <div class="gate-grid">
+        <article>
+          <span class="gate-index">01</span>
+          <h3>不撞车</h3>
+          <p>老师、班级、教室、互斥组和锁定课表没有硬冲突。</p>
+          <div class="gate-pass"><b>绿灯信号</b><span>硬冲突 0</span></div>
+        </article>
+        <article>
+          <span class="gate-index">02</span>
+          <h3>不漏课</h3>
+          <p>本轮要排的班级、阶段和课时都已经覆盖。</p>
+          <div class="gate-pass"><b>绿灯信号</b><span>缺口班级 0</span></div>
+        </article>
+        <article>
+          <span class="gate-index">03</span>
+          <h3>有结论</h3>
+          <p>高优先级质量问题已经处理，或留下清楚说明。</p>
+          <div class="gate-pass"><b>绿灯信号</b><span>问题有去向</span></div>
+        </article>
+        <article>
+          <span class="gate-index">04</span>
+          <h3>能导入</h3>
+          <p>班级、老师、教室、课程字段能和 ERP 对齐。</p>
+          <div class="gate-pass"><b>绿灯信号</b><span>字段缺口 0</span></div>
+        </article>
+        <article>
+          <span class="gate-index">05</span>
+          <h3>只读分享</h3>
+          <p>分享页只用于查看和下载，不开放保存、导入、重排。</p>
+          <div class="gate-pass"><b>绿灯信号</b><span>无写入入口</span></div>
+        </article>
+      </div>
+    </section>
+
+    <section id="guide" class="section guide-section">
+      <div class="guide-copy">
+        <p class="kicker">04 · Practical Guidance</p>
+        <h2>4 步落地法</h2>
+        <p>不要一上来就全量排课。先选一小批班级，把范围、数据、规则、验收和分享跑成一轮闭环，再逐步扩大。</p>
+        <div class="guide-principle">
+          <strong>一句话原则</strong>
+          <span>先小范围跑通，再扩大范围；先把问题暴露出来，再正式发布结果。</span>
+        </div>
+      </div>
+      <div class="guide-flow" aria-label="AI 排课落地步骤">
+        <article>
+          <span class="guide-index">01</span>
+          <div>
+            <h3>先定清楚边界</h3>
+            <p>先把“这次到底要排什么”说清楚，避免后面反复返工。</p>
+            <ul>
+              <li>哪些班级进入本轮，哪些先不排。</li>
+              <li>哪些课表已经固定，不能移动。</li>
+              <li>结果最后导入哪里，给谁确认。</li>
+            </ul>
+          </div>
+        </article>
+        <article>
+          <span class="guide-index">02</span>
+          <div>
+            <h3>再准备干净数据</h3>
+            <p>自动排课最怕字段口径不一致，数据先统一，后面才排得稳。</p>
+            <ul>
+              <li>班级、课程、老师、教室放进同一套模板。</li>
+              <li>用稳定 ID，不用名称当唯一标识。</li>
+              <li>历史课表和锁定课表单独标出来。</li>
+            </ul>
+          </div>
+        </article>
+        <article>
+          <span class="guide-index">03</span>
+          <div>
+            <h3>先拿小样本试跑</h3>
+            <p>先选 5-10 个班级跑完整流程，确认方法能跑通，再扩大范围。</p>
+            <ul>
+              <li>先跑上传前校验，看缺哪些信息。</li>
+              <li>再排课并做覆盖、冲突、质量检查。</li>
+              <li>最后模拟 ERP 对齐和只读分享。</li>
+            </ul>
+          </div>
+        </article>
+        <article>
+          <span class="guide-index">04</span>
+          <div>
+            <h3>分工确认后放大</h3>
+            <p>每轮都要有人确认口径、有人维护数据、有人输出结果和问题清单。</p>
+            <ul>
+              <li>业务同事确认范围、例外和优先级。</li>
+              <li>数据同事维护模板、字段和映射。</li>
+              <li>AI/程序负责计算、审计和报告。</li>
+            </ul>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section id="resources" class="section resource-cta">
+      <img src="assets/share-collaboration.png" alt="团队查看 AI 排课方法资料的场景示意图">
+      <div>
+        <p class="kicker">05 · Resources</p>
+        <h2>继续查看可复用资料</h2>
+        <p>如果需要实际落地，可以先阅读步骤清单，再回到完整复盘了解项目背景、数据结构、关键脚本和验收证据。</p>
+        <div class="resource-links">
+          <a href="../../docs/ai-scheduling-reuse-playbook.md">复用步骤清单</a>
+          <a href="../../docs/ai-scheduling-project-retrospective.md">完整项目复盘</a>
+        </div>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

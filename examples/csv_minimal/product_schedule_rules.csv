@@ -1,0 +1,2 @@
+rule_id,product_id,product_name,sub_product,season_window_id,window_name,effective_after_class_start,allowed_weekdays,allowed_periods,block_hours,lessons_per_block,max_hours_per_class_per_day,max_blocks_per_class_per_day,min_weekly_hours,max_weekly_hours,same_half_day_block_required,same_half_day_4h_same_teacher_required,delivery_mode,notes
+RULE_DEMO_SUMMER,P_ENGLISH_SUMMER,示例暑假英语产品,暑假营,summer,暑假,是,周三,AM,4,2,4,1,,,是,是,面授,公开示例规则

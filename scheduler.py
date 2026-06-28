@@ -1,0 +1,3003 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import argparse
+import csv
+import html
+import json
+import re
+import sys
+from datetime import date as Date
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Dict, List, Mapping, Optional, Set, Tuple
+
+from scripts.schedule_modes import assignment_is_shared
+
+
+VALID_PERIODS = {"AM", "PM", "EVENING"}
+PERIOD_ORDER = {"AM": 0, "PM": 1, "EVENING": 2}
+SEASON_WINDOW_ID_TO_NAME = {
+    "WINDOW_WINTER": "寒假",
+    "WINDOW_SPRING": "春季",
+    "WINDOW_SUMMER": "暑假",
+    "WINDOW_AUTUMN": "秋季",
+}
+SEASON_WINDOW_NAME_TO_ID = {name: window_id for window_id, name in SEASON_WINDOW_ID_TO_NAME.items()}
+WEEKDAY_ALIASES = {
+    "0": 0,
+    "1": 0,
+    "MON": 0,
+    "MONDAY": 0,
+    "周一": 0,
+    "星期一": 0,
+    "一": 0,
+    "2": 1,
+    "TUE": 1,
+    "TUESDAY": 1,
+    "周二": 1,
+    "星期二": 1,
+    "二": 1,
+    "3": 2,
+    "WED": 2,
+    "WEDNESDAY": 2,
+    "周三": 2,
+    "星期三": 2,
+    "三": 2,
+    "4": 3,
+    "THU": 3,
+    "THURSDAY": 3,
+    "周四": 3,
+    "星期四": 3,
+    "四": 3,
+    "5": 4,
+    "FRI": 4,
+    "FRIDAY": 4,
+    "周五": 4,
+    "星期五": 4,
+    "五": 4,
+    "6": 5,
+    "SAT": 5,
+    "SATURDAY": 5,
+    "周六": 5,
+    "星期六": 5,
+    "六": 5,
+    "7": 6,
+    "SUN": 6,
+    "SUNDAY": 6,
+    "周日": 6,
+    "周天": 6,
+    "星期日": 6,
+    "星期天": 6,
+    "日": 6,
+    "天": 6,
+}
+STAGE_ORDER_PROFILES = [
+    ({"寒暑营", "无忧寒"}, ["寒假", "春季", "暑假", "秋季"]),
+    ({"全年营"}, ["一轮", "二轮", "三轮", "四轮"]),
+    ({"半年营", "暑假营", "无忧秋", "无忧春", "无忧暑"}, ["基础", "强化", "冲刺"]),
+    ({"冲刺营"}, ["冲刺"]),
+]
+SAME_CLASS_TEACHER_DAY_LIMIT_SUBJECTS = {"英语", "政治", "数学"}
+MAX_SAME_CLASS_TEACHER_DAY_HOURS = 8
+
+
+@dataclass(frozen=True)
+class TimeSlot:
+    id: str
+    date: str
+    period: str
+    name: str
+    order: int
+    start_time: Optional[str] = None
+    end_time: Optional[str] = None
+    duration_hours: int = 2
+    schedule_window_id: Optional[str] = None
+    season_window_id: Optional[str] = None
+    season_name: Optional[str] = None
+
+
+@dataclass(frozen=True)
+class Room:
+    id: str
+    name: str = ""
+    capacity: Optional[int] = None
+    capacity_unlimited: bool = False
+    teaching_area_id: str = ""
+    teaching_area_name: str = ""
+    region_tag: str = ""
+
+
+@dataclass(frozen=True)
+class ProductRequirement:
+    subject_category: str
+    subject: str
+    quarter: Optional[str]
+    stage: Optional[str]
+    course_module: Optional[str]
+    course_group: Optional[str]
+    total_hours: int
+    block_hours: int
+    course_code: Optional[str] = None
+    course_name: Optional[str] = None
+    room_ids: Optional[Set[str]] = None
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+    allowed_periods: Optional[Set[str]] = None
+    allowed_weekdays: Optional[Set[int]] = None
+    excluded_weekdays: Optional[Set[int]] = None
+    schedule_rules: Tuple[ScheduleRule, ...] = ()
+
+
+@dataclass(frozen=True)
+class ScheduleRule:
+    subject: Optional[str]
+    stage: Optional[str]
+    course_module: Optional[str]
+    course_group: Optional[str]
+    start_date: Optional[str]
+    end_date: Optional[str]
+    allowed_periods: Optional[Set[str]]
+    allowed_weekdays: Optional[Set[int]]
+    excluded_weekdays: Optional[Set[int]]
+    block_hours: Optional[int]
+    schedule_window_ids: Optional[Set[str]] = None
+    season_window_ids: Optional[Set[str]] = None
+    window_names: Optional[Set[str]] = None
+    max_hours_per_class_per_day: Optional[float] = None
+    max_blocks_per_class_per_day: Optional[int] = None
+
+
+@dataclass(frozen=True)
+class Product:
+    id: str
+    name: str
+    requirements: List[ProductRequirement]
+
+
+@dataclass(frozen=True)
+class TeacherAssignment:
+    product_id: Optional[str]
+    subject: str
+    stage: Optional[str]
+    course_module: Optional[str]
+    course_group: Optional[str]
+    teacher_id: str
+    teacher_name: str
+
+
+@dataclass(frozen=True)
+class TeacherUnavailableRule:
+    teacher_id: str
+    start_date: Optional[str]
+    end_date: Optional[str]
+    weekdays: Optional[Set[int]]
+    periods: Optional[Set[str]]
+    schedule_window_ids: Optional[Set[str]]
+    unavailable_id: str = ""
+    reason: str = ""
+
+
+@dataclass(frozen=True)
+class ClassWindowConstraint:
+    class_id: str
+    start_date: Optional[str]
+    start_period: Optional[str]
+    end_date: Optional[str]
+    end_period: Optional[str]
+    schedule_window_id: Optional[str]
+    season_window_id: Optional[str]
+    season_name: Optional[str]
+    room_ids: Optional[Set[str]]
+    has_room_constraint: bool = False
+    class_window_id: str = ""
+
+
+@dataclass(frozen=True)
+class Requirement:
+    subject_category: str
+    subject: str
+    quarter: Optional[str]
+    stage: Optional[str]
+    course_module: Optional[str]
+    course_group: Optional[str]
+    teacher_id: str
+    teacher_name: str
+    total_hours: int
+    block_hours: int
+    course_code: Optional[str] = None
+    course_name: Optional[str] = None
+    room_ids: Optional[Set[str]] = None
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+    allowed_periods: Optional[Set[str]] = None
+    allowed_weekdays: Optional[Set[int]] = None
+    excluded_weekdays: Optional[Set[int]] = None
+    schedule_rules: Tuple[ScheduleRule, ...] = ()
+
+
+@dataclass(frozen=True)
+class SchoolClass:
+    id: str
+    name: str
+    product_id: Optional[str]
+    product_name: Optional[str]
+    size: Optional[int]
+    room_ids: Optional[Set[str]]
+    start_date: Optional[str]
+    start_period: Optional[str]
+    end_date: Optional[str]
+    end_period: Optional[str]
+    first_lesson_date: Optional[str]
+    first_lesson_period: Optional[str]
+    stage_order: Dict[str, int]
+    requirements: List[Requirement]
+
+
+@dataclass(frozen=True)
+class CourseBlock:
+    task_id: str
+    class_id: str
+    class_name: str
+    product_id: Optional[str]
+    product_name: Optional[str]
+    class_size: Optional[int]
+    subject_category: str
+    subject: str
+    quarter: Optional[str]
+    stage: Optional[str]
+    course_module: Optional[str]
+    course_group: Optional[str]
+    teacher_id: str
+    teacher_name: str
+    block_hours: int
+    room_ids: Optional[Set[str]]
+    start_date: Optional[str]
+    end_date: Optional[str]
+    allowed_periods: Optional[Set[str]]
+    allowed_weekdays: Optional[Set[int]]
+    excluded_weekdays: Optional[Set[int]]
+    schedule_rules: Tuple[ScheduleRule, ...]
+    is_locked: bool = False
+    course_code: Optional[str] = None
+    course_name: Optional[str] = None
+
+
+@dataclass(frozen=True)
+class Candidate:
+    slots: Tuple[TimeSlot, ...]
+    teacher_id: str
+    teacher_name: str
+    room_id: str
+
+
+@dataclass(frozen=True)
+class Assignment:
+    task: CourseBlock
+    candidate: Candidate
+
+
+@dataclass(frozen=True)
+class ScheduleInput:
+    time_slots: List[TimeSlot]
+    rooms: Dict[str, Room]
+    classes: Dict[str, SchoolClass]
+    conflict_groups: Dict[str, Set[str]]
+    class_conflict_groups: Dict[str, Set[str]]
+    locked_assignments: List[Assignment]
+    area_travel_minutes: Dict[Tuple[str, str], int] = field(default_factory=dict)
+    teacher_unavailability: Dict[str, List[TeacherUnavailableRule]] = field(default_factory=dict)
+    class_window_constraints: Dict[str, List[ClassWindowConstraint]] = field(default_factory=dict)
+
+
+def candidate_teacher_key(candidate: Candidate) -> str:
+    return candidate.teacher_id or candidate.teacher_name or ""
+
+
+def candidate_hours_by_date(candidate: Candidate) -> Dict[str, float]:
+    hours_by_date: Dict[str, float] = {}
+    for slot in candidate.slots:
+        hours_by_date[slot.date] = hours_by_date.get(slot.date, 0.0) + float(slot.duration_hours or 0)
+    return hours_by_date
+
+
+def add_class_teacher_day_load(
+    loads: Dict[Tuple[str, str, str], float],
+    task: CourseBlock,
+    candidate: Candidate,
+    delta: float = 1.0,
+) -> None:
+    if task.subject not in SAME_CLASS_TEACHER_DAY_LIMIT_SUBJECTS:
+        return
+    teacher_key = candidate_teacher_key(candidate)
+    if not teacher_key:
+        return
+    for date_text, hours in candidate_hours_by_date(candidate).items():
+        key = (task.class_id, teacher_key, date_text)
+        next_value = loads.get(key, 0.0) + hours * delta
+        if next_value <= 0:
+            loads.pop(key, None)
+        else:
+            loads[key] = next_value
+
+
+def locked_class_teacher_day_loads(schedule_input: ScheduleInput) -> Dict[Tuple[str, str, str], float]:
+    loads: Dict[Tuple[str, str, str], float] = {}
+    for assignment in schedule_input.locked_assignments:
+        add_class_teacher_day_load(loads, assignment.task, assignment.candidate)
+    return loads
+
+
+def add_class_day_rule_load(
+    hour_loads: Dict[Tuple[str, str], float],
+    block_loads: Dict[Tuple[str, str], int],
+    task: CourseBlock,
+    candidate: Candidate,
+    delta: int = 1,
+) -> None:
+    for date_text, hours in candidate_hours_by_date(candidate).items():
+        key = (task.class_id, date_text)
+        next_hours = hour_loads.get(key, 0.0) + hours * delta
+        if next_hours <= 1e-9:
+            hour_loads.pop(key, None)
+        else:
+            hour_loads[key] = next_hours
+
+        next_blocks = block_loads.get(key, 0) + delta
+        if next_blocks <= 0:
+            block_loads.pop(key, None)
+        else:
+            block_loads[key] = next_blocks
+
+
+def locked_class_day_rule_loads(
+    schedule_input: ScheduleInput,
+) -> Tuple[Dict[Tuple[str, str], float], Dict[Tuple[str, str], int]]:
+    hour_loads: Dict[Tuple[str, str], float] = {}
+    block_loads: Dict[Tuple[str, str], int] = {}
+    for assignment in schedule_input.locked_assignments:
+        add_class_day_rule_load(hour_loads, block_loads, assignment.task, assignment.candidate)
+    return hour_loads, block_loads
+
+
+def candidate_avoids_same_class_teacher_day_limit(
+    loads: Dict[Tuple[str, str, str], float],
+    task: CourseBlock,
+    candidate: Candidate,
+) -> bool:
+    if task.subject not in SAME_CLASS_TEACHER_DAY_LIMIT_SUBJECTS:
+        return True
+    teacher_key = candidate_teacher_key(candidate)
+    if not teacher_key:
+        return True
+    for date_text, hours in candidate_hours_by_date(candidate).items():
+        if loads.get((task.class_id, teacher_key, date_text), 0.0) + hours >= MAX_SAME_CLASS_TEACHER_DAY_HOURS:
+            return False
+    return True
+
+
+def region_tokens(region_tag: str) -> Set[str]:
+    text = (region_tag or "").strip()
+    if not text:
+        return set()
+    return {
+        item.strip()
+        for item in re.split(r"[/|,，;；、\s]+", text)
+        if item.strip()
+    }
+
+
+def room_area_id(room: Optional[Room]) -> str:
+    if not room:
+        return ""
+    return room.teaching_area_id or room.id
+
+
+def same_region(left: Optional[Room], right: Optional[Room]) -> bool:
+    left_tokens = region_tokens(left.region_tag if left else "")
+    right_tokens = region_tokens(right.region_tag if right else "")
+    return bool(left_tokens and right_tokens and left_tokens.intersection(right_tokens))
+
+
+def is_new_station_area(room: Optional[Room]) -> bool:
+    tokens = region_tokens(room.region_tag if room else "")
+    return bool(tokens.intersection({"新站", "瑶海", "职教城"}))
+
+
+def is_new_station_avoid_target(room: Optional[Room]) -> bool:
+    tokens = region_tokens(room.region_tag if room else "")
+    return bool(tokens.intersection({"滨湖", "经开", "翡翠湖"}))
+
+
+def area_pair_key(left_area_id: str, right_area_id: str) -> Tuple[str, str]:
+    left, right = sorted((left_area_id, right_area_id))
+    return left, right
+
+
+def candidate_same_day_teacher_travel_penalty(
+    schedule_input: ScheduleInput,
+    existing_assignments: List[Assignment],
+    task: CourseBlock,
+    candidate: Candidate,
+) -> int:
+    teacher_key = candidate_teacher_key(candidate)
+    if not teacher_key:
+        return 0
+    candidate_room = schedule_input.rooms.get(candidate.room_id)
+    candidate_area = room_area_id(candidate_room)
+    candidate_dates = {slot.date for slot in candidate.slots}
+    candidate_periods = {slot.period for slot in candidate.slots}
+    penalty = 0
+
+    for assignment in existing_assignments:
+        assignment_teacher = candidate_teacher_key(assignment.candidate)
+        if not assignment_teacher or assignment_teacher != teacher_key:
+            continue
+        if assignment.task.task_id == task.task_id:
+            continue
+        assignment_dates = {slot.date for slot in assignment.candidate.slots}
+        if not candidate_dates.intersection(assignment_dates):
+            continue
+        assignment_periods = {slot.period for slot in assignment.candidate.slots}
+        if candidate_periods == assignment_periods:
+            continue
+        assigned_room = schedule_input.rooms.get(assignment.candidate.room_id)
+        assigned_area = room_area_id(assigned_room)
+        if candidate_area and assigned_area and candidate_area == assigned_area:
+            continue
+        if same_region(candidate_room, assigned_room):
+            penalty += 500
+            continue
+        pair_minutes = schedule_input.area_travel_minutes.get(area_pair_key(candidate_area, assigned_area), 0)
+        if (is_new_station_area(candidate_room) and is_new_station_avoid_target(assigned_room)) or (
+            is_new_station_area(assigned_room) and is_new_station_avoid_target(candidate_room)
+        ):
+            penalty += 50_000 + max(0, pair_minutes - 20) * 100
+        else:
+            penalty += 5_000 + max(0, pair_minutes - 20) * 60
+    return penalty
+
+
+def load_input(path: Path) -> ScheduleInput:
+    return load_input_data(json.loads(path.read_text(encoding="utf-8")))
+
+
+def load_input_data(data: dict) -> ScheduleInput:
+    time_slots = parse_time_slots(data["time_slots"])
+
+    raw_area_rows = data.get("teaching_areas", [])
+    area_meta_by_id = {
+        row.get("id"): row
+        for row in raw_area_rows
+        if row.get("id")
+    }
+    raw_teaching_areas = data.get("rooms") or data.get("teaching_areas", [])
+    has_explicit_rooms = bool(data.get("rooms"))
+    rooms = {
+        r["id"]: Room(
+            id=r["id"],
+            name=r.get("name") or r["id"],
+            capacity=r.get("capacity"),
+            capacity_unlimited=parse_bool(r.get("capacity_unlimited")),
+            teaching_area_id=r.get("teaching_area_id") or ("" if has_explicit_rooms else r["id"]),
+            teaching_area_name=(
+                r.get("teaching_area_name")
+                or area_meta_by_id.get(r.get("teaching_area_id") or r.get("id"), {}).get("short_name")
+                or area_meta_by_id.get(r.get("teaching_area_id") or r.get("id"), {}).get("name")
+                or ""
+            ),
+            region_tag=(
+                r.get("region_tag")
+                or area_meta_by_id.get(r.get("teaching_area_id") or r.get("id"), {}).get("region_tag")
+                or ""
+            ),
+        )
+        for r in raw_teaching_areas
+    }
+
+    product_schedule_rules = group_schedule_rules_by_product(data.get("product_schedule_rules", []))
+    products = parse_products(data.get("products", []), product_schedule_rules)
+    classes = parse_classes(data["classes"], products, allow_area_field_as_room_ids=not has_explicit_rooms)
+    locked_assignments = parse_locked_lessons(data.get("locked_lessons", data.get("locked_scheduled_lessons", [])), time_slots, rooms)
+    locked_class_ids = {assignment.task.class_id for assignment in locked_assignments}
+    conflict_groups, class_conflict_groups = parse_conflict_groups(data.get("conflict_groups", []), classes, locked_class_ids)
+
+    return ScheduleInput(
+        time_slots=time_slots,
+        rooms=rooms,
+        classes=classes,
+        conflict_groups=conflict_groups,
+        class_conflict_groups=class_conflict_groups,
+        locked_assignments=locked_assignments,
+        area_travel_minutes=parse_area_travel_minutes(data.get("teaching_area_links", data.get("area_links", []))),
+        teacher_unavailability=parse_teacher_unavailability(data.get("teacher_unavailability", [])),
+        class_window_constraints=parse_class_window_constraints(data.get("class_window_boundaries", []), rooms),
+    )
+
+
+def parse_time_slots(raw_slots: List[dict]) -> List[TimeSlot]:
+    slots: List[TimeSlot] = []
+    seen: Set[str] = set()
+
+    for raw in raw_slots:
+        if not isinstance(raw, dict):
+            raise ValueError("time_slots 现在需要使用对象格式，包含 id/date/period/name/order")
+
+        slot_id = raw["id"]
+        if slot_id in seen:
+            raise ValueError(f"重复的课节 id: {slot_id}")
+        seen.add(slot_id)
+
+        duration_hours = int(raw.get("duration_hours", 2))
+        if duration_hours <= 0:
+            raise ValueError(f"课节 {slot_id} 的 duration_hours 必须大于 0")
+
+        slots.append(
+            TimeSlot(
+                id=slot_id,
+                date=raw["date"],
+                period=raw["period"],
+                name=raw.get("name", slot_id),
+                order=int(raw["order"]),
+                start_time=raw.get("start_time"),
+                end_time=raw.get("end_time"),
+                duration_hours=duration_hours,
+                schedule_window_id=raw.get("schedule_window_id") or raw.get("window_id"),
+                season_window_id=raw.get("season_window_id"),
+                season_name=raw.get("season_name") or raw.get("window_name"),
+            )
+        )
+
+    slots.sort(key=slot_sort_key)
+    return slots
+
+
+def parse_bool(value: object) -> bool:
+    if isinstance(value, bool):
+        return value
+    return str(value or "").strip().lower() in {"1", "true", "yes", "y", "是", "对"}
+
+
+def parse_bool_default(value: object, default: bool) -> bool:
+    if value in ("", None):
+        return default
+    return parse_bool(value)
+
+
+def class_window_room_constraint(raw: dict, rooms: Mapping[str, Room]) -> Tuple[Optional[Set[str]], bool]:
+    room_ids = parse_id_set(raw, "room_ids", "preferred_room_ids")
+    if room_ids:
+        return room_ids, True
+
+    teaching_area_ids = parse_id_set(raw, "preferred_teaching_area_ids", "teaching_area_ids")
+    if teaching_area_ids:
+        expanded = {
+            room.id
+            for room in rooms.values()
+            if room.teaching_area_id in teaching_area_ids
+        }
+        return expanded or None, True
+
+    explicit_empty_room_constraint = parse_bool(raw.get("has_room_constraint"))
+    return None, explicit_empty_room_constraint
+
+
+def parse_class_window_constraints(raw_constraints: List[dict], rooms: Mapping[str, Room]) -> Dict[str, List[ClassWindowConstraint]]:
+    by_class: Dict[str, List[ClassWindowConstraint]] = {}
+    for raw in raw_constraints:
+        if not parse_bool_default(raw.get("is_class_window_included"), True):
+            continue
+        class_id = str(raw.get("class_id") or "").strip()
+        if not class_id:
+            continue
+        room_ids, has_room_constraint = class_window_room_constraint(raw, rooms)
+        constraint = ClassWindowConstraint(
+            class_id=class_id,
+            class_window_id=str(raw.get("class_window_id") or "").strip(),
+            start_date=validate_date(
+                raw.get("earliest_date") or raw.get("start_date"),
+                f"班级窗口 {class_id}/earliest_date",
+            ),
+            start_period=(raw.get("earliest_period") or raw.get("start_period") or "AM").strip().upper(),
+            end_date=validate_date(
+                raw.get("latest_date") or raw.get("end_date"),
+                f"班级窗口 {class_id}/latest_date",
+            ),
+            end_period=(raw.get("latest_period") or raw.get("end_period") or "EVENING").strip().upper(),
+            schedule_window_id=str(raw.get("schedule_window_id") or "").strip() or None,
+            season_window_id=str(raw.get("season_window_id") or "").strip() or None,
+            season_name=str(raw.get("season_name") or raw.get("schedule_window_name") or "").strip() or None,
+            room_ids=room_ids,
+            has_room_constraint=has_room_constraint,
+        )
+        for label, period in (("earliest_period", constraint.start_period), ("latest_period", constraint.end_period)):
+            if period and period not in VALID_PERIODS:
+                raise ValueError(f"班级窗口 {class_id} 的 {label} 只能填写 AM、PM 或 EVENING")
+        by_class.setdefault(class_id, []).append(constraint)
+
+    for constraints in by_class.values():
+        constraints.sort(
+            key=lambda constraint: (
+                constraint.start_date or "9999-12-31",
+                period_sort_value(constraint.start_period or "AM"),
+                constraint.end_date or "9999-12-31",
+                constraint.class_window_id,
+            )
+        )
+    return by_class
+
+
+def parse_teacher_unavailability(raw_rules: List[dict]) -> Dict[str, List[TeacherUnavailableRule]]:
+    rules_by_teacher: Dict[str, List[TeacherUnavailableRule]] = {}
+    for index, raw_rule in enumerate(raw_rules, start=1):
+        if not isinstance(raw_rule, dict):
+            continue
+        if not parse_bool_default(raw_rule.get("is_active"), True):
+            continue
+        teacher_id = str(
+            raw_rule.get("teacher_id")
+            or raw_rule.get("employee_id")
+            or raw_rule.get("id")
+            or ""
+        ).strip()
+        if not teacher_id:
+            continue
+        label = f"教师不可排规则 {raw_rule.get('unavailable_id') or index}"
+        start_date = validate_date(raw_rule.get("start_date"), f"{label}/start_date")
+        end_date = validate_date(raw_rule.get("end_date"), f"{label}/end_date")
+        if start_date and end_date and end_date < start_date:
+            raise ValueError(f"{label} 的 end_date 不能早于 start_date")
+        weekdays = parse_weekday_set(raw_rule.get("weekdays"), f"{label}/weekdays")
+        periods = parse_period_set(raw_rule.get("periods"), f"{label}/periods")
+        schedule_window_ids = parse_string_set(
+            raw_rule.get("schedule_window_ids") or raw_rule.get("schedule_window_id")
+        )
+        if not any((start_date, end_date, weekdays, periods, schedule_window_ids)):
+            continue
+        rule = TeacherUnavailableRule(
+            teacher_id=teacher_id,
+            start_date=start_date,
+            end_date=end_date,
+            weekdays=weekdays,
+            periods=periods,
+            schedule_window_ids=schedule_window_ids,
+            unavailable_id=str(raw_rule.get("unavailable_id") or "").strip(),
+            reason=str(raw_rule.get("reason") or raw_rule.get("notes") or "").strip(),
+        )
+        rules_by_teacher.setdefault(teacher_id, []).append(rule)
+    return rules_by_teacher
+
+
+def parse_area_travel_minutes(raw_links: List[dict]) -> Dict[Tuple[str, str], int]:
+    result: Dict[Tuple[str, str], int] = {}
+    for raw in raw_links:
+        from_id = str(raw.get("from_teaching_area_id") or raw.get("from_area_id") or "").strip()
+        to_id = str(raw.get("to_teaching_area_id") or raw.get("to_area_id") or "").strip()
+        if not from_id or not to_id or from_id == to_id:
+            continue
+        try:
+            minutes = int(float(raw.get("travel_minutes") or raw.get("driving_duration_minutes") or 0))
+        except (TypeError, ValueError):
+            minutes = 0
+        if minutes <= 0:
+            continue
+        result[area_pair_key(from_id, to_id)] = minutes
+    return result
+
+
+def parse_locked_lessons(raw_lessons: List[dict], time_slots: List[TimeSlot], rooms: Dict[str, Room]) -> List[Assignment]:
+    assignments: List[Assignment] = []
+    slot_dates = {slot.date for slot in time_slots}
+    slot_by_id = {slot.id: slot for slot in time_slots}
+    day_slots_by_date: Dict[str, List[TimeSlot]] = {}
+    for slot in time_slots:
+        day_slots_by_date.setdefault(slot.date, []).append(slot)
+    for day_slots in day_slots_by_date.values():
+        day_slots.sort(key=slot_sort_key)
+    for index, raw in enumerate(raw_lessons, start=1):
+        lesson_id = raw.get("id") or f"LOCKED_{index}"
+        class_id = raw.get("class_id")
+        lesson_date = raw.get("date")
+        room_id = raw.get("room_id")
+        if not class_id or not lesson_date or not room_id:
+            raise ValueError(f"锁定课表 {lesson_id} 需要填写 class_id、date 和 room_id")
+        if room_id not in rooms:
+            raise ValueError(f"锁定课表 {lesson_id} 使用了不存在的教室 {room_id}")
+
+        slots = locked_lesson_slots(raw, time_slots, slot_dates, slot_by_id, day_slots_by_date)
+        if not slots:
+            continue
+        teacher_id = blank_marker_to_empty(raw.get("teacher_id"))
+        teacher_name = blank_marker_to_empty(raw.get("teacher_name"))
+        task = CourseBlock(
+            task_id=f"LOCKED:{lesson_id}",
+            class_id=class_id,
+            class_name=raw.get("class_name") or class_id,
+            product_id=raw.get("business_product_id"),
+            product_name=raw.get("business_product_name"),
+            class_size=None,
+            subject_category=raw.get("subject_category", ""),
+            subject=raw.get("subject", "已定课程"),
+            quarter=raw.get("quarter"),
+            stage=raw.get("stage"),
+            course_module=raw.get("course_module"),
+            course_group=raw.get("course_group"),
+            teacher_id=teacher_id,
+            teacher_name=teacher_name,
+            block_hours=sum(slot.duration_hours for slot in slots),
+            room_ids={room_id},
+            start_date=slots[0].date,
+            end_date=slots[-1].date,
+            allowed_periods={slots[0].period},
+            allowed_weekdays=None,
+            excluded_weekdays=None,
+            schedule_rules=(),
+            is_locked=True,
+            course_code=blank_marker_to_empty(raw.get("course_code")),
+            course_name=blank_marker_to_empty(raw.get("course_name")),
+        )
+        assignments.append(
+            Assignment(
+                task=task,
+                candidate=Candidate(
+                    slots=slots,
+                    teacher_id=teacher_id,
+                    teacher_name=teacher_name,
+                    room_id=room_id,
+                ),
+            )
+        )
+    return assignments
+
+
+def locked_lesson_slots(
+    raw: dict,
+    time_slots: List[TimeSlot],
+    slot_dates: Set[str],
+    slot_by_id: Optional[Dict[str, TimeSlot]] = None,
+    day_slots_by_date: Optional[Dict[str, List[TimeSlot]]] = None,
+) -> Tuple[TimeSlot, ...]:
+    slot_ids = parse_string_set(raw.get("slot_ids"))
+    slot_by_id = slot_by_id or {slot.id: slot for slot in time_slots}
+    if slot_ids:
+        unknown = slot_ids - set(slot_by_id)
+        if unknown:
+            raise ValueError(f"锁定课表 {raw.get('id', '')} 包含不存在的课节: {sorted(unknown)}")
+        return tuple(sorted((slot_by_id[slot_id] for slot_id in slot_ids), key=slot_sort_key))
+
+    lesson_date = raw.get("date")
+    start_time = normalize_time_value(raw.get("start_time"))
+    end_time = normalize_time_value(raw.get("end_time"))
+    if lesson_date not in slot_dates:
+        return ()
+    if not start_time or not end_time:
+        raise ValueError(f"锁定课表 {raw.get('id', '')} 在当前课节范围内，需要填写 start_time 和 end_time")
+
+    if day_slots_by_date is None:
+        day_slots = [slot for slot in time_slots if slot.date == lesson_date]
+        day_slots.sort(key=slot_sort_key)
+    else:
+        day_slots = day_slots_by_date.get(lesson_date, [])
+    for start_index, slot in enumerate(day_slots):
+        if normalize_time_value(slot.start_time) != start_time:
+            continue
+        current: List[TimeSlot] = []
+        previous_order: Optional[int] = None
+        for candidate in day_slots[start_index:]:
+            if previous_order is not None and candidate.order != previous_order + 1:
+                break
+            current.append(candidate)
+            previous_order = candidate.order
+            if normalize_time_value(candidate.end_time) == end_time:
+                return tuple(current)
+    raise ValueError(f"锁定课表 {raw.get('id', '')} 无法匹配当前课节: {lesson_date} {start_time}-{end_time}")
+
+
+def normalize_time_value(value: object) -> str:
+    text = str(value or "").strip()
+    match = re.search(r"(\d{1,2}):(\d{2})", text)
+    if not match:
+        return text
+    return f"{int(match.group(1)):02d}:{match.group(2)}"
+
+
+def blank_marker_to_empty(value: object) -> str:
+    text = str(value or "").strip()
+    return "" if text in {"-", "—", "无", "暂无", "NULL", "N/A"} else text
+
+
+def parse_id_set(data: dict, preferred_key: str, fallback_key: Optional[str] = None) -> Optional[Set[str]]:
+    values = data.get(preferred_key)
+    if values is None and fallback_key:
+        values = data.get(fallback_key)
+    return parse_string_set(values)
+
+
+def parse_room_id_fields(
+    data: dict,
+    allow_area_field_as_room_ids: bool,
+    *field_pairs: Tuple[str, str],
+) -> Optional[Set[str]]:
+    for room_key, area_key in field_pairs:
+        values = parse_id_set(data, room_key)
+        if values:
+            return values
+        if allow_area_field_as_room_ids:
+            values = parse_id_set(data, area_key)
+            if values:
+                return values
+    return None
+
+
+def parse_string_set(values: object) -> Optional[Set[str]]:
+    if values is None:
+        return None
+    if isinstance(values, str):
+        items = [item.strip() for item in values.split("|")]
+    else:
+        items = [str(item).strip() for item in values]  # type: ignore[union-attr]
+    result = {item for item in items if item}
+    return result or None
+
+
+def expanded_window_tokens(*values: object) -> Set[str]:
+    tokens: Set[str] = set()
+    for value in values:
+        items = parse_string_set(value) or set()
+        for item in items:
+            token = item.strip()
+            if not token:
+                continue
+            tokens.add(token)
+            if token in SEASON_WINDOW_ID_TO_NAME:
+                tokens.add(SEASON_WINDOW_ID_TO_NAME[token])
+            if token in SEASON_WINDOW_NAME_TO_ID:
+                tokens.add(SEASON_WINDOW_NAME_TO_ID[token])
+    return tokens
+
+
+def rule_window_tokens(rule: ScheduleRule) -> Set[str]:
+    return expanded_window_tokens(rule.schedule_window_ids, rule.season_window_ids, rule.window_names)
+
+
+def requirement_window_tokens(raw_req: dict) -> Set[str]:
+    return expanded_window_tokens(
+        raw_req.get("schedule_window_ids"),
+        raw_req.get("schedule_window_id"),
+        raw_req.get("season_window_ids"),
+        raw_req.get("season_window_id"),
+        raw_req.get("window_name"),
+        raw_req.get("quarter"),
+        raw_req.get("season_name"),
+    )
+
+
+def slot_window_tokens(slot: TimeSlot) -> Set[str]:
+    return expanded_window_tokens(slot.schedule_window_id, slot.season_window_id, slot.season_name)
+
+
+def parse_period_set(values: object, label: str) -> Optional[Set[str]]:
+    periods = parse_string_set(values)
+    if not periods:
+        return None
+
+    normalized: Set[str] = set()
+    aliases = {"EV": "EVENING", "NIGHT": "EVENING", "晚上": "EVENING", "晚间": "EVENING", "夜间": "EVENING"}
+    for period in periods:
+        upper = period.upper()
+        value = aliases.get(period, aliases.get(upper, upper))
+        if value not in VALID_PERIODS:
+            raise ValueError(f"{label} 包含不支持的时段 {period}，可用 AM/PM/EVENING")
+        normalized.add(value)
+    return normalized
+
+
+def parse_weekday_set(values: object, label: str) -> Optional[Set[int]]:
+    weekdays = parse_string_set(values)
+    if not weekdays:
+        return None
+
+    normalized: Set[int] = set()
+    for weekday in weekdays:
+        key = weekday.strip().upper()
+        if key not in WEEKDAY_ALIASES:
+            raise ValueError(f"{label} 包含不支持的星期 {weekday}")
+        normalized.add(WEEKDAY_ALIASES[key])
+    return normalized
+
+
+def validate_date(value: Optional[str], label: str) -> Optional[str]:
+    if not value:
+        return None
+    try:
+        Date.fromisoformat(value)
+    except ValueError as exc:
+        raise ValueError(f"{label} 需要使用 YYYY-MM-DD 格式: {value}") from exc
+    return value
+
+
+def group_schedule_rules_by_product(raw_rules: List[dict]) -> Dict[str, List[ScheduleRule]]:
+    rules: Dict[str, List[ScheduleRule]] = {}
+    for raw_rule in raw_rules:
+        product_id = raw_rule["product_id"]
+        rules.setdefault(product_id, []).append(parse_schedule_rule(raw_rule, f"产品 {product_id} 的排课规则"))
+    return rules
+
+
+def parse_schedule_rule(raw_rule: dict, label: str) -> ScheduleRule:
+    block_hours = raw_rule.get("block_hours", raw_rule.get("block_hours_override"))
+    return ScheduleRule(
+        subject=raw_rule.get("subject") or None,
+        stage=raw_rule.get("stage") or None,
+        course_module=raw_rule.get("course_module") or None,
+        course_group=raw_rule.get("course_group", raw_rule.get("teacher_group")) or None,
+        start_date=validate_date(raw_rule.get("start_date"), f"{label}/start_date"),
+        end_date=validate_date(raw_rule.get("end_date"), f"{label}/end_date"),
+        allowed_periods=parse_period_set(raw_rule.get("allowed_periods"), f"{label}/allowed_periods"),
+        allowed_weekdays=parse_weekday_set(raw_rule.get("allowed_weekdays"), f"{label}/allowed_weekdays"),
+        excluded_weekdays=parse_weekday_set(raw_rule.get("excluded_weekdays"), f"{label}/excluded_weekdays"),
+        block_hours=int(block_hours) if block_hours else None,
+        schedule_window_ids=parse_string_set(raw_rule.get("schedule_window_ids") or raw_rule.get("schedule_window_id")),
+        season_window_ids=parse_string_set(raw_rule.get("season_window_ids") or raw_rule.get("season_window_id")),
+        window_names=parse_string_set(raw_rule.get("window_names") or raw_rule.get("window_name") or raw_rule.get("quarter")),
+        max_hours_per_class_per_day=positive_float(raw_rule.get("max_hours_per_class_per_day")) or None,
+        max_blocks_per_class_per_day=positive_int(raw_rule.get("max_blocks_per_class_per_day")) or None,
+    )
+
+
+def parse_products(
+    raw_products: List[dict],
+    top_level_schedule_rules: Optional[Dict[str, List[ScheduleRule]]] = None,
+) -> Dict[str, Product]:
+    products: Dict[str, Product] = {}
+    top_level_schedule_rules = top_level_schedule_rules or {}
+
+    for raw_product in raw_products:
+        product_id = raw_product["id"]
+        if product_id in products:
+            raise ValueError(f"重复的产品 id: {product_id}")
+
+        schedule_rules = [
+            *top_level_schedule_rules.get(product_id, []),
+            *[
+                parse_schedule_rule(raw_rule, f"产品 {product_id} 的排课规则")
+                for raw_rule in raw_product.get("schedule_rules", [])
+            ],
+        ]
+        requirements: List[ProductRequirement] = []
+        for raw_req in raw_product.get("requirements", []):
+            total_hours = int(raw_req["total_hours"])
+            matching_schedule_rules = find_schedule_rules(product_id, raw_req, schedule_rules)
+            block_hours = infer_requirement_block_hours(raw_req, total_hours, matching_schedule_rules)
+            validate_positive_hours(total_hours, block_hours, f"产品 {product_id}/{raw_req['subject']}/{raw_req.get('course_module', '')}")
+            allowed_periods = parse_period_set(raw_req.get("allowed_periods"), f"产品 {product_id}/allowed_periods")
+            allowed_weekdays = parse_weekday_set(raw_req.get("allowed_weekdays"), f"产品 {product_id}/allowed_weekdays")
+            excluded_weekdays = parse_weekday_set(raw_req.get("excluded_weekdays"), f"产品 {product_id}/excluded_weekdays")
+            requirements.append(
+                ProductRequirement(
+                    subject_category=raw_req.get("subject_category", ""),
+                    subject=raw_req["subject"],
+                    quarter=raw_req.get("quarter"),
+                    stage=raw_req.get("stage"),
+                    course_module=raw_req.get("course_module"),
+                    course_group=raw_req.get("course_group", raw_req.get("teacher_group")),
+                    total_hours=total_hours,
+                    block_hours=block_hours,
+                    course_code=blank_marker_to_empty(raw_req.get("course_code")),
+                    course_name=blank_marker_to_empty(raw_req.get("course_name")),
+                    room_ids=parse_id_set(raw_req, "room_ids"),
+                    start_date=validate_date(raw_req.get("start_date"), f"产品 {product_id}/start_date"),
+                    end_date=validate_date(raw_req.get("end_date"), f"产品 {product_id}/end_date"),
+                    allowed_periods=allowed_periods,
+                    allowed_weekdays=allowed_weekdays,
+                    excluded_weekdays=excluded_weekdays,
+                    schedule_rules=tuple(matching_schedule_rules),
+                )
+            )
+
+        if not requirements:
+            raise ValueError(f"产品 {product_id} 至少需要配置一条课程需求")
+
+        products[product_id] = Product(
+            id=product_id,
+            name=raw_product.get("name", product_id),
+            requirements=requirements,
+        )
+
+    return products
+
+
+def positive_int(value: object) -> int:
+    try:
+        parsed = int(float(str(value).strip()))
+    except (TypeError, ValueError):
+        return 0
+    return parsed if parsed > 0 else 0
+
+
+def positive_float(value: object) -> float:
+    try:
+        parsed = float(str(value).strip())
+    except (TypeError, ValueError):
+        return 0.0
+    return parsed if parsed > 0 else 0.0
+
+
+def infer_requirement_block_hours(
+    raw_req: dict,
+    total_hours: int,
+    matching_schedule_rules: List[ScheduleRule],
+) -> int:
+    explicit_override = positive_int(raw_req.get("block_hours_override"))
+    if explicit_override:
+        return explicit_override
+    explicit_block = positive_int(raw_req.get("block_hours"))
+    if explicit_block:
+        return explicit_block
+
+    rule_block_hours = sorted({rule.block_hours for rule in matching_schedule_rules if rule.block_hours})
+    if len(rule_block_hours) == 1:
+        return rule_block_hours[0]
+
+    divisible = [block_hours for block_hours in rule_block_hours if total_hours % block_hours == 0]
+    if divisible:
+        return min(divisible)
+    return min(rule_block_hours) if rule_block_hours else 0
+
+
+def find_schedule_rules(product_id: str, raw_req: dict, rules: List[ScheduleRule]) -> List[ScheduleRule]:
+    matches = [rule for rule in rules if schedule_rule_matches(rule, raw_req)]
+    matches.sort(key=schedule_rule_specificity, reverse=True)
+    return matches
+
+
+def schedule_rule_matches(rule: ScheduleRule, raw_req: dict) -> bool:
+    rule_tokens = rule_window_tokens(rule)
+    req_tokens = requirement_window_tokens(raw_req)
+    if rule_tokens and req_tokens and not (rule_tokens & req_tokens):
+        return False
+    for field in ("subject", "stage", "course_module", "course_group"):
+        rule_value = getattr(rule, field)
+        req_value = raw_req.get(field)
+        if field == "course_group":
+            req_value = raw_req.get("course_group", raw_req.get("teacher_group"))
+        if rule_value and not rule_field_matches(rule_value, req_value):
+            return False
+    return True
+
+
+def rule_field_matches(rule_value: str, req_value: object) -> bool:
+    req_text = str(req_value or "").strip()
+    if not req_text:
+        return False
+    choices = [
+        item.strip()
+        for item in rule_value.replace("，", "|").replace(",", "|").replace("；", "|").replace(";", "|").split("|")
+        if item.strip()
+    ]
+    return req_text in choices if choices else rule_value == req_text
+
+
+def schedule_rule_specificity(rule: ScheduleRule) -> int:
+    return sum(1 for value in (rule.subject, rule.stage, rule.course_module, rule.course_group) if value)
+
+
+def parse_classes(
+    raw_classes: List[dict],
+    products: Dict[str, Product],
+    allow_area_field_as_room_ids: bool = False,
+) -> Dict[str, SchoolClass]:
+    classes: Dict[str, SchoolClass] = {}
+    errors: List[str] = []
+
+    for raw_class in raw_classes:
+        class_id = str(raw_class.get("id", "")).strip()
+        if not class_id:
+            errors.append("班级基础信息缺少 id")
+            continue
+        if class_id in classes:
+            errors.append(f"重复的班级 id: {class_id}")
+            continue
+        try:
+            parsed_class = parse_class_row(raw_class, products, allow_area_field_as_room_ids)
+        except ValueError as exc:
+            errors.append(str(exc))
+            continue
+        if parsed_class:
+            classes[class_id] = parsed_class
+
+    if errors:
+        visible_errors = errors[:80]
+        suffix = f"\n...另有 {len(errors) - len(visible_errors)} 条班级错误" if len(errors) > len(visible_errors) else ""
+        raise ValueError("班级数据校验失败:\n" + "\n".join(visible_errors) + suffix)
+
+    return classes
+
+
+def parse_class_row(
+    raw_class: dict,
+    products: Dict[str, Product],
+    allow_area_field_as_room_ids: bool = False,
+) -> Optional[SchoolClass]:
+    class_id = str(raw_class.get("id", "")).strip()
+    start_date = validate_date(raw_class.get("start_date"), f"班级 {class_id}/start_date")
+    start_period = raw_class.get("start_period") or ("AM" if start_date else None)
+    end_date = validate_date(raw_class.get("end_date"), f"班级 {class_id}/end_date")
+    end_period = raw_class.get("end_period") or ("EVENING" if end_date else None)
+    first_lesson_date = validate_date(raw_class.get("first_lesson_date"), f"班级 {class_id}/first_lesson_date")
+    first_lesson_period = raw_class.get("first_lesson_period") or ("AM" if first_lesson_date else None)
+    if start_period and not start_date:
+        raise ValueError(f"班级 {class_id} 填写 start_period 时也需要填写 start_date")
+    if end_period and not end_date:
+        raise ValueError(f"班级 {class_id} 填写 end_period 时也需要填写 end_date")
+    if first_lesson_period and not first_lesson_date:
+        raise ValueError(f"班级 {class_id} 填写 first_lesson_period 时也需要填写 first_lesson_date")
+    for label, period in (
+        ("start_period", start_period),
+        ("end_period", end_period),
+        ("first_lesson_period", first_lesson_period),
+    ):
+        if period and period not in VALID_PERIODS:
+            raise ValueError(f"班级 {class_id} 的 {label} 只能填写 AM、PM 或 EVENING")
+
+    product_id = raw_class.get("product_id")
+    product = products.get(product_id) if product_id else None
+    if product_id and not product:
+        raise ValueError(f"班级 {class_id} 引用了不存在的产品 {product_id}")
+
+    class_room_ids = parse_room_id_fields(
+        raw_class,
+        allow_area_field_as_room_ids,
+        ("room_ids", "teaching_area_ids"),
+        ("preferred_room_ids", "preferred_teaching_area_ids"),
+    )
+
+    if raw_class.get("requirements"):
+        requirements = parse_direct_requirements(
+            class_id,
+            raw_class.get("requirements", []),
+            class_room_ids,
+            allow_area_field_as_room_ids,
+        )
+    elif product:
+        requirements = build_requirements_from_product(class_id, product, raw_class, class_room_ids)
+    else:
+        requirements = parse_direct_requirements(
+            class_id,
+            raw_class.get("requirements", []),
+            class_room_ids,
+            allow_area_field_as_room_ids,
+        )
+    if not requirements:
+        if class_has_shared_schedule_markers(raw_class):
+            return None
+        raise ValueError(f"班级 {class_id} 需要填写 product_id 或 requirements")
+    stage_order = build_stage_order(raw_class, product, requirements)
+
+    return SchoolClass(
+        id=class_id,
+        name=raw_class.get("name", class_id),
+        product_id=product.id if product else None,
+        product_name=product.name if product else None,
+        size=raw_class.get("size"),
+        room_ids=class_room_ids,
+        start_date=start_date,
+        start_period=start_period,
+        end_date=end_date,
+        end_period=end_period,
+        first_lesson_date=first_lesson_date,
+        first_lesson_period=first_lesson_period,
+        stage_order=stage_order,
+        requirements=requirements,
+    )
+
+
+def ordered_stage_names(values: object) -> List[str]:
+    if values is None:
+        return []
+    if isinstance(values, str):
+        raw_items = re.split(r"[|,，;；/、]+", values)
+    else:
+        raw_items = [str(item) for item in values]  # type: ignore[union-attr]
+    result: List[str] = []
+    seen: Set[str] = set()
+    for item in raw_items:
+        stage = item.strip()
+        if stage and stage not in seen:
+            result.append(stage)
+            seen.add(stage)
+    return result
+
+
+def inferred_stage_order(raw_class: dict, product: Optional[Product]) -> List[str]:
+    text = " ".join(
+        str(value or "").strip()
+        for value in (
+            raw_class.get("sub_product"),
+            raw_class.get("product_line"),
+            raw_class.get("name"),
+            raw_class.get("product_name"),
+            product.name if product else "",
+        )
+        if str(value or "").strip()
+    )
+    for keywords, order in STAGE_ORDER_PROFILES:
+        if any(keyword in text for keyword in keywords):
+            return list(order)
+    return []
+
+
+def build_stage_order(raw_class: dict, product: Optional[Product], requirements: List[Requirement]) -> Dict[str, int]:
+    ordered = ordered_stage_names(raw_class.get("stage_order")) or inferred_stage_order(raw_class, product)
+    if not ordered:
+        return {}
+    seen = set(ordered)
+    for requirement in requirements:
+        stage = requirement.stage or ""
+        if stage and stage not in seen:
+            ordered.append(stage)
+            seen.add(stage)
+    return {stage: index for index, stage in enumerate(ordered)}
+
+
+def assignment_matches_product_requirement(raw_assignment: dict, requirement: ProductRequirement, product_id: str) -> bool:
+    assignment_product = str(raw_assignment.get("product_id") or raw_assignment.get("canonical_product_id") or "").strip()
+    if assignment_product and assignment_product != product_id:
+        return False
+    subject_value = str(raw_assignment.get("subject", "") or "").strip()
+    if subject_value and subject_value != requirement.subject:
+        return False
+    assignment_stage = str(raw_assignment.get("stage", "") or "").strip()
+    if assignment_stage and assignment_stage not in {requirement.stage or "", requirement.quarter or ""}:
+        return False
+    comparisons = (
+        (str(raw_assignment.get("course_module", "") or "").strip(), requirement.course_module or ""),
+        (str(raw_assignment.get("course_group") or raw_assignment.get("teacher_group") or "").strip(), requirement.course_group or ""),
+    )
+    for assignment_value, requirement_value in comparisons:
+        if assignment_value and assignment_value != requirement_value:
+            return False
+    return True
+
+
+def requirement_is_shared_by_class(raw_class: dict, requirement: ProductRequirement, product_id: str) -> bool:
+    return any(
+        assignment_is_shared(raw_assignment, class_id=raw_class.get("id"))
+        and assignment_matches_product_requirement(raw_assignment, requirement, product_id)
+        for raw_assignment in raw_class.get("teacher_assignments", [])
+    )
+
+
+def class_has_shared_schedule_markers(raw_class: dict) -> bool:
+    return any(assignment_is_shared(raw_assignment, class_id=raw_class.get("id")) for raw_assignment in raw_class.get("teacher_assignments", []))
+
+
+def build_requirements_from_product(
+    class_id: str,
+    product: Product,
+    raw_class: dict,
+    class_room_ids: Optional[Set[str]],
+) -> List[Requirement]:
+    teacher_assignments = parse_teacher_assignments(
+        class_id,
+        raw_class.get("teacher_assignments", []),
+        product.id,
+    )
+    requirements: List[Requirement] = []
+    class_subject = raw_class.get("subject")
+    class_stages = parse_string_set(raw_class.get("stages", raw_class.get("stage")))
+    subject_requirements = [
+        product_req for product_req in product.requirements
+        if not class_subject or product_req.subject == class_subject
+    ]
+    if class_subject and not subject_requirements:
+        raise ValueError(f"班级 {class_id} 的科目 {class_subject} 不在产品 {product.id} 的课程中")
+    product_requirements = [
+        product_req for product_req in subject_requirements
+        if not class_stages or (product_req.stage or "") in class_stages
+    ]
+    product_requirements = [
+        product_req for product_req in product_requirements
+        if not requirement_is_shared_by_class(raw_class, product_req, product.id)
+    ]
+    if class_stages and not product_requirements:
+        if class_has_shared_schedule_markers(raw_class):
+            return []
+        raise ValueError(f"班级 {class_id} 的阶段 {sorted(class_stages)} 不在产品 {product.id} 的课程中")
+
+    resolved_requirements: List[Tuple[ProductRequirement, TeacherAssignment]] = []
+    missing_teacher_labels: List[str] = []
+    missing_teacher_seen: Set[str] = set()
+    for product_req in product_requirements:
+        teacher_assignment = resolve_teacher_assignment_for_requirement(
+            product_req,
+            teacher_assignments,
+            product_requirements,
+        )
+        if not teacher_assignment:
+            detail_text = teacher_assignment_key_text(product_req.subject, product_req.stage, product_req.course_group)
+            if detail_text not in missing_teacher_seen:
+                missing_teacher_labels.append(detail_text)
+                missing_teacher_seen.add(detail_text)
+            continue
+        resolved_requirements.append((product_req, teacher_assignment))
+
+    if missing_teacher_labels:
+        raise ValueError(
+            f"班级 {class_id} 的产品 {product.id} 缺少课程老师安排: "
+            + "、".join(missing_teacher_labels)
+        )
+
+    prepared_requirements: List[Requirement] = []
+    for product_req, teacher_assignment in resolved_requirements:
+        prepared_requirements.append(
+            Requirement(
+                subject_category=product_req.subject_category,
+                subject=product_req.subject,
+                quarter=product_req.quarter,
+                stage=product_req.stage,
+                course_module=product_req.course_module,
+                course_group=product_req.course_group,
+                teacher_id=teacher_assignment.teacher_id,
+                teacher_name=teacher_assignment.teacher_name,
+                total_hours=product_req.total_hours,
+                block_hours=product_req.block_hours,
+                course_code=product_req.course_code,
+                course_name=product_req.course_name,
+                room_ids=merge_room_constraints(
+                    product_req.room_ids,
+                    class_room_ids,
+                    f"班级 {class_id}/{product_req.subject}/{product_req.course_module or ''}",
+                ),
+                start_date=product_req.start_date,
+                end_date=product_req.end_date,
+                allowed_periods=product_req.allowed_periods,
+                allowed_weekdays=product_req.allowed_weekdays,
+                excluded_weekdays=product_req.excluded_weekdays,
+                schedule_rules=product_req.schedule_rules,
+            )
+        )
+
+    return aggregate_class_requirements(class_id, product.id, prepared_requirements)
+
+
+def aggregate_class_requirements(
+    class_id: str,
+    product_id: str,
+    requirements: List[Requirement],
+) -> List[Requirement]:
+    grouped: Dict[Tuple, List[Requirement]] = {}
+    for requirement in requirements:
+        if requirement.total_hours % requirement.block_hours == 0:
+            validate_hours(requirement.total_hours, requirement.block_hours, requirement_label(class_id, product_id, requirement))
+            continue
+        grouped.setdefault(aggregation_key(requirement), []).append(requirement)
+
+    consumed: Set[int] = set()
+    aggregated: List[Requirement] = []
+    for group in grouped.values():
+        if len(group) < 2:
+            requirement = group[0]
+            raise ValueError(f"{requirement_label(class_id, product_id, requirement)} 的 total_hours 必须能被 block_hours 整除")
+        total_hours = sum(requirement.total_hours for requirement in group)
+        block_hours = group[0].block_hours
+        label = f"班级 {class_id}/产品 {product_id}/{group[0].subject}/{group[0].stage or ''}/{group[0].course_group or ''}"
+        validate_hours(total_hours, block_hours, label)
+        for requirement in group:
+            consumed.add(id(requirement))
+        aggregated.append(merge_requirements_for_group(group, total_hours))
+
+    result = [requirement for requirement in requirements if id(requirement) not in consumed]
+    result.extend(aggregated)
+    return result
+
+
+def requirement_label(class_id: str, product_id: str, requirement: Requirement) -> str:
+    return f"班级 {class_id}/产品 {product_id}/{requirement.subject}/{requirement.course_module or ''}"
+
+
+def aggregation_key(requirement: Requirement) -> Tuple:
+    return (
+        requirement.subject_category,
+        requirement.subject,
+        requirement.quarter or "",
+        requirement.stage or "",
+        requirement.course_group or "",
+        requirement.teacher_id,
+        requirement.teacher_name,
+        requirement.block_hours,
+        frozenset(requirement.room_ids or set()),
+        requirement.start_date or "",
+        requirement.end_date or "",
+        frozenset(requirement.allowed_periods or set()),
+        frozenset(requirement.allowed_weekdays or set()),
+        frozenset(requirement.excluded_weekdays or set()),
+        tuple(schedule_rule_key(rule) for rule in requirement.schedule_rules),
+    )
+
+
+def schedule_rule_key(rule: ScheduleRule) -> Tuple:
+    return (
+        rule.subject or "",
+        rule.stage or "",
+        rule.course_module or "",
+        rule.course_group or "",
+        frozenset(rule.schedule_window_ids or set()),
+        frozenset(rule.season_window_ids or set()),
+        frozenset(rule.window_names or set()),
+        rule.start_date or "",
+        rule.end_date or "",
+        frozenset(rule.allowed_periods or set()),
+        frozenset(rule.allowed_weekdays or set()),
+        frozenset(rule.excluded_weekdays or set()),
+        rule.block_hours or 0,
+        rule.max_hours_per_class_per_day or 0,
+        rule.max_blocks_per_class_per_day or 0,
+    )
+
+
+def merge_requirements_for_group(group: List[Requirement], total_hours: int) -> Requirement:
+    base = group[0]
+    modules = [requirement.course_module for requirement in group if requirement.course_module]
+    return Requirement(
+        subject_category=base.subject_category,
+        subject=base.subject,
+        quarter=base.quarter,
+        stage=base.stage,
+        course_module="+".join(modules) if modules else base.course_module,
+        course_group=base.course_group,
+        teacher_id=base.teacher_id,
+        teacher_name=base.teacher_name,
+        total_hours=total_hours,
+        block_hours=base.block_hours,
+        course_code="|".join(sorted({requirement.course_code for requirement in group if requirement.course_code})) or None,
+        course_name="|".join(sorted({requirement.course_name for requirement in group if requirement.course_name})) or None,
+        room_ids=base.room_ids,
+        start_date=base.start_date,
+        end_date=base.end_date,
+        allowed_periods=base.allowed_periods,
+        allowed_weekdays=base.allowed_weekdays,
+        excluded_weekdays=base.excluded_weekdays,
+        schedule_rules=base.schedule_rules,
+    )
+
+
+def parse_direct_requirements(
+    class_id: str,
+    raw_requirements: List[dict],
+    class_room_ids: Optional[Set[str]],
+    allow_area_field_as_room_ids: bool = False,
+) -> List[Requirement]:
+    requirements: List[Requirement] = []
+    for raw_req in raw_requirements:
+        total_hours = int(raw_req["total_hours"])
+        block_hours = int(raw_req["block_hours"])
+        validate_hours(total_hours, block_hours, f"班级 {class_id}/{raw_req['subject']}")
+        teacher_assignment = parse_teacher_assignment(raw_req)
+
+        requirements.append(
+            Requirement(
+                subject_category=raw_req.get("subject_category", ""),
+                subject=raw_req["subject"],
+                quarter=raw_req.get("quarter"),
+                stage=raw_req.get("stage"),
+                course_module=raw_req.get("course_module"),
+                course_group=raw_req.get("course_group", raw_req.get("teacher_group")),
+                teacher_id=teacher_assignment.teacher_id,
+                teacher_name=teacher_assignment.teacher_name,
+                total_hours=total_hours,
+                block_hours=block_hours,
+                course_code=blank_marker_to_empty(raw_req.get("course_code")),
+                course_name=blank_marker_to_empty(raw_req.get("course_name")),
+                room_ids=merge_room_constraints(
+                    parse_room_id_fields(
+                        raw_req,
+                        allow_area_field_as_room_ids,
+                        ("room_ids", "teaching_area_ids"),
+                    ),
+                    class_room_ids,
+                    f"班级 {class_id}/{raw_req['subject']}",
+                ),
+                start_date=validate_date(raw_req.get("start_date"), f"班级 {class_id}/{raw_req['subject']}/start_date"),
+                end_date=validate_date(raw_req.get("end_date"), f"班级 {class_id}/{raw_req['subject']}/end_date"),
+                allowed_periods=parse_period_set(
+                    raw_req.get("allowed_periods"),
+                    f"班级 {class_id}/{raw_req['subject']}/allowed_periods",
+                ),
+                allowed_weekdays=parse_weekday_set(
+                    raw_req.get("allowed_weekdays"),
+                    f"班级 {class_id}/{raw_req['subject']}/allowed_weekdays",
+                ),
+                excluded_weekdays=parse_weekday_set(
+                    raw_req.get("excluded_weekdays"),
+                    f"班级 {class_id}/{raw_req['subject']}/excluded_weekdays",
+                ),
+                schedule_rules=(),
+            )
+        )
+
+    return requirements
+
+
+def merge_room_constraints(
+    requirement_room_ids: Optional[Set[str]],
+    class_room_ids: Optional[Set[str]],
+    label: str,
+) -> Optional[Set[str]]:
+    if requirement_room_ids and class_room_ids:
+        merged = requirement_room_ids & class_room_ids
+        if not merged:
+            raise ValueError(f"{label} 的班级教室限制与产品/课程教室限制没有交集")
+        return merged
+    return class_room_ids or requirement_room_ids
+
+
+def parse_teacher_assignments(
+    class_id: str,
+    raw_assignments: List[dict],
+    product_id: Optional[str] = None,
+) -> Dict[Tuple[str, str, str, str], TeacherAssignment]:
+    assignments: Dict[Tuple[str, str, str, str], TeacherAssignment] = {}
+
+    for raw_assignment in raw_assignments:
+        if assignment_is_shared(raw_assignment, class_id=class_id):
+            continue
+        if not str(raw_assignment.get("teacher_id", "")).strip() and not str(raw_assignment.get("teacher_name", "")).strip():
+            continue
+        assignment = parse_teacher_assignment(raw_assignment)
+        if assignment.product_id and product_id and assignment.product_id != product_id:
+            continue
+        key = requirement_key(assignment.subject, assignment.stage, assignment.course_module, assignment.course_group)
+        if key in assignments:
+            detail_text = course_key_text(assignment.subject, assignment.stage, assignment.course_module, assignment.course_group)
+            raise ValueError(f"班级 {class_id} 重复填写了 {detail_text} 的老师安排")
+        assignments[key] = assignment
+
+    return assignments
+
+
+def parse_teacher_assignment(raw_assignment: dict) -> TeacherAssignment:
+    teacher_id = raw_assignment.get("teacher_id", "")
+    subject = raw_assignment.get("subject", "")
+    return TeacherAssignment(
+        product_id=raw_assignment.get("product_id") or raw_assignment.get("canonical_product_id") or None,
+        subject=subject,
+        stage=raw_assignment.get("stage"),
+        course_module=raw_assignment.get("course_module"),
+        course_group=raw_assignment.get("course_group", raw_assignment.get("teacher_group")),
+        teacher_id=teacher_id,
+        teacher_name=raw_assignment.get("teacher_name", teacher_id),
+    )
+
+
+def validate_hours(total_hours: int, block_hours: int, label: str) -> None:
+    validate_positive_hours(total_hours, block_hours, label)
+    if total_hours % block_hours != 0:
+        raise ValueError(f"{label} 的 total_hours 必须能被 block_hours 整除")
+
+
+def validate_positive_hours(total_hours: int, block_hours: int, label: str) -> None:
+    if total_hours <= 0 or block_hours <= 0:
+        raise ValueError(f"{label} 的 total_hours 和 block_hours 必须大于 0")
+
+
+def requirement_key(
+    subject: str,
+    stage: Optional[str],
+    course_module: Optional[str],
+    course_group: Optional[str],
+) -> Tuple[str, str, str, str]:
+    return (subject, stage or "", course_module or "", course_group or "")
+
+
+def requirement_object_key(requirement: object) -> Tuple[str, str, str, str]:
+    return requirement_key(
+        str(getattr(requirement, "subject", "") or ""),
+        getattr(requirement, "stage", None),
+        getattr(requirement, "course_module", None),
+        getattr(requirement, "course_group", None),
+    )
+
+
+def requirement_mapping_key(row: Mapping[str, object]) -> Tuple[str, str, str, str]:
+    return requirement_key(
+        str(row.get("subject") or ""),
+        str(row.get("stage") or ""),
+        str(row.get("course_module") or ""),
+        str(row.get("course_group") or ""),
+    )
+
+
+def resolve_teacher_assignment_for_requirement(
+    requirement: ProductRequirement,
+    assignments: Dict[Tuple[str, str, str, str], TeacherAssignment],
+    product_requirements: List[ProductRequirement],
+) -> Optional[TeacherAssignment]:
+    subject = requirement.subject
+    stage = requirement.stage or ""
+    quarter = requirement.quarter or ""
+    module = requirement.course_module or ""
+    group = requirement.course_group or ""
+    stage_keys = []
+    for value in (stage, quarter, ""):
+        if value not in stage_keys:
+            stage_keys.append(value)
+    exact_keys = []
+    for stage_key in stage_keys:
+        exact_keys.extend(
+            [
+                (subject, stage_key, module, group),
+                (subject, stage_key, "", group),
+                ("", stage_key, module, group),
+                ("", stage_key, "", group),
+                (subject, stage_key, module, ""),
+                (subject, stage_key, "", ""),
+                ("", stage_key, "", ""),
+            ]
+        )
+    for key in exact_keys:
+        assignment = assignments.get(key)
+        if assignment:
+            return assignment
+
+    stage_rank = stage_rank_for_requirements(product_requirements)
+    current_rank = stage_rank.get(stage, len(stage_rank))
+    fallback_candidates: List[Tuple[int, int, int, TeacherAssignment]] = []
+    for (assignment_subject, assignment_stage, assignment_module, assignment_group), assignment in assignments.items():
+        assignment_rank = stage_rank.get(assignment_stage)
+        if assignment_rank is None or assignment_rank >= current_rank:
+            continue
+        if assignment_subject and assignment_subject != subject:
+            continue
+        if assignment_group != group:
+            continue
+        fallback_candidates.append(
+            (
+                assignment_rank,
+                0 if not assignment_module else 1,
+                0 if assignment_subject == subject else 1,
+                assignment,
+            )
+        )
+    if not fallback_candidates:
+        return None
+    return min(fallback_candidates, key=lambda item: item[:3])[3]
+
+
+def stage_rank_for_requirements(requirements: List[ProductRequirement]) -> Dict[str, int]:
+    rank: Dict[str, int] = {}
+    for requirement in requirements:
+        stage = requirement.stage or ""
+        if stage not in rank:
+            rank[stage] = len(rank)
+    return rank
+
+
+def course_key_text(
+    subject: str,
+    stage: Optional[str],
+    course_module: Optional[str],
+    course_group: Optional[str],
+) -> str:
+    parts = [subject]
+    if stage:
+        parts.append(stage)
+    if course_module:
+        parts.append(course_module)
+    if course_group:
+        parts.append(course_group)
+    return "/".join(parts)
+
+
+def teacher_assignment_key_text(subject: str, stage: Optional[str], course_group: Optional[str]) -> str:
+    parts = [subject]
+    if stage:
+        parts.append(stage)
+    if course_group:
+        parts.append(course_group)
+    return "/".join(parts)
+
+
+def parse_conflict_groups(
+    raw_groups: List[dict],
+    classes: Dict[str, SchoolClass],
+    extra_class_ids: Optional[Set[str]] = None,
+) -> Tuple[Dict[str, Set[str]], Dict[str, Set[str]]]:
+    conflict_groups: Dict[str, Set[str]] = {}
+    known_class_ids = set(classes) | set(extra_class_ids or set())
+    class_conflict_groups: Dict[str, Set[str]] = {class_id: set() for class_id in known_class_ids}
+
+    for raw_group in raw_groups:
+        group_id = raw_group["id"]
+        class_ids = set(raw_group.get("class_ids", []))
+        if group_id in conflict_groups:
+            raise ValueError(f"重复的冲突组 id: {group_id}")
+
+        class_ids &= known_class_ids
+        if len(class_ids) < 2:
+            continue
+
+        conflict_groups[group_id] = class_ids
+        for class_id in class_ids:
+            class_conflict_groups[class_id].add(group_id)
+
+    return conflict_groups, class_conflict_groups
+
+
+def slot_sort_key(slot: TimeSlot) -> Tuple[str, int, int, str]:
+    period_order = PERIOD_ORDER.get(slot.period, 99)
+    return (slot.date, period_order, slot.order, slot.id)
+
+
+def period_sort_value(period: str) -> int:
+    return PERIOD_ORDER.get(period, 99)
+
+
+def slot_in_class_window(slot: TimeSlot, cls: SchoolClass) -> bool:
+    slot_day_key = (slot.date, period_sort_value(slot.period))
+    if cls.start_date and cls.start_period:
+        start_key = (cls.start_date, period_sort_value(cls.start_period))
+        if slot_day_key < start_key:
+            return False
+    if cls.end_date and cls.end_period:
+        end_key = (cls.end_date, period_sort_value(cls.end_period))
+        if slot_day_key > end_key:
+            return False
+    return True
+
+
+def class_has_start_anchor(cls: SchoolClass) -> bool:
+    return bool(cls.first_lesson_date and cls.first_lesson_period)
+
+
+def allowed_start_periods(cls: SchoolClass) -> Set[str]:
+    if not cls.first_lesson_period:
+        return set()
+    start_value = period_sort_value(cls.first_lesson_period)
+    return {period for period, value in PERIOD_ORDER.items() if value >= start_value}
+
+
+def candidate_matches_start_anchor(cls: SchoolClass, candidate: Candidate) -> bool:
+    if not class_has_start_anchor(cls):
+        return True
+    first_slot = candidate.slots[0]
+    return first_slot.date == cls.first_lesson_date and first_slot.period in allowed_start_periods(cls)
+
+
+def build_course_blocks(classes: Dict[str, SchoolClass]) -> List[CourseBlock]:
+    tasks: List[CourseBlock] = []
+
+    for cls in classes.values():
+        for req_index, req in enumerate(cls.requirements, start=1):
+            block_count = req.total_hours // req.block_hours
+            for i in range(block_count):
+                tasks.append(
+                    CourseBlock(
+                        task_id=f"{cls.id}:{req.subject}:{req_index}:{i + 1}",
+                        class_id=cls.id,
+                        class_name=cls.name,
+                        product_id=cls.product_id,
+                        product_name=cls.product_name,
+                        class_size=cls.size,
+                        subject_category=req.subject_category,
+                        subject=req.subject,
+                        quarter=req.quarter,
+                        stage=req.stage,
+                        course_module=req.course_module,
+                        course_group=req.course_group,
+                        teacher_id=req.teacher_id,
+                        teacher_name=req.teacher_name,
+                        block_hours=req.block_hours,
+                        course_code=req.course_code,
+                        course_name=req.course_name,
+                        room_ids=req.room_ids,
+                        start_date=req.start_date,
+                        end_date=req.end_date,
+                        allowed_periods=req.allowed_periods,
+                        allowed_weekdays=req.allowed_weekdays,
+                        excluded_weekdays=req.excluded_weekdays,
+                        schedule_rules=req.schedule_rules,
+                    )
+                )
+
+    return tasks
+
+
+def task_stage_rank(cls: SchoolClass, task: CourseBlock) -> Optional[int]:
+    if not cls.stage_order or not task.stage:
+        return None
+    return cls.stage_order.get(task.stage)
+
+
+def task_stage_rank_for_input(schedule_input: ScheduleInput, task: CourseBlock) -> Optional[int]:
+    cls = schedule_input.classes.get(task.class_id)
+    if not cls:
+        return None
+    return task_stage_rank(cls, task)
+
+
+def task_stage_ready(
+    task: CourseBlock,
+    cls: SchoolClass,
+    task_by_id: Dict[str, CourseBlock],
+    task_ids_by_class: Dict[str, List[str]],
+    assignments: Dict[str, Assignment],
+) -> bool:
+    rank = task_stage_rank(cls, task)
+    if rank is None:
+        return True
+    for sibling_id in task_ids_by_class.get(cls.id, []):
+        if sibling_id in assignments:
+            continue
+        sibling = task_by_id[sibling_id]
+        sibling_rank = task_stage_rank(cls, sibling)
+        if sibling_rank is not None and sibling_rank < rank:
+            return False
+    return True
+
+
+def candidate_respects_stage_order(
+    task: CourseBlock,
+    candidate: Candidate,
+    cls: SchoolClass,
+    task_by_id: Dict[str, CourseBlock],
+    task_ids_by_class: Dict[str, List[str]],
+    assignments: Dict[str, Assignment],
+) -> bool:
+    rank = task_stage_rank(cls, task)
+    if rank is None:
+        return True
+    candidate_start = slot_sort_key(candidate.slots[0])
+    candidate_end = slot_sort_key(candidate.slots[-1])
+    for sibling_id in task_ids_by_class.get(cls.id, []):
+        if sibling_id == task.task_id or sibling_id not in assignments:
+            continue
+        sibling = task_by_id[sibling_id]
+        sibling_rank = task_stage_rank(cls, sibling)
+        if sibling_rank is None:
+            continue
+        sibling_assignment = assignments[sibling_id]
+        sibling_start = slot_sort_key(sibling_assignment.candidate.slots[0])
+        sibling_end = slot_sort_key(sibling_assignment.candidate.slots[-1])
+        if sibling_rank < rank and candidate_start <= sibling_end:
+            return False
+        if sibling_rank > rank and candidate_end >= sibling_start:
+            return False
+    return True
+
+
+def build_contiguous_slot_blocks(time_slots: List[TimeSlot], block_hours: int) -> List[Tuple[TimeSlot, ...]]:
+    grouped_slots: Dict[Tuple[str, str], List[TimeSlot]] = {}
+    for slot in time_slots:
+        grouped_slots.setdefault((slot.date, slot.period), []).append(slot)
+
+    blocks: List[Tuple[TimeSlot, ...]] = []
+    for slots in grouped_slots.values():
+        slots.sort(key=lambda slot: (slot.order, slot.id))
+        for start in range(len(slots)):
+            total_hours = 0
+            current: List[TimeSlot] = []
+            previous_order: Optional[int] = None
+
+            for slot in slots[start:]:
+                if previous_order is not None and slot.order != previous_order + 1:
+                    break
+
+                current.append(slot)
+                total_hours += slot.duration_hours
+                previous_order = slot.order
+
+                if total_hours == block_hours:
+                    blocks.append(tuple(current))
+                    break
+                if total_hours > block_hours:
+                    break
+
+    blocks.sort(key=lambda block: slot_sort_key(block[0]))
+    return blocks
+
+
+def slot_matches_task_constraints(slot: TimeSlot, task: CourseBlock) -> bool:
+    if task.start_date and slot.date < task.start_date:
+        return False
+    if task.end_date and slot.date > task.end_date:
+        return False
+    if task.allowed_periods and slot.period not in task.allowed_periods:
+        return False
+
+    weekday = Date.fromisoformat(slot.date).weekday()
+    if task.allowed_weekdays and weekday not in task.allowed_weekdays:
+        return False
+    if task.excluded_weekdays and weekday in task.excluded_weekdays:
+        return False
+    if task.schedule_rules and not any(slot_matches_schedule_rule(slot, rule) for rule in task.schedule_rules):
+        return False
+    return True
+
+
+def slot_matches_class_window_constraint(slot: TimeSlot, constraint: ClassWindowConstraint) -> bool:
+    constraint_tokens = {
+        value
+        for value in (constraint.schedule_window_id, constraint.season_window_id, constraint.season_name)
+        if value
+    }
+    if constraint_tokens:
+        slot_tokens = slot_window_tokens(slot)
+        if not slot_tokens or not (constraint_tokens & slot_tokens):
+            return False
+    if constraint.start_date and constraint.start_period:
+        start_key = (constraint.start_date, period_sort_value(constraint.start_period))
+        if (slot.date, period_sort_value(slot.period)) < start_key:
+            return False
+    if constraint.end_date and constraint.end_period:
+        end_key = (constraint.end_date, period_sort_value(constraint.end_period))
+        if (slot.date, period_sort_value(slot.period)) > end_key:
+            return False
+    return True
+
+
+def class_window_room_ids_for_slots(
+    constraints: List[ClassWindowConstraint],
+    slot_block: Tuple[TimeSlot, ...],
+) -> Optional[Set[str]]:
+    if not constraints:
+        return None
+    matching = [
+        constraint
+        for constraint in constraints
+        if all(slot_matches_class_window_constraint(slot, constraint) for slot in slot_block)
+    ]
+    if not matching:
+        return set()
+    constrained_sets = [
+        constraint.room_ids
+        for constraint in matching
+        if constraint.has_room_constraint and constraint.room_ids
+    ]
+    if not constrained_sets:
+        if any(constraint.has_room_constraint for constraint in matching):
+            return set()
+        return None
+    room_ids: Set[str] = set()
+    for values in constrained_sets:
+        room_ids.update(values)
+    return room_ids
+
+
+def slot_matches_schedule_rule(slot: TimeSlot, rule: ScheduleRule) -> bool:
+    rule_tokens = rule_window_tokens(rule)
+    if rule_tokens:
+        slot_tokens = slot_window_tokens(slot)
+        if not slot_tokens or not (rule_tokens & slot_tokens):
+            return False
+    if rule.start_date and slot.date < rule.start_date:
+        return False
+    if rule.end_date and slot.date > rule.end_date:
+        return False
+    if rule.allowed_periods and slot.period not in rule.allowed_periods:
+        return False
+
+    weekday = Date.fromisoformat(slot.date).weekday()
+    if rule.allowed_weekdays and weekday not in rule.allowed_weekdays:
+        return False
+    if rule.excluded_weekdays and weekday in rule.excluded_weekdays:
+        return False
+    return True
+
+
+def schedule_rules_for_candidate(task: CourseBlock, candidate: Candidate) -> List[ScheduleRule]:
+    return [
+        rule
+        for rule in task.schedule_rules
+        if all(slot_matches_schedule_rule(slot, rule) for slot in candidate.slots)
+    ]
+
+
+def product_day_limits_for_candidate(
+    task: CourseBlock,
+    candidate: Candidate,
+) -> Tuple[Optional[float], Optional[int]]:
+    matching_rules = schedule_rules_for_candidate(task, candidate)
+    max_hour_values = [
+        rule.max_hours_per_class_per_day
+        for rule in matching_rules
+        if rule.max_hours_per_class_per_day
+    ]
+    max_block_values = [
+        rule.max_blocks_per_class_per_day
+        for rule in matching_rules
+        if rule.max_blocks_per_class_per_day
+    ]
+    return (
+        min(max_hour_values) if max_hour_values else None,
+        min(max_block_values) if max_block_values else None,
+    )
+
+
+def candidate_avoids_product_day_limits(
+    hour_loads: Dict[Tuple[str, str], float],
+    block_loads: Dict[Tuple[str, str], int],
+    task: CourseBlock,
+    candidate: Candidate,
+) -> bool:
+    max_hours, max_blocks = product_day_limits_for_candidate(task, candidate)
+    if max_hours is None and max_blocks is None:
+        return True
+    for date_text, hours in candidate_hours_by_date(candidate).items():
+        key = (task.class_id, date_text)
+        if max_hours is not None and hour_loads.get(key, 0.0) + hours > max_hours + 1e-9:
+            return False
+        if max_blocks is not None and block_loads.get(key, 0) + 1 > max_blocks:
+            return False
+    return True
+
+
+def slot_matches_teacher_unavailability(slot: TimeSlot, rule: TeacherUnavailableRule) -> bool:
+    if rule.start_date and slot.date < rule.start_date:
+        return False
+    if rule.end_date and slot.date > rule.end_date:
+        return False
+    if rule.periods and slot.period not in rule.periods:
+        return False
+    if rule.schedule_window_ids:
+        slot_window_ids = {
+            value
+            for value in (slot.schedule_window_id, slot.season_window_id)
+            if value
+        }
+        if not slot_window_ids or not (slot_window_ids & rule.schedule_window_ids):
+            return False
+
+    weekday = Date.fromisoformat(slot.date).weekday()
+    if rule.weekdays and weekday not in rule.weekdays:
+        return False
+    return True
+
+
+def candidate_hits_teacher_unavailability(
+    task: CourseBlock,
+    slot_block: Tuple[TimeSlot, ...],
+    schedule_input: ScheduleInput,
+) -> bool:
+    teacher_id = str(task.teacher_id or "").strip()
+    if not teacher_id:
+        return False
+    rules = schedule_input.teacher_unavailability.get(teacher_id, [])
+    if not rules:
+        return False
+    return any(
+        slot_matches_teacher_unavailability(slot, rule)
+        for rule in rules
+        for slot in slot_block
+    )
+
+
+def candidate_assignments(
+    task: CourseBlock,
+    schedule_input: ScheduleInput,
+    slot_blocks: Optional[List[Tuple[TimeSlot, ...]]] = None,
+) -> List[Candidate]:
+    cls = schedule_input.classes[task.class_id]
+    possible_rooms = set(task.room_ids) if task.room_ids else set(schedule_input.rooms.keys())
+    class_window_constraints = schedule_input.class_window_constraints.get(task.class_id, [])
+    candidates: List[Candidate] = []
+
+    candidate_slot_blocks = slot_blocks if slot_blocks is not None else build_contiguous_slot_blocks(
+        schedule_input.time_slots,
+        task.block_hours,
+    )
+    for slot_block in candidate_slot_blocks:
+        slot_ids = {slot.id for slot in slot_block}
+        if not all(slot_in_class_window(slot, cls) for slot in slot_block):
+            continue
+        if not all(slot_matches_task_constraints(slot, task) for slot in slot_block):
+            continue
+        if candidate_hits_teacher_unavailability(task, slot_block, schedule_input):
+            continue
+        window_room_ids = class_window_room_ids_for_slots(class_window_constraints, slot_block)
+        if window_room_ids == set():
+            continue
+        slot_possible_rooms = possible_rooms & window_room_ids if window_room_ids else possible_rooms
+        room_order = sorted(
+            slot_possible_rooms,
+            key=lambda room_id: (
+                room_capacity_shortfall(schedule_input.rooms.get(room_id), task.class_size) > 0,
+                room_capacity_shortfall(schedule_input.rooms.get(room_id), task.class_size),
+                room_id,
+            ),
+        )
+
+        for room_id in room_order:
+            room = schedule_input.rooms.get(room_id)
+            if not room:
+                continue
+            candidates.append(
+                Candidate(
+                    slots=slot_block,
+                    teacher_id=task.teacher_id,
+                    teacher_name=task.teacher_name,
+                    room_id=room.id,
+                )
+            )
+
+    return candidates
+
+
+def candidate_domains(
+    tasks: List[CourseBlock],
+    schedule_input: ScheduleInput,
+) -> Dict[str, List[Candidate]]:
+    slot_blocks_by_hours: Dict[int, List[Tuple[TimeSlot, ...]]] = {}
+    for task in tasks:
+        if task.block_hours not in slot_blocks_by_hours:
+            slot_blocks_by_hours[task.block_hours] = build_contiguous_slot_blocks(
+                schedule_input.time_slots,
+                task.block_hours,
+            )
+    return {
+        task.task_id: candidate_assignments(
+            task,
+            schedule_input,
+            slot_blocks_by_hours[task.block_hours],
+        )
+        for task in tasks
+    }
+
+
+def room_capacity_shortfall(room: Optional[Room], class_size: Optional[int]) -> int:
+    if not room or room.capacity_unlimited or not class_size or not room.capacity:
+        return 0
+    return max(0, class_size - room.capacity)
+
+
+def locked_constraint_sets(
+    schedule_input: ScheduleInput,
+) -> Tuple[Set[Tuple[str, str]], Set[Tuple[str, str]], Set[Tuple[str, str]], Set[Tuple[str, str]]]:
+    class_slot_used: Set[Tuple[str, str]] = set()
+    teacher_slot_used: Set[Tuple[str, str]] = set()
+    room_slot_used: Set[Tuple[str, str]] = set()
+    conflict_group_slot_used: Set[Tuple[str, str]] = set()
+
+    for assignment in schedule_input.locked_assignments:
+        class_group_ids = schedule_input.class_conflict_groups.get(assignment.task.class_id, set())
+        for slot in assignment.candidate.slots:
+            class_slot_used.add((assignment.task.class_id, slot.id))
+            if assignment.candidate.teacher_id:
+                teacher_slot_used.add((assignment.candidate.teacher_id, slot.id))
+            room_slot_used.add((assignment.candidate.room_id, slot.id))
+            for group_id in class_group_ids:
+                conflict_group_slot_used.add((group_id, slot.id))
+    return class_slot_used, teacher_slot_used, room_slot_used, conflict_group_slot_used
+
+
+def schedule(schedule_input: ScheduleInput) -> List[Assignment]:
+    tasks = build_course_blocks(schedule_input.classes)
+
+    domains: Dict[str, List[Candidate]] = {}
+    task_by_id: Dict[str, CourseBlock] = {task.task_id: task for task in tasks}
+    task_ids_by_class: Dict[str, List[str]] = {class_id: [] for class_id in schedule_input.classes}
+    for task in tasks:
+        task_ids_by_class[task.class_id].append(task.task_id)
+
+    domains = candidate_domains(tasks, schedule_input)
+    for task in tasks:
+        if not domains[task.task_id]:
+            raise ValueError(f"任务 {task.task_id} 没有可行的连续课节/老师/教学区组合")
+
+    for cls in schedule_input.classes.values():
+        if not class_has_start_anchor(cls) or not task_ids_by_class[cls.id]:
+            continue
+        has_anchor_candidate = any(
+            candidate_matches_start_anchor(cls, candidate)
+            for task_id in task_ids_by_class[cls.id]
+            for candidate in domains[task_id]
+        )
+        if not has_anchor_candidate:
+            allowed = "、".join(sorted(allowed_start_periods(cls), key=period_sort_value))
+            raise ValueError(f"班级 {cls.id} 的首课无法排在 {cls.first_lesson_date} {allowed}")
+
+    greedy_result = greedy_schedule(
+        schedule_input,
+        task_by_id,
+        task_ids_by_class,
+        domains,
+    )
+    if greedy_result is not None:
+        return sorted_assignments([*schedule_input.locked_assignments, *greedy_result])
+
+    class_slot_used, teacher_slot_used, room_slot_used, conflict_group_slot_used = locked_constraint_sets(schedule_input)
+    assignments: Dict[str, Assignment] = {}
+    class_teacher_day_loads = locked_class_teacher_day_loads(schedule_input)
+    class_day_hour_loads, class_day_block_loads = locked_class_day_rule_loads(schedule_input)
+
+    def is_valid(task: CourseBlock, candidate: Candidate) -> bool:
+        cls = schedule_input.classes[task.class_id]
+        if not task_stage_ready(task, cls, task_by_id, task_ids_by_class, assignments):
+            return False
+        if not candidate_respects_stage_order(task, candidate, cls, task_by_id, task_ids_by_class, assignments):
+            return False
+        if not candidate_avoids_same_class_teacher_day_limit(class_teacher_day_loads, task, candidate):
+            return False
+        if not candidate_avoids_product_day_limits(class_day_hour_loads, class_day_block_loads, task, candidate):
+            return False
+        class_group_ids = schedule_input.class_conflict_groups.get(task.class_id, set())
+
+        for slot in candidate.slots:
+            if (task.class_id, slot.id) in class_slot_used:
+                return False
+            if candidate.teacher_id and (candidate.teacher_id, slot.id) in teacher_slot_used:
+                return False
+            if (candidate.room_id, slot.id) in room_slot_used:
+                return False
+            if any((group_id, slot.id) in conflict_group_slot_used for group_id in class_group_ids):
+                return False
+
+        return True
+
+    def place(task: CourseBlock, candidate: Candidate) -> None:
+        assignments[task.task_id] = Assignment(task=task, candidate=candidate)
+        class_group_ids = schedule_input.class_conflict_groups.get(task.class_id, set())
+
+        for slot in candidate.slots:
+            class_slot_used.add((task.class_id, slot.id))
+            if candidate.teacher_id:
+                teacher_slot_used.add((candidate.teacher_id, slot.id))
+            room_slot_used.add((candidate.room_id, slot.id))
+            for group_id in class_group_ids:
+                conflict_group_slot_used.add((group_id, slot.id))
+        add_class_teacher_day_load(class_teacher_day_loads, task, candidate)
+        add_class_day_rule_load(class_day_hour_loads, class_day_block_loads, task, candidate)
+
+    def unplace(task: CourseBlock, candidate: Candidate) -> None:
+        assignments.pop(task.task_id, None)
+        class_group_ids = schedule_input.class_conflict_groups.get(task.class_id, set())
+
+        for slot in candidate.slots:
+            class_slot_used.remove((task.class_id, slot.id))
+            if candidate.teacher_id:
+                teacher_slot_used.remove((candidate.teacher_id, slot.id))
+            room_slot_used.remove((candidate.room_id, slot.id))
+            for group_id in class_group_ids:
+                conflict_group_slot_used.remove((group_id, slot.id))
+        add_class_teacher_day_load(class_teacher_day_loads, task, candidate, delta=-1.0)
+        add_class_day_rule_load(class_day_hour_loads, class_day_block_loads, task, candidate, delta=-1)
+
+    def remaining_task_ids() -> List[str]:
+        return [task_id for task_id in task_by_id if task_id not in assignments]
+
+    def class_anchor_satisfied(cls: SchoolClass) -> bool:
+        if not class_has_start_anchor(cls) or not task_ids_by_class[cls.id]:
+            return True
+        return any(
+            candidate_matches_start_anchor(cls, assignments[task_id].candidate)
+            for task_id in task_ids_by_class[cls.id]
+            if task_id in assignments
+        )
+
+    def domain_size_after_filter(task_id: str, anchor_only: bool = False) -> int:
+        task = task_by_id[task_id]
+        cls = schedule_input.classes[task.class_id]
+        if not task_stage_ready(task, cls, task_by_id, task_ids_by_class, assignments):
+            return 0
+        return sum(
+            1
+            for candidate in domains[task_id]
+            if is_valid(task, candidate)
+            and (not anchor_only or candidate_matches_start_anchor(cls, candidate))
+        )
+
+    def choose_next_task() -> str:
+        for cls in schedule_input.classes.values():
+            if class_anchor_satisfied(cls):
+                continue
+            anchor_candidates = [
+                task_id
+                for task_id in task_ids_by_class[cls.id]
+                if task_id not in assignments and domain_size_after_filter(task_id, anchor_only=True) > 0
+            ]
+            if anchor_candidates:
+                anchor_candidates.sort(key=lambda task_id: (domain_size_after_filter(task_id, anchor_only=True), len(domains[task_id])))
+                return anchor_candidates[0]
+            remaining_for_class = [task_id for task_id in task_ids_by_class[cls.id] if task_id not in assignments]
+            if remaining_for_class:
+                return remaining_for_class[0]
+
+        candidates = remaining_task_ids()
+        ready_candidates = [
+            task_id
+            for task_id in candidates
+            if task_stage_ready(
+                task_by_id[task_id],
+                schedule_input.classes[task_by_id[task_id].class_id],
+                task_by_id,
+                task_ids_by_class,
+                assignments,
+            )
+        ]
+        if ready_candidates:
+            candidates = ready_candidates
+        candidates.sort(key=lambda task_id: (domain_size_after_filter(task_id), len(domains[task_id])))
+        return candidates[0]
+
+    def start_anchors_satisfied() -> bool:
+        for cls in schedule_input.classes.values():
+            if not class_anchor_satisfied(cls):
+                return False
+        return True
+
+    def backtrack() -> bool:
+        if len(assignments) == len(task_by_id):
+            return start_anchors_satisfied()
+
+        task_id = choose_next_task()
+        task = task_by_id[task_id]
+        cls = schedule_input.classes[task.class_id]
+        options = [candidate for candidate in domains[task_id] if is_valid(task, candidate)]
+        if not class_anchor_satisfied(cls):
+            options = [candidate for candidate in options if candidate_matches_start_anchor(cls, candidate)]
+        options.sort(
+            key=lambda candidate: (
+                candidate_same_day_teacher_travel_penalty(
+                    schedule_input,
+                    [*schedule_input.locked_assignments, *assignments.values()],
+                    task,
+                    candidate,
+                ),
+                slot_sort_key(candidate.slots[0]),
+                candidate.room_id,
+            )
+        )
+
+        for candidate in options:
+            place(task, candidate)
+            if backtrack():
+                return True
+            unplace(task, candidate)
+
+        return False
+
+    if not backtrack():
+        raise ValueError("无法找到满足约束的排课方案，请检查老师可用时段、教学区容量或冲突组约束")
+
+    return sorted_assignments([*schedule_input.locked_assignments, *assignments.values()])
+
+
+def sorted_assignments(assignments: List[Assignment]) -> List[Assignment]:
+    result = list(assignments)
+    result.sort(
+        key=lambda assignment: (
+            slot_sort_key(assignment.candidate.slots[0]),
+            assignment.task.class_id,
+            assignment.task.subject,
+            assignment.task.task_id,
+        )
+    )
+    return result
+
+
+def greedy_schedule(
+    schedule_input: ScheduleInput,
+    task_by_id: Dict[str, CourseBlock],
+    task_ids_by_class: Dict[str, List[str]],
+    domains: Dict[str, List[Candidate]],
+) -> Optional[List[Assignment]]:
+    class_slot_used, teacher_slot_used, room_slot_used, conflict_group_slot_used = locked_constraint_sets(schedule_input)
+    assignments: Dict[str, Assignment] = {}
+    class_teacher_day_loads = locked_class_teacher_day_loads(schedule_input)
+    class_day_hour_loads, class_day_block_loads = locked_class_day_rule_loads(schedule_input)
+
+    def is_valid(task: CourseBlock, candidate: Candidate) -> bool:
+        cls = schedule_input.classes[task.class_id]
+        if not task_stage_ready(task, cls, task_by_id, task_ids_by_class, assignments):
+            return False
+        if not candidate_respects_stage_order(task, candidate, cls, task_by_id, task_ids_by_class, assignments):
+            return False
+        if not candidate_avoids_same_class_teacher_day_limit(class_teacher_day_loads, task, candidate):
+            return False
+        if not candidate_avoids_product_day_limits(class_day_hour_loads, class_day_block_loads, task, candidate):
+            return False
+        class_group_ids = schedule_input.class_conflict_groups.get(task.class_id, set())
+
+        for slot in candidate.slots:
+            if (task.class_id, slot.id) in class_slot_used:
+                return False
+            if candidate.teacher_id and (candidate.teacher_id, slot.id) in teacher_slot_used:
+                return False
+            if (candidate.room_id, slot.id) in room_slot_used:
+                return False
+            if any((group_id, slot.id) in conflict_group_slot_used for group_id in class_group_ids):
+                return False
+        return True
+
+    def place(task: CourseBlock, candidate: Candidate) -> None:
+        assignments[task.task_id] = Assignment(task=task, candidate=candidate)
+        class_group_ids = schedule_input.class_conflict_groups.get(task.class_id, set())
+
+        for slot in candidate.slots:
+            class_slot_used.add((task.class_id, slot.id))
+            if candidate.teacher_id:
+                teacher_slot_used.add((candidate.teacher_id, slot.id))
+            room_slot_used.add((candidate.room_id, slot.id))
+            for group_id in class_group_ids:
+                conflict_group_slot_used.add((group_id, slot.id))
+        add_class_teacher_day_load(class_teacher_day_loads, task, candidate)
+        add_class_day_rule_load(class_day_hour_loads, class_day_block_loads, task, candidate)
+
+    def class_anchor_satisfied(cls: SchoolClass) -> bool:
+        if not class_has_start_anchor(cls) or not task_ids_by_class[cls.id]:
+            return True
+        return any(
+            candidate_matches_start_anchor(cls, assignments[task_id].candidate)
+            for task_id in task_ids_by_class[cls.id]
+            if task_id in assignments
+        )
+
+    def valid_options(task_id: str, anchor_only: bool = False) -> List[Candidate]:
+        task = task_by_id[task_id]
+        cls = schedule_input.classes[task.class_id]
+        if not task_stage_ready(task, cls, task_by_id, task_ids_by_class, assignments):
+            return []
+        options = [
+            candidate
+            for candidate in domains[task_id]
+            if is_valid(task, candidate)
+            and (not anchor_only or candidate_matches_start_anchor(cls, candidate))
+        ]
+        options.sort(
+            key=lambda candidate: (
+                candidate_same_day_teacher_travel_penalty(
+                    schedule_input,
+                    [*schedule_input.locked_assignments, *assignments.values()],
+                    task,
+                    candidate,
+                ),
+                slot_sort_key(candidate.slots[0]),
+                candidate.room_id,
+            )
+        )
+        return options
+
+    def choose_next_task() -> Optional[Tuple[str, List[Candidate]]]:
+        for cls in schedule_input.classes.values():
+            if class_anchor_satisfied(cls):
+                continue
+            anchor_choices = [
+                (task_id, valid_options(task_id, anchor_only=True))
+                for task_id in task_ids_by_class[cls.id]
+                if task_id not in assignments
+            ]
+            anchor_choices = [(task_id, options) for task_id, options in anchor_choices if options]
+            if not anchor_choices:
+                return None
+            anchor_choices.sort(key=lambda item: (len(item[1]), len(domains[item[0]])))
+            return anchor_choices[0]
+
+        choices = [
+            (task_id, valid_options(task_id))
+            for task_id in task_by_id
+            if task_id not in assignments
+            and task_stage_ready(
+                task_by_id[task_id],
+                schedule_input.classes[task_by_id[task_id].class_id],
+                task_by_id,
+                task_ids_by_class,
+                assignments,
+            )
+        ]
+        if not choices:
+            return None
+        if any(not options for _, options in choices):
+            return None
+        choices.sort(key=lambda item: (len(item[1]), len(domains[item[0]])))
+        return choices[0]
+
+    while len(assignments) < len(task_by_id):
+        choice = choose_next_task()
+        if choice is None:
+            return None
+        task_id, options = choice
+        if not options:
+            return None
+        place(task_by_id[task_id], options[0])
+
+    if not all(class_anchor_satisfied(cls) for cls in schedule_input.classes.values()):
+        return None
+    return list(assignments.values())
+
+
+def write_csv(assignments: List[Assignment], out_path: Path, schedule_input: Optional[ScheduleInput] = None) -> None:
+    with out_path.open("w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(
+            f,
+            fieldnames=[
+                "date",
+                "period",
+                "start_slot_id",
+                "start_slot_name",
+                "start_time",
+                "end_slot_id",
+                "end_slot_name",
+                "end_time",
+                "slot_ids",
+                "class_id",
+                "class_name",
+                "product_id",
+                "product_name",
+                "subject_category",
+                "subject",
+                "quarter",
+                "stage",
+                "course_module",
+                "course_group",
+                "teacher_id",
+                "teacher_name",
+                "room_id",
+                "room_name",
+                "teaching_area_id",
+                "duration_hours",
+                "source",
+            ],
+        )
+        writer.writeheader()
+
+        for assignment in assignments:
+            slots = assignment.candidate.slots
+            room = schedule_input.rooms.get(assignment.candidate.room_id) if schedule_input else None
+            writer.writerow(
+                {
+                    "date": slots[0].date,
+                    "period": slots[0].period,
+                    "start_slot_id": slots[0].id,
+                    "start_slot_name": slots[0].name,
+                    "start_time": slots[0].start_time or "",
+                    "end_slot_id": slots[-1].id,
+                    "end_slot_name": slots[-1].name,
+                    "end_time": slots[-1].end_time or "",
+                    "slot_ids": "|".join(slot.id for slot in slots),
+                    "class_id": assignment.task.class_id,
+                    "class_name": assignment.task.class_name,
+                    "product_id": assignment.task.product_id or "",
+                    "product_name": assignment.task.product_name or "",
+                    "subject_category": assignment.task.subject_category,
+                    "subject": assignment.task.subject,
+                    "quarter": assignment.task.quarter or "",
+                    "stage": assignment.task.stage or "",
+                    "course_module": assignment.task.course_module or "",
+                    "course_group": assignment.task.course_group or "",
+                    "teacher_id": assignment.candidate.teacher_id,
+                    "teacher_name": assignment.candidate.teacher_name,
+                    "room_id": assignment.candidate.room_id,
+                    "room_name": room.name if room else "",
+                    "teaching_area_id": room.teaching_area_id if room else "",
+                    "duration_hours": sum(slot.duration_hours for slot in slots),
+                    "source": "locked" if assignment.task.is_locked else "generated",
+                }
+            )
+
+
+def write_html(assignments: List[Assignment], schedule_input: ScheduleInput, out_path: Path) -> None:
+    slots = schedule_input.time_slots
+    slot_index = {slot.id: index + 1 for index, slot in enumerate(slots)}
+    classes = list(schedule_input.classes.values())
+    known_class_ids = {cls.id for cls in classes}
+    for assignment in assignments:
+        if assignment.task.class_id in known_class_ids:
+            continue
+        classes.append(
+            SchoolClass(
+                id=assignment.task.class_id,
+                name=assignment.task.class_name,
+                product_id=assignment.task.product_id,
+                product_name=assignment.task.product_name,
+                size=assignment.task.class_size,
+                room_ids=assignment.task.room_ids,
+                start_date=None,
+                start_period=None,
+                end_date=None,
+                end_period=None,
+                first_lesson_date=None,
+                first_lesson_period=None,
+                stage_order={},
+                requirements=[],
+            )
+        )
+        known_class_ids.add(assignment.task.class_id)
+    subjects = sorted({assignment.task.subject for assignment in assignments})
+    colors = build_subject_colors(subjects)
+    assignments_by_class: Dict[str, List[Assignment]] = {cls.id: [] for cls in classes}
+
+    for assignment in assignments:
+        assignments_by_class[assignment.task.class_id].append(assignment)
+
+    slot_columns = "\n".join(
+        (
+            f'<div class="slot-header"><strong>{escape(slot.date)}</strong>'
+            f'<span>{escape(slot.name)}</span>'
+            f'<em>{escape(format_slot_time(slot))}</em></div>'
+        )
+        for slot in slots
+    )
+    rows = "\n".join(
+        render_class_row(cls, assignments_by_class[cls.id], slot_index, colors)
+        for cls in classes
+    )
+    legend = "\n".join(
+        f'<span class="legend-item"><i style="background:{escape(colors[subject])}"></i>{escape(subject)}</span>'
+        for subject in subjects
+    )
+
+    out_path.write_text(
+        f"""<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>班级课表甘特图</title>
+  <style>
+    :root {{
+      --grid-columns: repeat({len(slots)}, minmax(132px, 1fr));
+      --border: #d7dce2;
+      --muted: #607086;
+      --text: #1b2636;
+      --bg: #f6f7f9;
+      --panel: #ffffff;
+    }}
+    * {{ box-sizing: border-box; }}
+    body {{
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }}
+    header {{
+      padding: 24px 28px 14px;
+      border-bottom: 1px solid var(--border);
+      background: var(--panel);
+    }}
+    h1 {{
+      margin: 0 0 8px;
+      font-size: 24px;
+      font-weight: 700;
+      letter-spacing: 0;
+    }}
+    .summary {{
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      color: var(--muted);
+      font-size: 14px;
+    }}
+    main {{ padding: 20px 28px 28px; }}
+    .legend {{
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 14px;
+      font-size: 14px;
+    }}
+    .legend-item {{
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--muted);
+    }}
+    .legend-item i {{
+      width: 12px;
+      height: 12px;
+      border-radius: 3px;
+      display: inline-block;
+    }}
+    .timeline {{
+      overflow-x: auto;
+      border: 1px solid var(--border);
+      background: var(--panel);
+    }}
+    .grid {{
+      min-width: {max(760, len(slots) * 132 + 168)}px;
+      display: grid;
+      grid-template-columns: 168px var(--grid-columns);
+    }}
+    .corner,
+    .slot-header,
+    .class-label {{
+      border-bottom: 1px solid var(--border);
+      background: #fbfcfd;
+    }}
+    .corner,
+    .class-label {{
+      position: sticky;
+      left: 0;
+      z-index: 3;
+      border-right: 1px solid var(--border);
+    }}
+    .corner {{
+      top: 0;
+      min-height: 64px;
+      padding: 16px;
+      font-weight: 700;
+    }}
+    .slot-header {{
+      min-height: 64px;
+      padding: 10px 8px;
+      border-right: 1px solid var(--border);
+      font-size: 13px;
+      text-align: center;
+    }}
+    .slot-header span {{
+      display: block;
+      margin-top: 4px;
+      color: var(--muted);
+    }}
+    .slot-header em {{
+      display: block;
+      margin-top: 3px;
+      color: #344256;
+      font-size: 12px;
+      font-style: normal;
+    }}
+    .class-label {{
+      min-height: 76px;
+      padding: 14px 12px;
+      font-weight: 700;
+    }}
+    .class-label small {{
+      display: block;
+      margin-top: 4px;
+      color: var(--muted);
+      font-weight: 500;
+    }}
+    .class-track {{
+      position: relative;
+      min-height: 76px;
+      display: grid;
+      grid-template-columns: var(--grid-columns);
+      grid-column: 2 / -1;
+      border-bottom: 1px solid var(--border);
+      background:
+        repeating-linear-gradient(
+          to right,
+          transparent 0,
+          transparent calc(100% / {max(len(slots), 1)} - 1px),
+          var(--border) calc(100% / {max(len(slots), 1)} - 1px),
+          var(--border) calc(100% / {max(len(slots), 1)})
+        );
+    }}
+    .bar {{
+      align-self: center;
+      min-height: 52px;
+      margin: 8px 6px;
+      padding: 8px 10px;
+      border-radius: 6px;
+      color: #fff;
+      box-shadow: 0 2px 8px rgba(27, 38, 54, 0.12);
+      overflow: hidden;
+    }}
+    .bar strong,
+    .bar span {{
+      display: block;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }}
+    .bar strong {{ font-size: 14px; }}
+    .bar span {{
+      margin-top: 4px;
+      font-size: 12px;
+      opacity: 0.92;
+    }}
+    .table-wrap {{
+      margin-top: 18px;
+      overflow-x: auto;
+      border: 1px solid var(--border);
+      background: var(--panel);
+    }}
+    table {{
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 860px;
+    }}
+    th,
+    td {{
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      text-align: left;
+      font-size: 14px;
+    }}
+    th {{
+      background: #fbfcfd;
+      color: var(--muted);
+      font-weight: 700;
+    }}
+  </style>
+</head>
+<body>
+  <header>
+    <h1>班级课表甘特图</h1>
+    <div class="summary">
+      <span>班级 {len(classes)} 个</span>
+      <span>课程块 {len(assignments)} 个</span>
+      <span>课节 {len(slots)} 个</span>
+    </div>
+  </header>
+  <main>
+    <div class="legend">{legend}</div>
+    <section class="timeline">
+      <div class="grid">
+        <div class="corner">班级 / 课节</div>
+        {slot_columns}
+        {rows}
+      </div>
+    </section>
+    {render_assignment_table(assignments)}
+  </main>
+</body>
+</html>
+""",
+        encoding="utf-8",
+    )
+
+
+def build_subject_colors(subjects: List[str]) -> Dict[str, str]:
+    palette = [
+        "#2f6f73",
+        "#bc5b2c",
+        "#6f5aa7",
+        "#557a35",
+        "#b0445c",
+        "#3d6fa8",
+        "#8a6a22",
+        "#4f7d68",
+    ]
+    return {subject: palette[index % len(palette)] for index, subject in enumerate(subjects)}
+
+
+def course_display_name(task: CourseBlock) -> str:
+    parts = [task.subject]
+    if task.quarter:
+        parts.append(task.quarter)
+    if task.stage:
+        parts.append(task.stage)
+    if task.course_module:
+        parts.append(task.course_module)
+    return " / ".join(parts)
+
+
+def render_class_row(
+    cls: SchoolClass,
+    assignments: List[Assignment],
+    slot_index: Dict[str, int],
+    colors: Dict[str, str],
+) -> str:
+    bars = "\n".join(render_assignment_bar(assignment, slot_index, colors) for assignment in assignments)
+    size_text = f"{cls.size} 人" if cls.size else "未填写人数"
+    return f"""
+        <div class="class-label">{escape(cls.name)}<small>{escape(cls.id)} · {escape(size_text)}</small></div>
+        <div class="class-track">{bars}</div>
+"""
+
+
+def render_assignment_bar(
+    assignment: Assignment,
+    slot_index: Dict[str, int],
+    colors: Dict[str, str],
+) -> str:
+    slots = assignment.candidate.slots
+    start = slot_index[slots[0].id]
+    end = slot_index[slots[-1].id] + 1
+    category = f"{assignment.task.subject_category} · " if assignment.task.subject_category else ""
+    course_name = course_display_name(assignment.task)
+    title = (
+        f"{assignment.task.class_name} {course_name} "
+        f"{slots[0].date} {slots[0].name}-{slots[-1].name} {format_time_range(slots)}"
+    )
+
+    return f"""
+          <div
+            class="bar"
+            title="{escape(title)}"
+            style="grid-column: {start} / {end}; background: {escape(colors[assignment.task.subject])};"
+          >
+            <strong>{escape(category + course_name)}</strong>
+            <span>{escape(format_time_range(slots))}</span>
+            <span>{escape(assignment.candidate.teacher_name)} · {escape(assignment.candidate.room_id)}</span>
+          </div>
+"""
+
+
+def render_assignment_table(assignments: List[Assignment]) -> str:
+    rows = "\n".join(render_assignment_table_row(assignment) for assignment in assignments)
+    return f"""
+    <section class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>日期</th>
+            <th>时段</th>
+            <th>课节</th>
+            <th>时间</th>
+            <th>班级</th>
+            <th>产品</th>
+            <th>类别</th>
+            <th>科目</th>
+            <th>季度</th>
+            <th>阶段</th>
+            <th>模块</th>
+            <th>师资组</th>
+            <th>老师</th>
+            <th>教学区</th>
+            <th>小时</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows}
+        </tbody>
+      </table>
+    </section>
+"""
+
+
+def render_assignment_table_row(assignment: Assignment) -> str:
+    slots = assignment.candidate.slots
+    return f"""
+          <tr>
+            <td>{escape(slots[0].date)}</td>
+            <td>{escape(slots[0].period)}</td>
+            <td>{escape(slots[0].name)} - {escape(slots[-1].name)}</td>
+            <td>{escape(format_time_range(slots))}</td>
+            <td>{escape(assignment.task.class_name)}</td>
+            <td>{escape(assignment.task.product_name or "")}</td>
+            <td>{escape(assignment.task.subject_category)}</td>
+            <td>{escape(assignment.task.subject)}</td>
+            <td>{escape(assignment.task.quarter or "")}</td>
+            <td>{escape(assignment.task.stage or "")}</td>
+            <td>{escape(assignment.task.course_module or "")}</td>
+            <td>{escape(assignment.task.course_group or "")}</td>
+            <td>{escape(assignment.candidate.teacher_name)}</td>
+            <td>{escape(assignment.candidate.room_id)}</td>
+            <td>{sum(slot.duration_hours for slot in slots)}</td>
+          </tr>
+"""
+
+
+def escape(value: object) -> str:
+    return html.escape(str(value), quote=True)
+
+
+def format_slot_time(slot: TimeSlot) -> str:
+    if slot.start_time and slot.end_time:
+        return f"{slot.start_time} - {slot.end_time}"
+    return ""
+
+
+def format_time_range(slots: Tuple[TimeSlot, ...]) -> str:
+    start = slots[0].start_time
+    end = slots[-1].end_time
+    if start and end:
+        return f"{start} - {end}"
+    return ""
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="班级自动化排课")
+    parser.add_argument("--input", required=True, type=Path, help="输入 JSON 文件")
+    parser.add_argument("--output", required=True, type=Path, help="输出 CSV 文件")
+    parser.add_argument("--html-output", type=Path, help="可选：输出班级课表甘特图 HTML 文件")
+    args = parser.parse_args()
+
+    try:
+        schedule_input = load_input(args.input)
+        assignments = schedule(schedule_input)
+        write_csv(assignments, args.output, schedule_input)
+        if args.html_output:
+            write_html(assignments, schedule_input, args.html_output)
+    except ValueError as exc:
+        print(f"排课失败: {exc}", file=sys.stderr)
+        raise SystemExit(1) from None
+
+    print(f"排课成功，共生成 {len(assignments)} 条记录: {args.output}")
+    if args.html_output:
+        print(f"甘特图已生成: {args.html_output}")
+
+
+if __name__ == "__main__":
+    main()

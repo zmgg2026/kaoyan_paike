@@ -1,0 +1,2 @@
+product_id,product_name,subject_category,subject,window_name,stage,stage_priority,course_group,course_module,module_priority_in_group,course_code,course_name,total_hours,notes
+P_ENGLISH_SUMMER,示例暑假英语产品,公共课,英语,暑假,基础,1,阅读类,词汇,1,ENG-DEMO-001,英语词汇示例课,4,公开示例数据
