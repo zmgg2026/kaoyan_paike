@@ -3836,7 +3836,14 @@ class SchedulingPipelineTest(unittest.TestCase):
                     "room_id": "R1",
                     "teacher_id": "无",
                     "teacher_name": "暂无",
+                    "business_product_id": "ERP_PRODUCT_1",
+                    "business_product_name": "ERP 标准产品",
+                    "subject_category": "公共课",
                     "subject": "英语",
+                    "quarter": "暑假",
+                    "stage": "基础",
+                    "course_module": "阅读",
+                    "course_group": "英语阅读",
                     "course_code": "ENG001",
                     "course_name": "阅读",
                 }
@@ -3851,9 +3858,39 @@ class SchedulingPipelineTest(unittest.TestCase):
         self.assertEqual(assignment.candidate.teacher_id, "")
         self.assertEqual(assignment.candidate.teacher_name, "")
         self.assertEqual(assignment.task.block_hours, 4)
+        self.assertEqual(assignment.task.product_id, "ERP_PRODUCT_1")
+        self.assertEqual(assignment.task.product_name, "ERP 标准产品")
+        self.assertEqual(assignment.task.subject_category, "公共课")
+        self.assertEqual(assignment.task.quarter, "暑假")
+        self.assertEqual(assignment.task.stage, "基础")
+        self.assertEqual(assignment.task.course_module, "阅读")
+        self.assertEqual(assignment.task.course_group, "英语阅读")
         self.assertEqual(assignment.task.course_code, "ENG001")
         self.assertEqual(assignment.task.course_name, "阅读")
         self.assertTrue(assignment.task.is_locked)
+
+    def test_locked_lesson_task_defaults_class_subject_and_time_fields(self) -> None:
+        slot = scheduler.TimeSlot("S1", "2026-07-01", "PM", "下午一", 1, "14:00", "16:00", 2)
+
+        task = scheduler.locked_lesson_task(
+            {"course_code": "-", "course_name": "暂无"},
+            "L2",
+            "LOCKED_CLASS",
+            "R2",
+            (slot,),
+        )
+
+        self.assertEqual(task.task_id, "LOCKED:L2")
+        self.assertEqual(task.class_name, "LOCKED_CLASS")
+        self.assertEqual(task.subject, "已定课程")
+        self.assertEqual(task.room_ids, {"R2"})
+        self.assertEqual(task.block_hours, 2)
+        self.assertEqual(task.start_date, "2026-07-01")
+        self.assertEqual(task.end_date, "2026-07-01")
+        self.assertEqual(task.allowed_periods, {"PM"})
+        self.assertEqual(task.course_code, "")
+        self.assertEqual(task.course_name, "")
+        self.assertTrue(task.is_locked)
 
     def test_locked_lesson_slots_match_contiguous_time_range_and_reject_order_gaps(self) -> None:
         slots = [

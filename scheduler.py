@@ -868,6 +868,49 @@ def locked_lesson_teacher(raw: dict) -> Tuple[str, str]:
     return blank_marker_to_empty(raw.get("teacher_id")), blank_marker_to_empty(raw.get("teacher_name"))
 
 
+def locked_lesson_base_fields(
+    raw: dict,
+    lesson_id: str,
+    class_id: str,
+    room_id: str,
+) -> Dict[str, object]:
+    return {
+        "task_id": f"LOCKED:{lesson_id}",
+        "class_id": class_id,
+        "class_name": raw.get("class_name") or class_id,
+        "product_id": raw.get("business_product_id"),
+        "product_name": raw.get("business_product_name"),
+        "class_size": None,
+        "room_ids": {room_id},
+        "is_locked": True,
+    }
+
+
+def locked_lesson_course_fields(raw: dict) -> Dict[str, object]:
+    return {
+        "subject_category": raw.get("subject_category", ""),
+        "subject": raw.get("subject", "已定课程"),
+        "quarter": raw.get("quarter"),
+        "stage": raw.get("stage"),
+        "course_module": raw.get("course_module"),
+        "course_group": raw.get("course_group"),
+        "course_code": blank_marker_to_empty(raw.get("course_code")),
+        "course_name": blank_marker_to_empty(raw.get("course_name")),
+    }
+
+
+def locked_lesson_time_fields(slots: Tuple[TimeSlot, ...]) -> Dict[str, object]:
+    return {
+        "block_hours": sum(slot.duration_hours for slot in slots),
+        "start_date": slots[0].date,
+        "end_date": slots[-1].date,
+        "allowed_periods": {slots[0].period},
+        "allowed_weekdays": None,
+        "excluded_weekdays": None,
+        "schedule_rules": (),
+    }
+
+
 def locked_lesson_task(
     raw: dict,
     lesson_id: str,
@@ -877,31 +920,11 @@ def locked_lesson_task(
 ) -> CourseBlock:
     teacher_id, teacher_name = locked_lesson_teacher(raw)
     return CourseBlock(
-        task_id=f"LOCKED:{lesson_id}",
-        class_id=class_id,
-        class_name=raw.get("class_name") or class_id,
-        product_id=raw.get("business_product_id"),
-        product_name=raw.get("business_product_name"),
-        class_size=None,
-        subject_category=raw.get("subject_category", ""),
-        subject=raw.get("subject", "已定课程"),
-        quarter=raw.get("quarter"),
-        stage=raw.get("stage"),
-        course_module=raw.get("course_module"),
-        course_group=raw.get("course_group"),
+        **locked_lesson_base_fields(raw, lesson_id, class_id, room_id),
+        **locked_lesson_course_fields(raw),
         teacher_id=teacher_id,
         teacher_name=teacher_name,
-        block_hours=sum(slot.duration_hours for slot in slots),
-        room_ids={room_id},
-        start_date=slots[0].date,
-        end_date=slots[-1].date,
-        allowed_periods={slots[0].period},
-        allowed_weekdays=None,
-        excluded_weekdays=None,
-        schedule_rules=(),
-        is_locked=True,
-        course_code=blank_marker_to_empty(raw.get("course_code")),
-        course_name=blank_marker_to_empty(raw.get("course_name")),
+        **locked_lesson_time_fields(slots),
     )
 
 
