@@ -747,14 +747,37 @@ def build_lookups(
     product_courses: List[Dict[str, Any]],
     classes: List[Dict[str, Any]],
 ) -> Dict[str, Any]:
-    product_map: Dict[str, Dict[str, str]] = {}
-    subjects: Set[str] = set()
-    quarters: Set[str] = set()
-    stages: Set[str] = set()
-    modules: Set[str] = set()
-    groups: Set[str] = set()
-    teacher_map: Dict[str, Dict[str, str]] = {}
+    product_map = product_lookup_map(products, product_courses)
+    subjects, quarters, stages, modules, groups = course_lookup_sets(product_courses)
+    teacher_map = teacher_lookup_map(teachers, classes)
 
+    return {
+        "products": product_lookup_rows(product_map),
+        "product_lines": ["考研复试", "考研集训营", "考研无忧", "考研个性化", "考研其他", "专升本", "四六级"],
+        "subjects": sorted(subjects),
+        "quarters": sorted(quarters),
+        "stages": sort_stage_values(stages),
+        "course_modules": sorted(modules),
+        "course_groups": sorted(groups),
+        "course_name_tags": load_course_name_tags(product_courses),
+        "teachers": [teacher_map[teacher_id] for teacher_id in sorted(teacher_map)],
+        "teaching_area_regions": sorted(
+            {
+                normalize_text(area.get("region_tag"))
+                for area in teaching_areas
+                if normalize_text(area.get("region_tag"))
+            }
+        ),
+        "active_teaching_area_count": sum(1 for area in teaching_areas if normalize_bool(area.get("is_active"))),
+        "active_room_count": sum(1 for room in rooms if normalize_bool(room.get("is_active"))),
+    }
+
+
+def product_lookup_map(
+    products: List[Dict[str, Any]],
+    product_courses: List[Dict[str, Any]],
+) -> Dict[str, Dict[str, str]]:
+    product_map: Dict[str, Dict[str, str]] = {}
     for product in products:
         product_id = normalize_text(product.get("id"))
         if product_id:
@@ -775,25 +798,33 @@ def build_lookups(
     for course in product_courses:
         product_id = normalize_text(course.get("product_id"))
         if product_id and product_id not in product_map:
-            name = normalize_text(course.get("product_name")) or product_id
-            product = product_map.setdefault(
-                product_id,
-                {
-                    "name": name,
-                    "project": normalize_text(course.get("project")) or infer_project(name),
-                    "product_line": normalize_text(course.get("product_line")) or infer_product_line(name),
-                    "sub_product": normalize_text(course.get("sub_product")),
-                    "product_system": normalize_text(course.get("product_system")),
-                    "course_nature": normalize_text(course.get("course_nature")),
-                    "subject": "",
-                    "subject_category": "",
-                    "standard_capacity": normalize_text(course.get("standard_capacity")),
-                    "capacity_type": normalize_text(course.get("capacity_type")),
-                },
-            )
-            for key in ("project", "product_line", "sub_product", "product_system", "course_nature", "subject", "subject_category", "standard_capacity", "capacity_type"):
-                if not product.get(key) and course.get(key):
-                    product[key] = normalize_text(course.get(key))
+            product_map[product_id] = product_lookup_from_course(course, product_id)
+    return product_map
+
+
+def product_lookup_from_course(course: Dict[str, Any], product_id: str) -> Dict[str, str]:
+    name = normalize_text(course.get("product_name")) or product_id
+    return {
+        "name": name,
+        "project": normalize_text(course.get("project")) or infer_project(name),
+        "product_line": normalize_text(course.get("product_line")) or infer_product_line(name),
+        "sub_product": normalize_text(course.get("sub_product")),
+        "product_system": normalize_text(course.get("product_system")),
+        "course_nature": normalize_text(course.get("course_nature")),
+        "subject": "",
+        "subject_category": "",
+        "standard_capacity": normalize_text(course.get("standard_capacity")),
+        "capacity_type": normalize_text(course.get("capacity_type")),
+    }
+
+
+def course_lookup_sets(product_courses: List[Dict[str, Any]]) -> Tuple[Set[str], Set[str], Set[str], Set[str], Set[str]]:
+    subjects: Set[str] = set()
+    quarters: Set[str] = set()
+    stages: Set[str] = set()
+    modules: Set[str] = set()
+    groups: Set[str] = set()
+    for course in product_courses:
         for key, bucket in (
             ("subject", subjects),
             ("quarter", quarters),
@@ -804,7 +835,11 @@ def build_lookups(
             value = normalize_text(course.get(key))
             if value:
                 bucket.add(value)
+    return subjects, quarters, stages, modules, groups
 
+
+def teacher_lookup_map(teachers: List[Dict[str, Any]], classes: List[Dict[str, Any]]) -> Dict[str, Dict[str, str]]:
+    teacher_map: Dict[str, Dict[str, str]] = {}
     for teacher in teachers:
         teacher_id = normalize_text(teacher.get("id") or teacher.get("employee_id"))
         if teacher_id:
@@ -825,42 +860,26 @@ def build_lookups(
                     "project": "",
                     "primary_subject": "",
                 }
+    return teacher_map
 
-    return {
-        "products": [
-            {
-                "id": product_id,
-                "name": product["name"],
-                "project": product["project"],
-                "product_line": product["product_line"],
-                "sub_product": product["sub_product"],
-                "product_system": product["product_system"],
-                "course_nature": product["course_nature"],
-                "subject": product["subject"],
-                "subject_category": product["subject_category"],
-                "standard_capacity": product["standard_capacity"],
-                "capacity_type": product["capacity_type"],
-            }
-            for product_id, product in sorted(product_map.items())
-        ],
-        "product_lines": ["考研复试", "考研集训营", "考研无忧", "考研个性化", "考研其他", "专升本", "四六级"],
-        "subjects": sorted(subjects),
-        "quarters": sorted(quarters),
-        "stages": sort_stage_values(stages),
-        "course_modules": sorted(modules),
-        "course_groups": sorted(groups),
-        "course_name_tags": load_course_name_tags(product_courses),
-        "teachers": [teacher_map[teacher_id] for teacher_id in sorted(teacher_map)],
-        "teaching_area_regions": sorted(
-            {
-                normalize_text(area.get("region_tag"))
-                for area in teaching_areas
-                if normalize_text(area.get("region_tag"))
-            }
-        ),
-        "active_teaching_area_count": sum(1 for area in teaching_areas if normalize_bool(area.get("is_active"))),
-        "active_room_count": sum(1 for room in rooms if normalize_bool(room.get("is_active"))),
-    }
+
+def product_lookup_rows(product_map: Dict[str, Dict[str, str]]) -> List[Dict[str, str]]:
+    return [
+        {
+            "id": product_id,
+            "name": product["name"],
+            "project": product["project"],
+            "product_line": product["product_line"],
+            "sub_product": product["sub_product"],
+            "product_system": product["product_system"],
+            "course_nature": product["course_nature"],
+            "subject": product["subject"],
+            "subject_category": product["subject_category"],
+            "standard_capacity": product["standard_capacity"],
+            "capacity_type": product["capacity_type"],
+        }
+        for product_id, product in sorted(product_map.items())
+    ]
 
 
 def load_course_name_tags(product_courses: List[Dict[str, Any]]) -> List[Dict[str, str]]:

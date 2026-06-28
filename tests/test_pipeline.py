@@ -2270,6 +2270,81 @@ class SchedulingPipelineTest(unittest.TestCase):
         self.assertEqual([row["product_name"] for row in rows], ["英语产品", "英语导学产品"])
         self.assertTrue(all(row["class_name"] == "英语1班" for row in rows))
 
+    def test_build_lookups_prefers_master_rows_and_backfills_missing_options(self) -> None:
+        lookups = data_admin_server.build_lookups(
+            teaching_areas=[{"id": "A1", "region_tag": "蜀山", "is_active": "是"}],
+            rooms=[{"id": "R1", "is_active": "是"}],
+            products=[
+                {
+                    "id": "P1",
+                    "name": "主表产品",
+                    "project": "考研",
+                    "product_line": "主表体系",
+                    "sub_product": "无忧秋",
+                    "product_system": "常规",
+                    "course_nature": "正课",
+                    "subject": "英语",
+                    "subject_category": "公共课",
+                    "standard_capacity": "60",
+                    "capacity_type": "固定",
+                }
+            ],
+            teachers=[{"employee_id": "000001", "name": "主表老师", "project": "考研", "primary_subject": "英语"}],
+            product_courses=[
+                {
+                    "product_id": "P1",
+                    "product_name": "课程表产品名不应覆盖",
+                    "product_line": "课程表体系不应覆盖",
+                    "subject": "数学",
+                    "quarter": "暑假",
+                    "stage": "强化",
+                    "course_module": "刷题",
+                    "course_group": "数学类",
+                },
+                {
+                    "product_id": "P2",
+                    "product_name": "课程补齐产品",
+                    "project": "考研",
+                    "product_line": "课程体系",
+                    "sub_product": "补录",
+                    "course_nature": "导学",
+                    "standard_capacity": "30",
+                    "capacity_type": "浮动",
+                    "subject": "政治",
+                    "quarter": "春季",
+                    "stage": "基础",
+                    "course_module": "入门",
+                    "course_group": "政治类",
+                },
+            ],
+            classes=[
+                {
+                    "teacher_assignments": [
+                        {"teacher_id": "000001", "teacher_name": "安排表老师不应覆盖"},
+                        {"teacher_id": "000002", "teacher_name": "补齐老师"},
+                    ]
+                }
+            ],
+        )
+
+        products = {product["id"]: product for product in lookups["products"]}
+        teachers = {teacher["id"]: teacher for teacher in lookups["teachers"]}
+
+        self.assertEqual(products["P1"]["name"], "主表产品")
+        self.assertEqual(products["P1"]["product_line"], "主表体系")
+        self.assertEqual(products["P2"]["name"], "课程补齐产品")
+        self.assertEqual(products["P2"]["product_line"], "课程体系")
+        self.assertEqual(teachers["000001"]["name"], "主表老师")
+        self.assertEqual(teachers["000002"]["name"], "补齐老师")
+        self.assertEqual(lookups["subjects"], ["政治", "数学"])
+        self.assertEqual(lookups["quarters"], ["春季", "暑假"])
+        self.assertEqual(lookups["stages"], ["基础", "强化"])
+        self.assertEqual(lookups["course_modules"], ["入门", "刷题"])
+        self.assertEqual(lookups["course_groups"], ["政治类", "数学类"])
+        self.assertEqual(lookups["teaching_area_regions"], ["蜀山"])
+        self.assertEqual(lookups["active_teaching_area_count"], 1)
+        self.assertEqual(lookups["active_room_count"], 1)
+
     def test_teaching_area_short_name_is_normalized_and_used_for_rooms(self) -> None:
         state = data_admin_server.normalize_payload(
             {
