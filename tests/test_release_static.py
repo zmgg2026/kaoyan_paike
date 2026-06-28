@@ -168,6 +168,26 @@ class ReleaseStaticTest(unittest.TestCase):
         self.assertNotIn("datetime.strptime(candidate, fmt)", business_import_source)
         self.assertNotIn("data_admin_server.normalize_text", pipeline_source)
 
+    def test_period_normalization_lives_in_shared_period_utils(self) -> None:
+        scheduler_source = (ROOT / "scheduler.py").read_text(encoding="utf-8")
+        business_import_source = (ROOT / "business_class_import.py").read_text(encoding="utf-8")
+        class_windows_source = (ROOT / "scripts" / "schedule_class_windows.py").read_text(encoding="utf-8")
+        erp_adjusted_sync_source = (ROOT / "scripts" / "sync_erp_adjusted_schedule.py").read_text(encoding="utf-8")
+        period_utils_source = (ROOT / "scripts" / "period_utils.py").read_text(encoding="utf-8")
+
+        self.assertIn("from scripts.period_utils import", scheduler_source)
+        self.assertIn("from scripts.period_utils import", business_import_source)
+        self.assertIn("from scripts.period_utils import", class_windows_source)
+        self.assertIn("from scripts.period_utils import", erp_adjusted_sync_source)
+        self.assertIn("VALID_PERIODS", period_utils_source)
+        self.assertIn("PERIOD_ORDER", period_utils_source)
+        self.assertIsNone(re.search(r"(?m)^VALID_PERIODS\s*=", scheduler_source))
+        self.assertIsNone(re.search(r"(?m)^PERIOD_ORDER\s*=", scheduler_source))
+        self.assertIsNone(re.search(r"(?m)^def period_sort_value\(", scheduler_source))
+        self.assertIsNone(re.search(r"(?m)^def normalize_period\(", class_windows_source))
+        self.assertIsNone(re.search(r"(?m)^PERIOD_ORDER\s*=", erp_adjusted_sync_source))
+        self.assertIsNone(re.search(r"(?m)^\s*aliases\s*=\s*\{", business_import_source))
+
     def test_cli_scripts_import_project_modules_with_bootstrap(self) -> None:
         project_import = re.compile(
             r"(?m)^\s*("

@@ -24,6 +24,7 @@ from scripts.build_camp_maintenance_schedule import (  # noqa: E402
 )
 from scripts.csv_utils import clean_cell as clean, read_csv_rows, write_csv_rows  # noqa: E402
 from scripts.field_utils import split_time_range_text  # noqa: E402
+from scripts.period_utils import PERIOD_ORDER, period_from_time_text  # noqa: E402
 from scripts.schedule_conflicts import write_teacher_time_conflicts_csv  # noqa: E402
 from scripts.schedule_data import load_room_name_to_id, load_room_names, load_teacher_name_to_id  # noqa: E402
 from scripts.schedule_display import weekday_label  # noqa: E402
@@ -63,9 +64,6 @@ TIME_SLOT_MAP = {
     ("19:00", "21:00"): ("EVENING", "EVENING1", "晚上一"),
 }
 
-PERIOD_ORDER = {"AM": 0, "PM": 1, "EVENING": 2}
-
-
 def normalize_date(value: object) -> str:
     text = clean(value)
     if not text:
@@ -89,10 +87,10 @@ def period_for_time(start_time: str, end_time: str) -> Tuple[str, str, str]:
     mapped = TIME_SLOT_MAP.get((start_time, end_time))
     if mapped:
         return mapped
-    hour = int((start_time or "00:00").split(":", 1)[0])
-    if hour < 13:
+    period = period_from_time_text(start_time, pm_end_minutes=18 * 60) or "AM"
+    if period == "AM":
         return "AM", f"AM-{start_time}-{end_time}", "上午"
-    if hour < 18:
+    if period == "PM":
         return "PM", f"PM-{start_time}-{end_time}", "下午"
     return "EVENING", f"EVENING-{start_time}-{end_time}", "晚上"
 

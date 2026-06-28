@@ -99,6 +99,10 @@ class DocumentationStaticTest(unittest.TestCase):
         self.assertIn("先分清三件事", guide)
         self.assertIn("发布复用中心：验收后的交付入口", guide)
         self.assertIn("不要把模板、报告和结果混作同一类文件", guide)
+        self.assertIn("给 AI 助手的材料包建议一次性准备好", guide)
+        self.assertIn("ERP 导出建议先按下面方式拆给 AI 整理", guide)
+        self.assertIn("ERP 回写字段对照", guide)
+        self.assertIn("AI 可以整理草稿，但不能替教学和教务做最终决定", guide)
 
     def test_share_and_template_do_not_reintroduce_merge_detail_table_language(self) -> None:
         readme = (ROOT / "README.md").read_text(encoding="utf-8")

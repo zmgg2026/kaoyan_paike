@@ -7,6 +7,7 @@ from typing import Dict, Iterable, List, Mapping, Optional, Set
 import scheduler
 from scripts.csv_utils import read_csv_rows
 from scripts.field_utils import parse_enabled, split_pipe_values
+from scripts.period_utils import normalize_period as normalize_schedule_period
 from scripts.schedule_data import load_room_metadata
 from scripts.schedule_scope import normalize_date
 
@@ -35,10 +36,6 @@ class ClassWindowConstraint:
         if len(self.room_ids) == 1:
             return next(iter(self.room_ids))
         return ""
-
-
-def normalize_period(value: str, default: str) -> str:
-    return (value or default).strip().upper()
 
 
 def is_enabled(value: str) -> bool:
@@ -103,9 +100,9 @@ def row_to_constraint(
         season_name=(row.get("season_name") or "").strip(),
         schedule_window_name=(row.get("schedule_window_name") or "").strip(),
         earliest_date=normalize_date(row.get("earliest_date") or ""),
-        earliest_period=normalize_period(row.get("earliest_period") or "", "AM"),
+        earliest_period=normalize_schedule_period(row.get("earliest_period") or "", "AM") or "",
         latest_date=normalize_date(row.get("latest_date") or ""),
-        latest_period=normalize_period(row.get("latest_period") or "", "EVENING"),
+        latest_period=normalize_schedule_period(row.get("latest_period") or "", "EVENING") or "",
         teaching_area_ids=teaching_area_ids,
         room_ids=room_ids,
         preferred_room_is_required=is_enabled(row.get("preferred_room_is_required") or ""),

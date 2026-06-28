@@ -19,11 +19,10 @@ from scripts.field_utils import (
     parse_bool,
     parse_bool_default,
 )
+from scripts.period_utils import PERIOD_ORDER, VALID_PERIODS, normalize_period, period_sort_value
 from scripts.schedule_modes import assignment_is_shared
 
 
-VALID_PERIODS = {"AM", "PM", "EVENING"}
-PERIOD_ORDER = {"AM": 0, "PM": 1, "EVENING": 2}
 SCHEDULE_CSV_FIELDNAMES = [
     "date",
     "period",
@@ -1093,10 +1092,8 @@ def parse_period_set(values: object, label: str) -> Optional[Set[str]]:
         return None
 
     normalized: Set[str] = set()
-    aliases = {"EV": "EVENING", "NIGHT": "EVENING", "晚上": "EVENING", "晚间": "EVENING", "夜间": "EVENING"}
     for period in periods:
-        upper = period.upper()
-        value = aliases.get(period, aliases.get(upper, upper))
+        value = normalize_period(period)
         if value not in VALID_PERIODS:
             raise ValueError(f"{label} 包含不支持的时段 {period}，可用 AM/PM/EVENING")
         normalized.add(value)
@@ -1443,8 +1440,7 @@ def parse_class_date_period(
 
 
 def normalize_class_period(value: object, default: Optional[str] = None) -> Optional[str]:
-    period = str(value or default or "").strip().upper()
-    return period or None
+    return normalize_period(value, default)
 
 
 def validate_class_period_pair(
@@ -2179,10 +2175,6 @@ def parse_conflict_groups(
 def slot_sort_key(slot: TimeSlot) -> Tuple[str, int, int, str]:
     period_order = PERIOD_ORDER.get(slot.period, 99)
     return (slot.date, period_order, slot.order, slot.id)
-
-
-def period_sort_value(period: str) -> int:
-    return PERIOD_ORDER.get(period, 99)
 
 
 def slot_in_class_window(slot: TimeSlot, cls: SchoolClass) -> bool:

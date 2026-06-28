@@ -10,6 +10,7 @@ from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Set, 
 import data_admin_server
 from scripts.csv_utils import write_csv_rows
 from scripts.field_utils import is_blank_marker, normalize_int, normalize_text, parse_date_value, parse_time_minutes
+from scripts.period_utils import VALID_PERIODS, normalize_period, period_from_time_text
 from scripts.product_catalog import product_catalog as shared_product_catalog
 
 
@@ -225,30 +226,10 @@ def parse_int(value: Any) -> int:
 
 
 def infer_period(value: Any, start_time: str) -> str:
-    raw = normalize_text(value).upper()
-    aliases = {
-        "上午": "AM",
-        "早上": "AM",
-        "AM": "AM",
-        "下午": "PM",
-        "PM": "PM",
-        "晚上": "EVENING",
-        "晚间": "EVENING",
-        "EVENING": "EVENING",
-        "NIGHT": "EVENING",
-    }
-    if raw in aliases:
-        return aliases[raw]
-    if normalize_text(value) in aliases:
-        return aliases[normalize_text(value)]
-    start_minutes = parse_time_minutes(start_time)
-    if start_minutes is None:
-        return ""
-    if start_minutes < 13 * 60:
-        return "AM"
-    if start_minutes < 18 * 60 + 30:
-        return "PM"
-    return "EVENING"
+    period = normalize_period(value)
+    if period in VALID_PERIODS:
+        return period
+    return period_from_time_text(start_time)
 
 
 def parse_duration_hours(row: Mapping[str, Any], start_time: str, end_time: str) -> float:
