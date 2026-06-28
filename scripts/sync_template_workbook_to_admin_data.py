@@ -277,9 +277,9 @@ def enrich_rows(key: str, rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     enriched: List[Dict[str, Any]] = []
     for row in rows:
         if key == "teachers":
-            row["id"] = row.get("employee_id", "")
-            row["identity"] = row.get("teacher_role", "")
-            row["teacher_type"] = row.get("employment_type", "")
+            row.pop("id", None)
+            row.pop("identity", None)
+            row.pop("teacher_type", None)
         elif key == "product_courses":
             row["quarter"] = row.get("window_name", "")
             row["module_priority"] = row.get("module_priority_in_group", 0)

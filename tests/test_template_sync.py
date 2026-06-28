@@ -128,6 +128,39 @@ class TemplateSyncTest(unittest.TestCase):
         self.assertNotIn("canonical_product_id", mappings[0])
         self.assertNotIn("teaching_area_ids", product_courses[0])
 
+    def test_teacher_sync_outputs_current_template_fields_only(self) -> None:
+        rows = enrich_rows(
+            "teachers",
+            [
+                {
+                    "id": "T_LEGACY",
+                    "employee_id": "100001",
+                    "name": "张老师",
+                    "teacher_role": "教师",
+                    "identity": "旧身份",
+                    "employment_type": "全职",
+                    "teacher_type": "旧教师类型",
+                }
+            ],
+        )
+
+        self.assertEqual(rows[0]["employee_id"], "100001")
+        self.assertEqual(rows[0]["teacher_role"], "教师")
+        self.assertEqual(rows[0]["employment_type"], "全职")
+        for old_field in ("id", "identity", "teacher_type"):
+            self.assertNotIn(old_field, rows[0])
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            path = Path(tmp_dir) / "teachers.csv"
+            write_csv(path, rows)
+            header = path.read_text(encoding="utf-8-sig").splitlines()[0].split(",")
+
+        for old_field in ("id", "identity", "teacher_type"):
+            self.assertNotIn(old_field, header)
+        self.assertIn("employee_id", header)
+        self.assertIn("teacher_role", header)
+        self.assertIn("employment_type", header)
+
     def test_write_csv_uses_shared_formatter_and_keeps_union_field_order(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             path = Path(tmp_dir) / "template_sync.csv"
