@@ -40,7 +40,12 @@ done < <(find scripts -name "*.py" -print | sort)
 run "$PYTHON_BIN" scripts/audit_release_package.py --root "$ROOT_DIR"
 
 if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-  run git archive --format=zip -o "$WORK_DIR/release_package_audit.zip" HEAD
+  if git diff --quiet && git diff --cached --quiet; then
+    run git archive --format=zip -o "$WORK_DIR/release_package_audit.zip" HEAD
+  else
+    echo "Tracked working tree has uncommitted changes; auditing a current tracked-file archive instead of HEAD."
+    run "$PYTHON_BIN" scripts/build_release_archive.py --output "$WORK_DIR/release_package_audit.zip"
+  fi
   run "$PYTHON_BIN" scripts/audit_release_package.py --zip "$WORK_DIR/release_package_audit.zip"
 fi
 

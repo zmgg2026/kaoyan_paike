@@ -4,7 +4,9 @@ import tempfile
 import unittest
 import zipfile
 from pathlib import Path
+from unittest.mock import patch
 
+from scripts.build_release_archive import build_release_archive
 from scripts.audit_release_package import REQUIRED_PATHS, audit_paths, forbidden_reason, normalize_path, zip_paths
 
 
@@ -63,6 +65,21 @@ class ReleasePackageAuditTest(unittest.TestCase):
             issues = audit_paths(zip_paths(zip_path))
 
         self.assertTrue(any(issue.endswith("data/classes.csv") for issue in issues))
+
+    def test_build_release_archive_uses_current_tracked_files_only(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            (root / "README.md").write_text("current", encoding="utf-8")
+            (root / "data").mkdir()
+            (root / "data" / "classes.csv").write_text("private", encoding="utf-8")
+            output = root / "release.zip"
+
+            with patch("scripts.build_release_archive.git_tracked_paths", return_value=["README.md"]):
+                build_release_archive(root, output)
+
+            with zipfile.ZipFile(output) as archive:
+                self.assertEqual(["README.md"], archive.namelist())
+                self.assertEqual("current", archive.read("README.md").decode("utf-8"))
 
 
 if __name__ == "__main__":
