@@ -4,6 +4,8 @@ import unittest
 
 from scripts.field_utils import (
     normalize_excel_text,
+    normalize_float,
+    normalize_int,
     normalize_text,
     parse_bool,
     parse_bool_default,
@@ -23,6 +25,13 @@ class FieldUtilsTest(unittest.TestCase):
         self.assertEqual(normalize_excel_text(123.0), "123")
         self.assertEqual(normalize_excel_text(123.5), "123.5")
         self.assertEqual(normalize_excel_text("  RM001  "), "RM001")
+
+    def test_normalize_int_and_float_handle_empty_and_invalid_values(self) -> None:
+        self.assertEqual(normalize_int("4.0"), 4)
+        self.assertEqual(normalize_int("", default=7), 7)
+        self.assertEqual(normalize_int("坏数据", default=9), 9)
+        self.assertEqual(normalize_float("2.3456"), 2.346)
+        self.assertEqual(normalize_float(None, default=1.5), 1.5)
 
     def test_split_pipe_values_trims_and_drops_empty_items(self) -> None:
         self.assertEqual(split_pipe_values("A | | B"), ["A", "B"])

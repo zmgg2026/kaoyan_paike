@@ -15,6 +15,7 @@ import scheduler
 from business_class_import import BusinessDataError, convert_business_tables
 from generate_time_slots import generate_time_slots, parse_weekdays
 from scripts.csv_utils import clean_csv_rows, read_csv_with_fieldnames, write_csv_rows
+from scripts.field_utils import normalize_text
 from scripts.product_catalog import product_catalog as shared_product_catalog
 from scripts.template_tables import (
     BUSINESS_SOURCE_TABLES,
@@ -279,12 +280,12 @@ def payload_from_tables(tables: Dict[str, LoadedTable]) -> Dict[str, Any]:
     payload = {table: list(tables.get(table, LoadedTable(table, "", [])).rows) for table in TABLES}
     assignments_by_class: Dict[str, List[Dict[str, Any]]] = {}
     known_class_ids = {
-        data_admin_server.normalize_text(row.get("id") or row.get("class_id"))
+        normalize_text(row.get("id") or row.get("class_id"))
         for row in payload["classes"]
     }
 
     for assignment in payload["class_teacher_assignments"]:
-        class_id = data_admin_server.normalize_text(assignment.get("class_id"))
+        class_id = normalize_text(assignment.get("class_id"))
         if not class_id:
             raise PipelineError("班级老师安排表存在缺少 class_id 的行")
         if known_class_ids and class_id not in known_class_ids:
@@ -292,7 +293,7 @@ def payload_from_tables(tables: Dict[str, LoadedTable]) -> Dict[str, Any]:
         assignments_by_class.setdefault(class_id, []).append(assignment)
 
     for row in payload["classes"]:
-        class_id = data_admin_server.normalize_text(row.get("id") or row.get("class_id"))
+        class_id = normalize_text(row.get("id") or row.get("class_id"))
         row["teacher_assignments"] = assignments_by_class.get(class_id, [])
 
     payload.pop("class_teacher_assignments", None)

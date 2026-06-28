@@ -133,6 +133,22 @@ class ReleaseStaticTest(unittest.TestCase):
         self.assertIsNone(re.search(r"(?m)^def product_stage_order\(", admin_source))
         self.assertNotIn("data_admin_server.product_catalog", pipeline_source)
 
+    def test_field_normalization_lives_in_shared_field_utils(self) -> None:
+        admin_source = (ROOT / "data_admin_server.py").read_text(encoding="utf-8")
+        product_catalog_source = (ROOT / "scripts" / "product_catalog.py").read_text(encoding="utf-8")
+        business_import_source = (ROOT / "business_class_import.py").read_text(encoding="utf-8")
+        pipeline_source = (ROOT / "run_scheduling_pipeline.py").read_text(encoding="utf-8")
+
+        self.assertIn("from scripts.field_utils import", admin_source)
+        self.assertIn("from scripts.field_utils import", product_catalog_source)
+        self.assertIn("from scripts.field_utils import", business_import_source)
+        self.assertIn("from scripts.field_utils import", pipeline_source)
+        self.assertIsNone(re.search(r"(?m)^def normalize_int\(", admin_source))
+        self.assertIsNone(re.search(r"(?m)^def normalize_float\(", admin_source))
+        self.assertIsNone(re.search(r"(?m)^def normalize_int\(", product_catalog_source))
+        self.assertNotIn("data_admin_server.normalize_int", business_import_source)
+        self.assertNotIn("data_admin_server.normalize_text", pipeline_source)
+
     def test_cli_scripts_import_project_modules_with_bootstrap(self) -> None:
         project_import = re.compile(
             r"(?m)^\s*("

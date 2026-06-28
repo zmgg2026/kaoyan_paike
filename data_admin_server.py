@@ -21,7 +21,13 @@ from typing import Any, Dict, Iterable, List, Optional, Set, Tuple
 from urllib.parse import unquote, urlparse
 
 from scripts.csv_utils import csv_rows_text, serialize_csv_value, write_csv_rows
-from scripts.field_utils import normalize_text, parse_bool as normalize_bool, split_pipe_values as split_id_list
+from scripts.field_utils import (
+    normalize_float,
+    normalize_int,
+    normalize_text,
+    parse_bool as normalize_bool,
+    split_pipe_values as split_id_list,
+)
 from scripts.product_catalog import (
     DEFAULT_STAGE_ORDER,
     DEFAULT_STAGE_ORDER_INDEX,
@@ -130,24 +136,6 @@ def unique_list(values: Iterable[str]) -> List[str]:
             seen.add(text)
             result.append(text)
     return result
-
-
-def normalize_int(value: Any, default: int = 0) -> int:
-    try:
-        if value in ("", None):
-            return default
-        return int(float(value))
-    except (TypeError, ValueError):
-        return default
-
-
-def normalize_float(value: Any, default: float = 0.0) -> float:
-    try:
-        if value in ("", None):
-            return default
-        return round(float(value), 3)
-    except (TypeError, ValueError):
-        return default
 
 
 def normalize_date_text(value: Any) -> str:

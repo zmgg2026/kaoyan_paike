@@ -8,8 +8,9 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Set, Tuple
 
 import data_admin_server
-from scripts.product_catalog import product_catalog as shared_product_catalog
 from scripts.csv_utils import write_csv_rows
+from scripts.field_utils import normalize_int, normalize_text
+from scripts.product_catalog import product_catalog as shared_product_catalog
 
 
 BUSINESS_PROJECT = "考研/考博"
@@ -59,10 +60,6 @@ class BusinessDataError(ValueError):
         self.errors = list(errors)
         self.warnings = list(warnings)
         super().__init__("\n".join(self.errors))
-
-
-def normalize_text(value: Any) -> str:
-    return data_admin_server.normalize_text(value)
 
 
 def compact_text(value: Any) -> str:
@@ -241,7 +238,7 @@ def first_merge_code(row: Mapping[str, Any]) -> str:
 
 
 def parse_int(value: Any) -> int:
-    return data_admin_server.normalize_int(value)
+    return normalize_int(value)
 
 
 def parse_time_minutes(value: Any) -> Optional[int]:
@@ -653,8 +650,8 @@ def aggregate_product_courses(
                     "source_product_ids": [],
                 },
             )
-            item["total_hours"] += data_admin_server.normalize_int(course.get("total_hours"))
-            item["block_hours"] = max(item["block_hours"], data_admin_server.normalize_int(course.get("block_hours")))
+            item["total_hours"] += normalize_int(course.get("total_hours"))
+            item["block_hours"] = max(item["block_hours"], normalize_int(course.get("block_hours")))
             item["source_product_ids"] = data_admin_server.unique_list([*item["source_product_ids"], product_id])
     rows: List[Dict[str, Any]] = []
     for item in grouped.values():
@@ -817,8 +814,8 @@ def make_requirement(
         "course_group": normalize_text(course.get("course_group")),
         "teacher_id": normalize_text(assignment.get("teacher_id")),
         "teacher_name": normalize_text(assignment.get("teacher_name")),
-        "total_hours": data_admin_server.normalize_int(course.get("total_hours")),
-        "block_hours": data_admin_server.normalize_int(course.get("block_hours")),
+        "total_hours": normalize_int(course.get("total_hours")),
+        "block_hours": normalize_int(course.get("block_hours")),
         "notes": normalize_text(detail.get("notes")) if detail else "",
     }
     if detail:
@@ -1220,7 +1217,7 @@ def apply_historical_remaining_requirements(
         adjusted: List[Dict[str, Any]] = []
         for requirement in source_requirements:
             key = course_key(requirement)
-            total_hours = data_admin_server.normalize_int(requirement.get("total_hours"))
+            total_hours = normalize_int(requirement.get("total_hours"))
             consumed = historical_consumed_hours(class_hours, requirement)
             if consumed <= 0:
                 adjusted.append(requirement)
@@ -1234,7 +1231,7 @@ def apply_historical_remaining_requirements(
                 continue
             adjusted_requirement = dict(requirement)
             adjusted_requirement["total_hours"] = remaining
-            block_hours = data_admin_server.normalize_int(adjusted_requirement.get("block_hours"))
+            block_hours = normalize_int(adjusted_requirement.get("block_hours"))
             if block_hours > remaining:
                 adjusted_requirement["block_hours"] = remaining
             elif block_hours and remaining % block_hours != 0:

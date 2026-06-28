@@ -3,20 +3,11 @@ from __future__ import annotations
 import re
 from typing import Any, Dict, Iterable, List, Mapping, Optional
 
-from scripts.field_utils import normalize_text, split_pipe_values
+from scripts.field_utils import normalize_int, normalize_text, split_pipe_values
 
 
 DEFAULT_STAGE_ORDER = ["导学", "基础", "强化", "冲刺", "一轮", "二轮", "三轮", "四轮"]
 DEFAULT_STAGE_ORDER_INDEX = {stage: index for index, stage in enumerate(DEFAULT_STAGE_ORDER)}
-
-
-def normalize_int(value: Any, default: int = 0) -> int:
-    try:
-        if value in ("", None):
-            return default
-        return int(float(value))
-    except (TypeError, ValueError):
-        return default
 
 
 def unique_list(values: Iterable[Any]) -> List[str]:

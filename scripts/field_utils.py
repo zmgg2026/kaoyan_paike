@@ -21,6 +21,24 @@ def normalize_excel_text(value: Any) -> str:
     return normalize_text(value)
 
 
+def normalize_int(value: Any, default: int = 0) -> int:
+    try:
+        if value in ("", None):
+            return default
+        return int(float(value))
+    except (TypeError, ValueError):
+        return default
+
+
+def normalize_float(value: Any, default: float = 0.0) -> float:
+    try:
+        if value in ("", None):
+            return default
+        return round(float(value), 3)
+    except (TypeError, ValueError):
+        return default
+
+
 def split_pipe_values(values: Any) -> List[str]:
     if values is None:
         return []
