@@ -103,8 +103,12 @@ class ReleaseStaticTest(unittest.TestCase):
             ROOT / "formal_template.py",
             ROOT / "scheduler.py",
             ROOT / "run_scheduling_pipeline.py",
+            ROOT / "scripts" / "analyze_erp_import_failures.py",
+            ROOT / "scripts" / "build_erp_lesson_id_map.py",
+            ROOT / "scripts" / "build_erp_reverse_import_from_result.py",
             ROOT / "scripts" / "build_camp_maintenance_schedule.py",
             ROOT / "scripts" / "build_cloudflare_publish_bundle.py",
+            ROOT / "scripts" / "export_erp_lesson_import.py",
             ROOT / "scripts" / "schedule_batch.py",
             ROOT / "scripts" / "schedule_data.py",
             ROOT / "scripts" / "schedule_class_windows.py",
@@ -118,7 +122,8 @@ class ReleaseStaticTest(unittest.TestCase):
         for path in modules:
             source = path.read_text(encoding="utf-8")
             imports_stdlib_csv = bool(re.search(r"(?m)^\s*(import\s+csv\b|from\s+csv\s+import\b)", source))
-            if imports_stdlib_csv or "csv." in source or "scripts.csv_utils" not in source:
+            calls_stdlib_csv = bool(re.search(r"(?<![A-Za-z0-9_])csv\.", source))
+            if imports_stdlib_csv or calls_stdlib_csv or "scripts.csv_utils" not in source:
                 offenders.append(str(path.relative_to(ROOT)))
 
         self.assertEqual([], offenders)

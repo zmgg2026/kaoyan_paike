@@ -4,13 +4,14 @@
 from __future__ import annotations
 
 import argparse
-import csv
 from collections import Counter, defaultdict
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, Iterable, List, Tuple
 
 from openpyxl import load_workbook
+
+from scripts.csv_utils import read_csv_rows, write_csv_rows
 
 
 DEFAULT_SCHEDULE = Path("outputs/batch_schedule_maintenance.csv")
@@ -22,11 +23,6 @@ def clean(value: object) -> str:
     if value is None:
         return ""
     return str(value).strip()
-
-
-def read_csv(path: Path) -> List[Dict[str, str]]:
-    with path.open(newline="", encoding="utf-8-sig") as handle:
-        return list(csv.DictReader(handle))
 
 
 def split_values(value: str) -> List[str]:
@@ -67,7 +63,7 @@ def normalize_one_time(value: str) -> str:
 
 def schedule_rows(path: Path, start_date: str, end_date: str, include_subjects: set[str]) -> List[Dict[str, str]]:
     rows = []
-    for row in read_csv(path):
+    for row in read_csv_rows(path):
         date = normalize_date(row.get("date"))
         subject = clean(row.get("subject"))
         if start_date <= date <= end_date and (not include_subjects or subject in include_subjects):
@@ -121,14 +117,6 @@ def group_by_class(rows: Iterable[Dict[str, str]], class_field: str) -> Dict[str
         if class_id:
             grouped[class_id].append(row)
     return grouped
-
-
-def write_csv(path: Path, fieldnames: List[str], rows: List[Dict[str, str]]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", newline="", encoding="utf-8-sig") as handle:
-        writer = csv.DictWriter(handle, fieldnames=fieldnames)
-        writer.writeheader()
-        writer.writerows(rows)
 
 
 def parse_args() -> argparse.Namespace:
@@ -225,12 +213,12 @@ def main() -> None:
                     }
                 )
 
-    write_csv(
+    write_csv_rows(
         output_map,
         ["class_id", "date", "start_time", "end_time", "erp_lesson_id", "sequence", "source_erp_date", "source_erp_time", "subject", "stage", "course_module"],
         mapped_rows,
     )
-    write_csv(
+    write_csv_rows(
         report,
         ["type", "class_id", "schedule_count", "erp_count", "diff_schedule_minus_erp", "message"],
         report_rows,

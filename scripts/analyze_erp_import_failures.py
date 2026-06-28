@@ -4,16 +4,17 @@
 from __future__ import annotations
 
 import argparse
-import csv
 import re
 from collections import Counter, defaultdict
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Iterable, List, Sequence, Tuple
+from typing import Dict, List, Sequence, Tuple
 
 from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
+
+from scripts.csv_utils import read_csv_rows, write_csv_rows
 
 
 DEFAULT_OUTPUT_DIR = Path("outputs")
@@ -38,15 +39,10 @@ def read_rows(path: Path) -> List[Dict[str, str]]:
     return result
 
 
-def read_csv(path: Path) -> List[Dict[str, str]]:
-    if not path.exists():
-        return []
-    with path.open(newline="", encoding="utf-8-sig") as handle:
-        return list(csv.DictReader(handle))
-
-
 def room_lookup(path: Path) -> Dict[str, str]:
-    return {clean(row.get("id")): clean(row.get("name")) for row in read_csv(path) if clean(row.get("id"))}
+    if not path.exists():
+        return {}
+    return {clean(row.get("id")): clean(row.get("name")) for row in read_csv_rows(path) if clean(row.get("id"))}
 
 
 def add_type(types: List[str], values: List[str], error_type: str, value: str = "") -> None:
@@ -136,14 +132,6 @@ def annotate_rows(rows: Sequence[Dict[str, str]], rooms: Dict[str, str]) -> List
         new_row["处理建议"] = action_for(types, row, rooms)
         annotated.append(new_row)
     return annotated
-
-
-def write_csv(path: Path, fieldnames: Sequence[str], rows: Iterable[Dict[str, str]]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", newline="", encoding="utf-8-sig") as handle:
-        writer = csv.DictWriter(handle, fieldnames=fieldnames)
-        writer.writeheader()
-        writer.writerows(rows)
 
 
 def write_xlsx(path: Path, fieldnames: Sequence[str], rows: Sequence[Dict[str, str]]) -> None:
@@ -285,11 +273,11 @@ def main() -> None:
     report_path = out_dir / f"erp_import_failure_report_{stamp}.md"
 
     write_xlsx(xlsx_path, fieldnames, annotated)
-    write_csv(csv_path, fieldnames, annotated)
+    write_csv_rows(csv_path, fieldnames, annotated)
     type_rows, combo_rows, detail_rows = build_summary(annotated)
-    write_csv(type_summary_path, ["错误类型", "涉及课次数"], type_rows)
-    write_csv(combo_summary_path, ["错误类型组合", "涉及课次数"], combo_rows)
-    write_csv(detail_summary_path, sorted({key for row in detail_rows for key in row.keys()}), detail_rows)
+    write_csv_rows(type_summary_path, ["错误类型", "涉及课次数"], type_rows)
+    write_csv_rows(combo_summary_path, ["错误类型组合", "涉及课次数"], combo_rows)
+    write_csv_rows(detail_summary_path, sorted({key for row in detail_rows for key in row.keys()}), detail_rows)
     write_report(report_path, args.input_xlsx, xlsx_path, type_rows, combo_rows, annotated)
 
     print(f"rows={len(annotated)}")

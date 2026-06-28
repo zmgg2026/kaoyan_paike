@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import argparse
-import csv
 import sys
 from collections import Counter
 from datetime import datetime
@@ -18,6 +17,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from scripts.schedule_modes import assignment_reference_class_id, assignment_schedule_mode  # noqa: E402
+from scripts.csv_utils import read_csv_rows, write_csv_rows  # noqa: E402
 
 
 DEFAULT_SCHEDULE = Path("outputs/batch_schedule_maintenance.csv")
@@ -50,11 +50,6 @@ def clean(value: object) -> str:
     return str(value).strip()
 
 
-def read_csv(path: Path) -> List[Dict[str, str]]:
-    with path.open(newline="", encoding="utf-8-sig") as handle:
-        return list(csv.DictReader(handle))
-
-
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Convert generated lessons into the ERP import template.")
     parser.add_argument("--template", type=Path, required=True, help="ERP import template xlsx.")
@@ -79,7 +74,7 @@ def parse_args() -> argparse.Namespace:
 def load_lesson_id_map(path: Optional[Path]) -> Dict[Tuple[str, str, str, str], str]:
     if not path:
         return {}
-    rows = read_csv(path)
+    rows = read_csv_rows(path)
     mapping: Dict[Tuple[str, str, str, str], str] = {}
     for row in rows:
         class_id = clean(row.get("class_id") or row.get("班级编码"))
@@ -133,7 +128,7 @@ def split_values(value: str) -> List[str]:
 def load_course_code_lookup(path: Path) -> Dict[Tuple[str, ...], str]:
     if not path.exists():
         return {}
-    rows = read_csv(path)
+    rows = read_csv_rows(path)
     candidates: Dict[Tuple[str, ...], set[str]] = {}
     for row in rows:
         code = clean(row.get("course_code") or row.get("课程编码"))
@@ -177,7 +172,7 @@ def load_shared_class_keys(path: Path) -> Dict[Tuple[str, str, str, str], str]:
     if not path.exists():
         return {}
     shared: Dict[Tuple[str, str, str, str], str] = {}
-    for row in read_csv(path):
+    for row in read_csv_rows(path):
         if assignment_schedule_mode(row) != "共享课表":
             continue
         class_id = clean(row.get("class_id") or row.get("班级编码"))
@@ -298,7 +293,6 @@ def clear_template_rows(ws) -> None:
 
 
 def write_gap_report(path: Path, rows: List[Dict[str, str]]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
     fieldnames = [
         "gap_type",
         "message",
@@ -315,10 +309,7 @@ def write_gap_report(path: Path, rows: List[Dict[str, str]]) -> None:
         "course_name",
         "is_shared_merge_row",
     ]
-    with path.open("w", newline="", encoding="utf-8-sig") as handle:
-        writer = csv.DictWriter(handle, fieldnames=fieldnames)
-        writer.writeheader()
-        writer.writerows(rows)
+    write_csv_rows(path, fieldnames, rows)
 
 
 def main() -> None:
@@ -333,7 +324,7 @@ def main() -> None:
         raise FileNotFoundError(args.schedule_csv)
 
     include_subjects = set(split_values(args.include_subjects))
-    rows = schedule_rows(read_csv(args.schedule_csv), args.start_date, args.end_date, include_subjects)
+    rows = schedule_rows(read_csv_rows(args.schedule_csv), args.start_date, args.end_date, include_subjects)
     lesson_id_map = load_lesson_id_map(args.lesson_id_map)
     shared_keys = load_shared_class_keys(args.teacher_assignments)
     course_code_lookup = load_course_code_lookup(args.product_courses)

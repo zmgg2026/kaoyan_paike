@@ -4,13 +4,14 @@
 from __future__ import annotations
 
 import argparse
-import csv
 from collections import Counter
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Iterable, List, Sequence
+from typing import Dict, List, Sequence
 
 from openpyxl import load_workbook
+
+from scripts.csv_utils import read_csv_rows, write_csv_rows
 
 
 DEFAULT_OUTPUT_DIR = Path("outputs")
@@ -53,13 +54,6 @@ def clean(value: object) -> str:
     if isinstance(value, float) and value.is_integer():
         return str(int(value))
     return str(value).strip()
-
-
-def read_csv(path: Path) -> List[Dict[str, str]]:
-    if not path.exists():
-        return []
-    with path.open(newline="", encoding="utf-8-sig") as handle:
-        return list(csv.DictReader(handle))
 
 
 def read_result_rows(path: Path) -> List[Dict[str, str]]:
@@ -109,16 +103,10 @@ def write_workbook(template: Path, output_path: Path, rows: Sequence[Dict[str, s
     workbook.save(output_path)
 
 
-def write_csv(path: Path, fieldnames: Sequence[str], rows: Iterable[Dict[str, str]]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", newline="", encoding="utf-8-sig") as handle:
-        writer = csv.DictWriter(handle, fieldnames=fieldnames, extrasaction="ignore")
-        writer.writeheader()
-        writer.writerows(rows)
-
-
 def load_suite_codes(path: Path) -> Dict[str, str]:
-    return {clean(row.get("id")): clean(row.get("suite_code")) for row in read_csv(path) if clean(row.get("id"))}
+    if not path.exists():
+        return {}
+    return {clean(row.get("id")): clean(row.get("suite_code")) for row in read_csv_rows(path) if clean(row.get("id"))}
 
 
 def write_report(
@@ -199,11 +187,12 @@ def main() -> None:
         )
 
     write_workbook(args.template, output_xlsx, output_rows)
-    write_csv(output_csv, ERP_HEADERS, output_rows)
-    write_csv(
+    write_csv_rows(output_csv, ERP_HEADERS, output_rows, extrasaction="ignore")
+    write_csv_rows(
         order_map,
         ["新导入顺序", "原失败所在行", "课次ID", "日期", "时间", "班级编码", "套班编码", "科目", "教师1", "教室", "课程", "错误原因"],
         order_rows,
+        extrasaction="ignore",
     )
     write_report(report, args.result_xlsx, output_xlsx, output_csv, order_map, output_rows, source_rows)
 
