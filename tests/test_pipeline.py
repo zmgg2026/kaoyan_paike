@@ -606,6 +606,79 @@ class SchedulingPipelineTest(unittest.TestCase):
         self.assertNotIn("teacher_available_slots", requirement)
         scheduler.schedule(scheduler.load_input_data(scheduler_input))
 
+    def test_export_scheduler_input_strips_legacy_requirement_teaching_area_ids(self) -> None:
+        state = data_admin_server.normalize_payload(
+            {
+                "time_slots": [
+                    {
+                        "id": "S1",
+                        "date": "2026-07-01",
+                        "period": "AM",
+                        "name": "上午一",
+                        "order": 1,
+                        "start_time": "08:00",
+                        "end_time": "10:00",
+                        "duration_hours": 2,
+                        "is_usable": "是",
+                    }
+                ],
+                "teaching_areas": [
+                    {"id": "A1", "name": "主校区", "is_active": "是"},
+                    {"id": "A2", "name": "分校区", "is_active": "是"},
+                ],
+                "rooms": [
+                    {"id": "R1", "name": "101", "teaching_area_id": "A1", "capacity": 80, "is_active": "是"},
+                    {"id": "R2", "name": "201", "teaching_area_id": "A2", "capacity": 80, "is_active": "是"},
+                ],
+                "classes": [
+                    {
+                        "id": "C1",
+                        "name": "直填班",
+                        "subject": "数学",
+                        "requirements": [
+                            {
+                                "subject": "数学",
+                                "stage": "基础",
+                                "course_group": "高数",
+                                "teacher_id": "T1",
+                                "teacher_name": "张老师",
+                                "total_hours": 2,
+                                "block_hours": 2,
+                                "teaching_area_ids": ["A2"],
+                            },
+                            {
+                                "subject": "数学",
+                                "stage": "强化",
+                                "course_group": "高数",
+                                "teacher_id": "T1",
+                                "teacher_name": "张老师",
+                                "total_hours": 2,
+                                "block_hours": 2,
+                                "room_ids": ["R2"],
+                                "teaching_area_ids": ["A1"],
+                            },
+                        ],
+                    }
+                ],
+            }
+        )
+        normalized_requirements = state["classes"][0]["requirements"]
+        self.assertNotIn("teaching_area_ids", normalized_requirements[0])
+        self.assertNotIn("teaching_area_ids", normalized_requirements[1])
+
+        with tempfile.TemporaryDirectory() as tmp:
+            data_admin_server.DATA_DIR = Path(tmp) / "data"
+            export = data_admin_server.export_scheduler_input(state, time_slots=state["time_slots"])
+            scheduler_input = json.loads(Path(export["path"]).read_text(encoding="utf-8"))
+
+        exported_requirements = {
+            item["stage"]: item
+            for item in scheduler_input["classes"][0]["requirements"]
+        }
+        self.assertNotIn("teaching_area_ids", exported_requirements["基础"])
+        self.assertNotIn("room_ids", exported_requirements["基础"])
+        self.assertEqual(["R2"], exported_requirements["强化"]["room_ids"])
+
     def test_scheduler_ignores_legacy_available_slot_fields(self) -> None:
         payload = {
             "time_slots": [

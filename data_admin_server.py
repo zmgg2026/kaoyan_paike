@@ -1370,7 +1370,6 @@ def normalize_class_requirement(requirement: Dict[str, Any]) -> Dict[str, Any]:
         "teacher_name": normalize_text(requirement.get("teacher_name")),
         "total_hours": normalize_int(requirement.get("total_hours")),
         "block_hours": normalize_int(requirement.get("block_hours")),
-        "teaching_area_ids": split_id_list(requirement.get("teaching_area_ids")),
         "room_ids": split_id_list(requirement.get("room_ids")),
         "start_date": normalize_date_text(requirement.get("start_date")),
         "end_date": normalize_date_text(requirement.get("end_date")),
@@ -1979,9 +1978,6 @@ def validate_state(state: Dict[str, Any]) -> None:
             if room_id not in room_ids and normalize_bool(cls.get("preferred_room_is_required")):
                 errors.append(f"班级 {cls['name'] or cls['id']} 关联了不存在的教室 {room_id}")
         for requirement in cls.get("requirements", []):
-            for area_id in requirement.get("teaching_area_ids", []):
-                if area_id not in teaching_area_ids:
-                    errors.append(f"班级 {cls['name'] or cls['id']} 的课程需求关联了不存在的教学区 {area_id}")
             for room_id in requirement.get("room_ids", []):
                 if room_id not in room_ids:
                     errors.append(f"班级 {cls['name'] or cls['id']} 的课程需求关联了不存在的教室 {room_id}")
@@ -2381,7 +2377,7 @@ def build_scheduler_input(
             class_room_ids = class_room_constraint(cls, rooms_by_area, rooms)
             if class_room_ids:
                 class_row["room_ids"] = class_room_ids
-        requirements = scheduler_class_requirements(cls, rooms_by_area, rooms)
+        requirements = scheduler_class_requirements(cls)
         if requirements:
             class_row["requirements"] = requirements
         classes.append({key: value for key, value in class_row.items() if value not in ("", None, [])})
@@ -2545,19 +2541,6 @@ def import_classes_csv(payload: Dict[str, Any]) -> Dict[str, Any]:
     return result
 
 
-def expand_area_ids_to_room_ids(
-    area_ids: List[str],
-    rooms_by_area: Dict[str, List[Dict[str, Any]]],
-    active_rooms: List[Dict[str, Any]],
-) -> List[str]:
-    if not area_ids:
-        return [room["id"] for room in active_rooms]
-    result: List[str] = []
-    for area_id in area_ids:
-        result.extend(room["id"] for room in rooms_by_area.get(area_id, []))
-    return sorted(set(result))
-
-
 def class_room_constraint(
     cls: Dict[str, Any],
     rooms_by_area: Dict[str, List[Dict[str, Any]]],
@@ -2596,20 +2579,9 @@ def room_capacity_unlimited(room: Dict[str, Any]) -> bool:
     return "线上" in text or "网络" in text
 
 
-def scheduler_class_requirements(
-    cls: Dict[str, Any],
-    rooms_by_area: Dict[str, List[Dict[str, Any]]],
-    active_rooms: List[Dict[str, Any]],
-) -> List[Dict[str, Any]]:
+def scheduler_class_requirements(cls: Dict[str, Any]) -> List[Dict[str, Any]]:
     requirements: List[Dict[str, Any]] = []
     for requirement in cls.get("requirements", []):
-        explicit_room_ids = requirement.get("room_ids") or []
-        explicit_area_ids = requirement.get("teaching_area_ids") or []
-        room_ids = explicit_room_ids or (
-            expand_area_ids_to_room_ids(explicit_area_ids, rooms_by_area, active_rooms)
-            if explicit_area_ids
-            else []
-        )
         row = {
             "subject_category": requirement.get("subject_category", ""),
             "subject": requirement.get("subject", ""),
@@ -2623,7 +2595,7 @@ def scheduler_class_requirements(
             "teacher_name": requirement.get("teacher_name", ""),
             "total_hours": requirement.get("total_hours", 0),
             "block_hours": requirement.get("block_hours", 0),
-            "room_ids": room_ids,
+            "room_ids": requirement.get("room_ids") or [],
             "start_date": requirement.get("start_date", ""),
             "end_date": requirement.get("end_date", ""),
             "allowed_periods": requirement.get("allowed_periods", []),
