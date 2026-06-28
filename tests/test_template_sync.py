@@ -52,6 +52,18 @@ class TemplateSyncTest(unittest.TestCase):
                     "teacher_id": "T_STALE",
                     "teacher_name": "旧字段老师",
                 },
+                {
+                    "class_id": "C_MAIN",
+                    "class_name": "合班实际排课班级",
+                    "product_id": "P1",
+                    "subject": "英语",
+                    "stage": "强化",
+                    "course_group": "阅读类",
+                    "class_schedule_mode": "合班实际排课班级",
+                    "actual_scheduled_class_id": "C_MAIN",
+                    "teacher_id": "T_MAIN",
+                    "teacher_name": "主班老师",
+                },
             ],
         )
 
@@ -69,6 +81,9 @@ class TemplateSyncTest(unittest.TestCase):
         self.assertEqual(rows[2]["class_schedule_mode"], "共享实际排课班级")
         self.assertEqual(rows[2]["actual_scheduled_class_id"], "C_CURRENT_MAIN")
         self.assertEqual(rows[2]["teacher_id"], "")
+        self.assertEqual(rows[3]["class_schedule_mode"], "合班实际排课班级")
+        self.assertEqual(rows[3]["actual_scheduled_class_id"], "C_MAIN")
+        self.assertEqual(rows[3]["teacher_id"], "T_MAIN")
 
 
 if __name__ == "__main__":

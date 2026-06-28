@@ -10,6 +10,7 @@ from scripts.schedule_modes import (
     assignment_is_shared,
     assignment_reference_class_id,
     assignment_schedule_mode,
+    class_schedule_mode_display_name,
     is_shared_class_schedule,
     normalize_class_schedule_mode,
 )
@@ -25,7 +26,9 @@ class ScheduleModesTest(unittest.TestCase):
         self.assertEqual(normalize_class_schedule_mode("本班实际排课", actual_scheduled_class_id="C_MAIN", class_id="C_SUB"), "独立排课")
         self.assertEqual(normalize_class_schedule_mode("", actual_scheduled_class_id="C_MAIN", class_id="C_SUB"), "共享课表")
         self.assertEqual(normalize_class_schedule_mode("合班主班"), "合班主班")
+        self.assertEqual(normalize_class_schedule_mode("合班实际排课班级"), "合班主班")
         self.assertFalse(is_shared_class_schedule("合班主班"))
+        self.assertEqual(class_schedule_mode_display_name("合班主班"), "合班实际排课班级")
 
     def test_assignment_row_helpers_understand_current_and_legacy_fields(self) -> None:
         current_row = {

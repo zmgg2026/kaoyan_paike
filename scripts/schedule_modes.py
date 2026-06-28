@@ -69,7 +69,7 @@ def class_schedule_mode_display_name(mode: str) -> str:
     if mode == "共享课表":
         return "共享实际排课班级"
     if mode == "合班主班":
-        return "合班主班"
+        return "合班实际排课班级"
     return "本班实际排课"
 
 
