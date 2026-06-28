@@ -30,11 +30,31 @@ class DocumentationStaticTest(unittest.TestCase):
             self.assertEqual(b"\x89PNG\r\n\x1a\n", image_path.read_bytes()[:8], image_name)
 
     def test_docs_do_not_reintroduce_teacher_available_slot_language(self) -> None:
-        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        targets = [
+            ROOT / "README.md",
+            ROOT / "scheduler.py",
+            ROOT / "run_scheduling_pipeline.py",
+            ROOT / "docs" / "ai-scheduling-sop.md",
+            ROOT / "docs" / "department-reuse-user-guide.md",
+        ]
+        forbidden_terms = [
+            "老师" + "可用" + "课节",
+            "教师" + "可用" + "课节",
+            "老师" + "可用" + "时段",
+            "教师" + "可用" + "时段",
+        ]
+        offenders = []
+        for path in targets:
+            source = path.read_text(encoding="utf-8")
+            matches = [term for term in forbidden_terms if term in source]
+            if matches:
+                offenders.append(f"{path.relative_to(ROOT)}: {', '.join(matches)}")
 
-        self.assertNotIn("老师可用课节", readme)
-        self.assertNotIn("教师可用课节", readme)
+        self.assertEqual([], offenders)
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
         self.assertIn("教师不可排例外过多，或班级排课窗口过窄", readme)
+        scheduler_source = (ROOT / "scheduler.py").read_text(encoding="utf-8")
+        self.assertIn("教师不可排日期时段、班级排课窗口、教室资源或互斥关系", scheduler_source)
 
     def test_readme_describes_schedule_range_as_template_driven(self) -> None:
         readme = (ROOT / "README.md").read_text(encoding="utf-8")

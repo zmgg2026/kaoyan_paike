@@ -2374,7 +2374,7 @@ def schedule(schedule_input: ScheduleInput) -> List[Assignment]:
         return False
 
     if not backtrack():
-        raise ValueError("无法找到满足约束的排课方案，请检查老师可用时段、教学区容量或冲突组约束")
+        raise ValueError("无法找到满足约束的排课方案，请检查教师不可排日期时段、班级排课窗口、教室资源或互斥关系")
 
     return sorted_assignments([*schedule_input.locked_assignments, *assignments.values()])
 
