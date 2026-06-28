@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import argparse
-import csv
 import re
 import shutil
 import sys
@@ -15,6 +14,7 @@ import data_admin_server
 import scheduler
 from business_class_import import BusinessDataError, convert_business_tables
 from generate_time_slots import generate_time_slots, parse_weekdays
+from scripts.csv_utils import read_csv_text_with_fieldnames, write_csv_rows
 
 
 TABLES = [
@@ -328,11 +328,11 @@ def read_csv_text(path: Path) -> str:
 
 def read_csv_rows(path: Path) -> List[Dict[str, Any]]:
     text = read_csv_text(path)
-    reader = csv.DictReader(text.splitlines())
-    if not reader.fieldnames:
+    fieldnames, rows = read_csv_text_with_fieldnames(text)
+    if not fieldnames:
         return []
-    validate_headers([header or "" for header in reader.fieldnames], str(path))
-    return clean_rows(list(reader))
+    validate_headers([header or "" for header in fieldnames], str(path))
+    return clean_rows(rows)
 
 
 def cell_text(cell: Any) -> str:
@@ -878,13 +878,7 @@ def write_missing_teacher_rows_template(
         return None
 
     path = output_dir / f"missing_class_teacher_assignments_{timestamp}.csv"
-    with path.open("w", newline="", encoding="utf-8") as handle:
-        writer = csv.DictWriter(
-            handle,
-            fieldnames=data_admin_server.TEACHER_ASSIGNMENT_FIELDNAMES,
-        )
-        writer.writeheader()
-        writer.writerows(rows)
+    write_csv_rows(path, data_admin_server.TEACHER_ASSIGNMENT_FIELDNAMES, rows, encoding="utf-8")
     return path
 
 

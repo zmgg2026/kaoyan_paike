@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 import scheduler
-from scripts.csv_utils import read_csv_rows
+from scripts.csv_utils import clean_cell, read_csv_rows
 
 
 def _data_file(path: Path, file_name: str) -> Path:
@@ -108,12 +108,6 @@ def load_teacher_name_to_id(path: Path, require_six_digit: bool = True) -> Dict[
             continue
         lookup.setdefault(name, employee_id)
     return lookup
-
-
-def clean_cell(value: object) -> str:
-    if value is None:
-        return ""
-    return str(value).strip()
 
 
 SUBJECT_SUFFIXES = {

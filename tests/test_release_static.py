@@ -38,8 +38,9 @@ class ReleaseStaticTest(unittest.TestCase):
         self.assertIn("schedule_coverage_audit_verify_run.md", script)
         self.assertIn("schedule_quality_report_verify_run.md", script)
 
-    def test_shared_schedule_modules_use_csv_utils_for_csv_io(self) -> None:
+    def test_release_path_modules_use_csv_utils_for_csv_io(self) -> None:
         modules = [
+            ROOT / "run_scheduling_pipeline.py",
             ROOT / "scripts" / "schedule_data.py",
             ROOT / "scripts" / "schedule_class_windows.py",
             ROOT / "scripts" / "schedule_conflicts.py",
