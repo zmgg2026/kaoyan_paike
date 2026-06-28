@@ -117,6 +117,10 @@ PORT=8780 ./scripts/start_schedule_publish.sh
 
 打开 `http://127.0.0.1:8780/schedule` 验证登录和只读查看。线上部署时使用平台提供的 `PORT`，并将 `SCHEDULE_VIEWER_COOKIE_SECURE=1`。只读发布站只暴露 `/schedule`、`/download/schedule.csv`、`/download/report.md` 和 `/healthz`，不会开放后台保存、导入或排课接口；详细步骤见 `PUBLIC_SCHEDULE_DEPLOY.md`。
 
+## 开发验证入口
+
+下面的命令用于开发排查核心排课器和课节生成器。其他部门正式复用时，优先按 [部门复用使用攻略](docs/department-reuse-user-guide.md) 走“下载模板 -> 后台预检 -> 正式排课 -> 审计验收”的完整流程。
+
 ```bash
 python3 scheduler.py \
   --input examples/input_example.json \
