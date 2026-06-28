@@ -10,6 +10,7 @@ from scripts import product_catalog
 class ProductCatalogTest(unittest.TestCase):
     def test_admin_exports_shared_product_catalog_helpers_for_compatibility(self) -> None:
         self.assertIs(data_admin_server.normalize_int, field_utils.normalize_int)
+        self.assertIs(data_admin_server.normalize_date_text, field_utils.normalize_date_text)
         self.assertIs(data_admin_server.product_catalog, product_catalog.product_catalog)
         self.assertIs(data_admin_server.sort_stage_values, product_catalog.sort_stage_values)
         self.assertIs(data_admin_server.product_stage_order, product_catalog.product_stage_order)

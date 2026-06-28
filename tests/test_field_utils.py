@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import unittest
+from datetime import date, datetime
 
 from scripts.field_utils import (
+    normalize_date_text,
     normalize_excel_text,
     normalize_float,
     normalize_int,
     normalize_text,
+    parse_date_value,
     parse_bool,
     parse_bool_default,
     parse_enabled,
@@ -32,6 +35,21 @@ class FieldUtilsTest(unittest.TestCase):
         self.assertEqual(normalize_int("坏数据", default=9), 9)
         self.assertEqual(normalize_float("2.3456"), 2.346)
         self.assertEqual(normalize_float(None, default=1.5), 1.5)
+
+    def test_normalize_date_text_accepts_common_import_formats(self) -> None:
+        self.assertEqual(normalize_date_text(None), "")
+        self.assertEqual(normalize_date_text(date(2026, 7, 1)), "2026-07-01")
+        self.assertEqual(normalize_date_text(datetime(2026, 7, 1, 8, 30)), "2026-07-01")
+        self.assertEqual(normalize_date_text("2026/7/1"), "2026-07-01")
+        self.assertEqual(normalize_date_text("2026.7.1"), "2026-07-01")
+        self.assertEqual(normalize_date_text("20260701"), "2026-07-01")
+        self.assertEqual(normalize_date_text("2026-07-01T08:30:00"), "2026-07-01")
+        self.assertEqual(normalize_date_text("待确认"), "待确认")
+
+    def test_parse_date_value_raises_with_label_for_invalid_values(self) -> None:
+        self.assertEqual(parse_date_value("2026/7/1", "开课日期"), date(2026, 7, 1))
+        with self.assertRaisesRegex(ValueError, "开课日期 日期格式无法识别: 待确认"):
+            parse_date_value("待确认", "开课日期")
 
     def test_split_pipe_values_trims_and_drops_empty_items(self) -> None:
         self.assertEqual(split_pipe_values("A | | B"), ["A", "B"])

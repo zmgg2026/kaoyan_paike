@@ -53,7 +53,7 @@ from scripts.schedule_outputs import (
     write_batch_csv,
     write_day_table_html,
 )
-from scripts.schedule_scope import class_ids_for_suite_codes, filtered_schedule_input
+from scripts.schedule_scope import class_ids_for_suite_codes, filtered_schedule_input, normalize_date
 from scripts.schedule_first_lesson import (
     assignments_preserve_first_lesson_modules,
     first_lesson_candidate_allowed,
@@ -117,6 +117,13 @@ def make_pm_blocks() -> list[tuple[scheduler.TimeSlot, ...]]:
         )
     )
     return blocks
+
+
+class ScheduleScopeDateTest(unittest.TestCase):
+    def test_normalize_date_uses_shared_import_formats(self) -> None:
+        self.assertEqual(normalize_date("2026/7/1"), "2026-07-01")
+        self.assertEqual(normalize_date("2026.7.1"), "2026-07-01")
+        self.assertEqual(normalize_date("20260701"), "2026-07-01")
 
 
 def make_teacher_travel_assignment(

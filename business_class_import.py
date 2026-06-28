@@ -3,13 +3,13 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from datetime import date, datetime
+from datetime import date
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Set, Tuple
 
 import data_admin_server
 from scripts.csv_utils import write_csv_rows
-from scripts.field_utils import normalize_int, normalize_text
+from scripts.field_utils import normalize_int, normalize_text, parse_date_value
 from scripts.product_catalog import product_catalog as shared_product_catalog
 
 
@@ -92,19 +92,7 @@ def business_product_mapping_rows(tables: Mapping[str, Any]) -> List[Dict[str, A
 
 
 def parse_business_date(value: Any, label: str) -> date:
-    text = normalize_text(value)
-    candidates = [text]
-    if " " in text:
-        candidates.append(text.split(" ", 1)[0])
-    if "T" in text:
-        candidates.append(text.split("T", 1)[0])
-    for candidate in candidates:
-        for fmt in ("%Y/%m/%d", "%Y-%m-%d", "%Y.%m.%d"):
-            try:
-                return datetime.strptime(candidate, fmt).date()
-            except ValueError:
-                continue
-    raise ValueError(f"{label} 日期格式无法识别: {text}")
+    return parse_date_value(value, label)
 
 
 def clamp_date(value: date, lower: date, upper: date) -> date:

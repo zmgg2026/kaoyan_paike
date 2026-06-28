@@ -24,6 +24,7 @@ from scripts.csv_utils import csv_rows_text, serialize_csv_value, write_csv_rows
 from scripts.field_utils import (
     normalize_float,
     normalize_int,
+    normalize_date_text,
     normalize_text,
     parse_bool as normalize_bool,
     split_pipe_values as split_id_list,
@@ -136,22 +137,6 @@ def unique_list(values: Iterable[str]) -> List[str]:
             seen.add(text)
             result.append(text)
     return result
-
-
-def normalize_date_text(value: Any) -> str:
-    text = normalize_text(value)
-    if not text:
-        return ""
-    for fmt in ("%Y-%m-%d", "%Y/%m/%d", "%Y-%m-%d %H:%M:%S", "%Y/%m/%d %H:%M:%S"):
-        try:
-            return datetime.strptime(text, fmt).date().isoformat()
-        except ValueError:
-            pass
-    match = re.fullmatch(r"(\d{4})[-/](\d{1,2})[-/](\d{1,2})", text)
-    if match:
-        year, month, day = (int(part) for part in match.groups())
-        return datetime(year, month, day).date().isoformat()
-    return text
 
 
 def is_employee_id(value: Any) -> bool:

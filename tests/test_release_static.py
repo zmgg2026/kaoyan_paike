@@ -145,8 +145,11 @@ class ReleaseStaticTest(unittest.TestCase):
         self.assertIn("from scripts.field_utils import", pipeline_source)
         self.assertIsNone(re.search(r"(?m)^def normalize_int\(", admin_source))
         self.assertIsNone(re.search(r"(?m)^def normalize_float\(", admin_source))
+        self.assertIsNone(re.search(r"(?m)^def normalize_date_text\(", admin_source))
         self.assertIsNone(re.search(r"(?m)^def normalize_int\(", product_catalog_source))
         self.assertNotIn("data_admin_server.normalize_int", business_import_source)
+        self.assertIn("parse_date_value", business_import_source)
+        self.assertNotIn("datetime.strptime(candidate, fmt)", business_import_source)
         self.assertNotIn("data_admin_server.normalize_text", pipeline_source)
 
     def test_cli_scripts_import_project_modules_with_bootstrap(self) -> None:

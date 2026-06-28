@@ -7,6 +7,7 @@ from typing import Any, Dict, List, Optional, Sequence, Set, Tuple
 
 import scheduler
 from scripts.csv_utils import read_csv_rows
+from scripts.field_utils import normalize_date_text
 from scripts.schedule_data import infer_class_subject, infer_class_subject_category
 
 
@@ -18,12 +19,9 @@ def split_values(value: str) -> List[str]:
 
 
 def normalize_date(value: str) -> str:
-    text = (value or "").strip()
+    text = normalize_date_text(value)
     if not text:
         return ""
-    if "/" in text:
-        year, month, day = text.split("/")
-        return Date(int(year), int(month), int(day)).isoformat()
     return Date.fromisoformat(text).isoformat()
 
 

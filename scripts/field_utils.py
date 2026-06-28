@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import re
+from datetime import date as Date, datetime
 from typing import Any, Iterable, List
 
 
@@ -37,6 +39,54 @@ def normalize_float(value: Any, default: float = 0.0) -> float:
         return round(float(value), 3)
     except (TypeError, ValueError):
         return default
+
+
+def normalize_date_text(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, datetime):
+        return value.date().isoformat()
+    if isinstance(value, Date):
+        return value.isoformat()
+
+    text = normalize_excel_text(value)
+    if not text:
+        return ""
+
+    candidates = [text]
+    if " " in text:
+        candidates.append(text.split(" ", 1)[0])
+    if "T" in text:
+        candidates.append(text.split("T", 1)[0])
+
+    for candidate in candidates:
+        for fmt in (
+            "%Y-%m-%d",
+            "%Y/%m/%d",
+            "%Y.%m.%d",
+            "%Y%m%d",
+            "%Y-%m-%d %H:%M:%S",
+            "%Y/%m/%d %H:%M:%S",
+            "%Y.%m.%d %H:%M:%S",
+        ):
+            try:
+                return datetime.strptime(candidate, fmt).date().isoformat()
+            except ValueError:
+                pass
+        match = re.fullmatch(r"(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})", candidate)
+        if match:
+            year, month, day = (int(part) for part in match.groups())
+            return Date(year, month, day).isoformat()
+
+    return text
+
+
+def parse_date_value(value: Any, label: str = "日期") -> Date:
+    text = normalize_date_text(value)
+    try:
+        return Date.fromisoformat(text)
+    except ValueError as exc:
+        raise ValueError(f"{label} 日期格式无法识别: {normalize_text(value)}") from exc
 
 
 def split_pipe_values(values: Any) -> List[str]:
