@@ -182,8 +182,6 @@ TABLE_ALIASES = {
     "固定课表": "locked_scheduled_lessons",
 }
 
-BLACKOUT_FIELDNAMES = ["id", "name", "start_date", "end_date", "is_active", "notes"]
-
 TABLE_FIELDNAMES = {
     "schedule_windows": data_admin_server.SCHEDULE_WINDOW_FIELDNAMES,
     "time_slots": data_admin_server.TIME_SLOT_FIELDNAMES,
@@ -200,7 +198,7 @@ TABLE_FIELDNAMES = {
     "class_conflict_groups": data_admin_server.CLASS_CONFLICT_GROUP_FIELDNAMES,
     "locked_scheduled_lessons": data_admin_server.LOCKED_SCHEDULED_LESSON_FIELDNAMES,
     "teaching_area_links": data_admin_server.TEACHING_AREA_LINK_FIELDNAMES,
-    "global_blackout_dates": BLACKOUT_FIELDNAMES,
+    "global_blackout_dates": data_admin_server.GLOBAL_BLACKOUT_FIELDNAMES,
     "historical_scheduled_lessons": data_admin_server.LOCKED_SCHEDULED_LESSON_FIELDNAMES,
     "business_product_mappings": data_admin_server.BUSINESS_PRODUCT_MAPPING_FIELDNAMES,
     "erp_standard_products": data_admin_server.ERP_STANDARD_PRODUCT_FIELDNAMES,

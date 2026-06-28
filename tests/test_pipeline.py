@@ -755,6 +755,31 @@ class SchedulingPipelineTest(unittest.TestCase):
 
         self.assertEqual(data_admin_server.TEACHER_FIELDNAMES, header)
 
+    def test_global_blackout_fieldnames_are_shared_by_admin_and_pipeline(self) -> None:
+        self.assertEqual(data_admin_server.GLOBAL_BLACKOUT_FIELDNAMES, TABLE_FIELDNAMES["global_blackout_dates"])
+        payload = {
+            "global_blackout_dates": [
+                {
+                    "id": "BLACKOUT_QM",
+                    "name": "清明",
+                    "start_date": "2027-04-05",
+                    "end_date": "2027-04-05",
+                    "is_active": "是",
+                    "notes": "法定节假日",
+                }
+            ],
+            "products": [],
+            "product_courses": [],
+            "classes": [],
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            data_admin_server.DATA_DIR = Path(tmp) / "data"
+            data_admin_server.save_state(payload)
+            with (data_admin_server.DATA_DIR / "global_blackout_dates.csv").open(encoding="utf-8") as handle:
+                header = next(csv.reader(handle))
+
+        self.assertEqual(data_admin_server.GLOBAL_BLACKOUT_FIELDNAMES, header)
+
     def test_business_product_mapping_saves_current_local_product_field_only(self) -> None:
         payload = {
             "products": [{"id": "P1", "name": "测试产品", "subject": "英语"}],

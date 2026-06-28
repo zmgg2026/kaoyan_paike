@@ -284,6 +284,7 @@ TEACHER_UNAVAILABILITY_FIELDNAMES = [
     "data_source",
     "notes",
 ]
+GLOBAL_BLACKOUT_FIELDNAMES = ["id", "name", "start_date", "end_date", "is_active", "notes"]
 CLASS_WINDOW_BOUNDARY_FIELDNAMES = [
     "class_window_id",
     "class_id",
@@ -2261,7 +2262,7 @@ def write_csvs(state: Dict[str, Any]) -> None:
     write_csv(
         DATA_DIR / "global_blackout_dates.csv",
         state["global_blackout_dates"],
-        ["id", "name", "start_date", "end_date", "is_active", "notes"],
+        GLOBAL_BLACKOUT_FIELDNAMES,
     )
     write_csv(
         DATA_DIR / "historical_scheduled_lessons.csv",
