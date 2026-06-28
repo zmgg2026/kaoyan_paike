@@ -2606,6 +2606,28 @@ function scheduleWindowById(scheduleWindowId) {
   return (state.schedule_windows || []).find((window) => window.schedule_window_id === scheduleWindowId) || null;
 }
 
+function classWindowIsIncluded(item) {
+  const value = String(item?.is_class_window_included ?? "").trim();
+  return item?.is_class_window_included !== false && value !== "否" && value.toLowerCase() !== "false";
+}
+
+function classActualScheduleWindowIds(cls) {
+  const classId = cls?.id || "";
+  const rows = (state.class_window_boundaries || [])
+    .filter((item) => item.class_id === classId && classWindowIsIncluded(item))
+    .sort((left, right) => {
+      const leftYear = Number(left.window_year || 0);
+      const rightYear = Number(right.window_year || 0);
+      if (leftYear !== rightYear) return leftYear - rightYear;
+      const leftOrder = Number(left.window_order || 0);
+      const rightOrder = Number(right.window_order || 0);
+      if (leftOrder !== rightOrder) return leftOrder - rightOrder;
+      return String(left.schedule_window_id || "").localeCompare(String(right.schedule_window_id || ""), "zh-CN");
+    });
+  const windowIds = rows.map((item) => item.schedule_window_id || item.schedule_window_name).filter(Boolean);
+  return windowIds.length ? uniqueList(windowIds) : arrayValues(cls?.actual_schedule_window_ids);
+}
+
 function classById(classId) {
   return (state.classes || []).find((cls) => cls.id === classId) || null;
 }
@@ -2746,7 +2768,7 @@ function renderClassWindows() {
   const sourceRows = state.class_window_boundaries || [];
   const matchedRows = sourceRows.filter((item) => classWindowMatchesSearch(item, selected.classWindowSearch));
   const rows = limitDisplayedRows(matchedRows, visibleRowLimits.classWindows);
-  const includedCount = sourceRows.filter((item) => item.is_class_window_included !== false).length;
+  const includedCount = sourceRows.filter(classWindowIsIncluded).length;
   const distinctClasses = new Set(sourceRows.map((item) => item.class_id).filter(Boolean)).size;
   const withRoomCount = sourceRows.filter((item) => arrayValues(item.preferred_room_ids).length).length;
   const stats = [
@@ -4676,7 +4698,7 @@ function classSearchText(cls) {
     arrayValues(cls.stages).join(" "),
     cls.exam_season,
     cls.exam_month,
-    arrayValues(cls.actual_schedule_window_ids).join(" "),
+    classActualScheduleWindowIds(cls).join(" "),
     cls.suite_code,
     cls.capacity_type,
     cls.size,
@@ -5160,7 +5182,7 @@ function classTeacherContextChips(cls) {
     ["科目", cls.subject],
     ["阶段", sortStageValues(arrayValues(cls.stages)).join("/")],
     ["套班", cls.suite_code],
-    ["年度窗口", listText(cls.actual_schedule_window_ids)],
+    ["年度窗口", listText(classActualScheduleWindowIds(cls))],
   ];
   const content = chips
     .filter(([, value]) => value !== undefined && value !== null && String(value).trim())
@@ -5882,7 +5904,6 @@ function addClass() {
     subject,
     stages: [],
     selected_stages: [],
-    actual_schedule_window_ids: [],
     exam_season: "",
     exam_month: "",
     suite_code: "",

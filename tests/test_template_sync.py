@@ -89,6 +89,45 @@ class TemplateSyncTest(unittest.TestCase):
         self.assertEqual(rows[3]["actual_scheduled_class_id"], "C_MAIN")
         self.assertEqual(rows[3]["teacher_id"], "T_MAIN")
 
+    def test_template_sync_drops_legacy_duplicate_fields(self) -> None:
+        classes = enrich_rows(
+            "classes",
+            [
+                {
+                    "id": "C1",
+                    "name": "英语1班",
+                    "selected_stages": ["基础"],
+                    "actual_schedule_window_ids": ["2026暑假"],
+                }
+            ],
+        )
+        mappings = enrich_rows(
+            "business_product_mappings",
+            [
+                {
+                    "business_product_id": "100",
+                    "canonical_product_id": "P1",
+                    "match_status": "已匹配",
+                }
+            ],
+        )
+        product_courses = enrich_rows(
+            "product_courses",
+            [
+                {
+                    "product_id": "P1",
+                    "window_name": "暑假",
+                    "course_module": "词汇",
+                    "teaching_area_ids": ["A1"],
+                }
+            ],
+        )
+
+        self.assertNotIn("actual_schedule_window_ids", classes[0])
+        self.assertEqual(mappings[0]["local_product_id"], "P1")
+        self.assertNotIn("canonical_product_id", mappings[0])
+        self.assertNotIn("teaching_area_ids", product_courses[0])
+
     def test_write_csv_uses_shared_formatter_and_keeps_union_field_order(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             path = Path(tmp_dir) / "template_sync.csv"

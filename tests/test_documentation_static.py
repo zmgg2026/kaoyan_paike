@@ -70,6 +70,14 @@ class DocumentationStaticTest(unittest.TestCase):
         self.assertNotIn("372 条缺老师", checklist)
         self.assertIn("真实 `data/` 不进入 GitHub 发布包", checklist)
 
+    def test_class_base_docs_do_not_reintroduce_window_id_list_field(self) -> None:
+        sop = (ROOT / "docs" / "ai-scheduling-sop.md").read_text(encoding="utf-8")
+        example_classes = (ROOT / "examples" / "csv_minimal" / "classes.csv").read_text(encoding="utf-8")
+
+        self.assertIn("实际年度窗口列表由班级排课窗口表生成和展示", sop)
+        self.assertNotIn("班级实际排课窗口ID列表", sop)
+        self.assertNotIn("actual_schedule_window_ids", example_classes.splitlines()[0])
+
     def test_department_guide_includes_audit_commands(self) -> None:
         guide = (ROOT / "docs" / "department-reuse-user-guide.md").read_text(encoding="utf-8")
 

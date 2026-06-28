@@ -746,6 +746,33 @@ class SchedulingPipelineTest(unittest.TestCase):
         self.assertIn("local_product_id", header)
         self.assertNotIn("canonical_product_id", header)
 
+    def test_class_window_ids_are_not_saved_in_class_base_table(self) -> None:
+        payload = {
+            "classes": [
+                {
+                    "id": "C1",
+                    "name": "英语1班",
+                    "product_id": "P1",
+                    "actual_schedule_window_ids": "2026暑假|2026秋季",
+                }
+            ],
+            "products": [{"id": "P1", "name": "测试产品", "subject": "英语"}],
+            "product_courses": [],
+        }
+
+        normalized = data_admin_server.normalize_payload(payload)
+        self.assertNotIn("actual_schedule_window_ids", normalized["classes"][0])
+
+        with tempfile.TemporaryDirectory() as tmp:
+            data_admin_server.DATA_DIR = Path(tmp) / "data"
+            data_admin_server.save_state(payload)
+            classes_doc = json.loads((data_admin_server.DATA_DIR / "classes.json").read_text(encoding="utf-8"))
+            with (data_admin_server.DATA_DIR / "classes.csv").open(encoding="utf-8") as handle:
+                header = next(csv.reader(handle))
+
+        self.assertNotIn("actual_schedule_window_ids", classes_doc["classes"][0])
+        self.assertNotIn("actual_schedule_window_ids", header)
+
     def test_scheduler_rules_export_preserves_season_window(self) -> None:
         rules = [
             data_admin_server.normalize_product_rule(

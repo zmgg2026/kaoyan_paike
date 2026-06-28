@@ -87,6 +87,15 @@ class WebAdminStaticTest(unittest.TestCase):
         self.assertNotIn("canonical_product_id: product.id", source)
         self.assertNotIn("mapping.canonical_product_id = product.id", source)
 
+    def test_class_window_ids_are_derived_from_class_window_table(self) -> None:
+        source = (ROOT / "web_admin" / "app.js").read_text(encoding="utf-8")
+
+        self.assertIn("function classActualScheduleWindowIds", source)
+        self.assertIn("state.class_window_boundaries", source)
+        self.assertIn('["年度窗口", listText(classActualScheduleWindowIds(cls))]', source)
+        self.assertIn("classActualScheduleWindowIds(cls).join", source)
+        self.assertNotIn("actual_schedule_window_ids: []", source)
+
 
 if __name__ == "__main__":
     unittest.main()

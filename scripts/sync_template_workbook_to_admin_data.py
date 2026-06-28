@@ -284,6 +284,7 @@ def enrich_rows(key: str, rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
             row["quarter"] = row.get("window_name", "")
             row["module_priority"] = row.get("module_priority_in_group", 0)
             row.setdefault("block_hours", 0)
+            row.pop("teaching_area_ids", None)
         elif key == "product_schedule_rules":
             product_id = normalize_text(row.get("product_id"))
             row["rule_name"] = row.get("rule_name") or " / ".join(
@@ -307,6 +308,11 @@ def enrich_rows(key: str, rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         elif key == "classes":
             row["stages"] = row.get("selected_stages", [])
             row["is_schedule_locked"] = row.get("is_manual_schedule_locked", False)
+            row.pop("actual_schedule_window_ids", None)
+        elif key == "business_product_mappings":
+            if not normalize_text(row.get("local_product_id")):
+                row["local_product_id"] = normalize_text(row.get("canonical_product_id"))
+            row.pop("canonical_product_id", None)
         elif key == "class_conflict_groups":
             row["is_active"] = row.get("is_conflict_group_active", True)
             row["source"] = row.get("conflict_source", "")
