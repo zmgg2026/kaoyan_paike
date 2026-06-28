@@ -47,6 +47,34 @@ def _load_room_metadata_from_csv(rooms_path: Path) -> Dict[str, Dict[str, str]]:
     return lookup
 
 
+def load_area_metadata(path: Path) -> Dict[str, Dict[str, str]]:
+    areas_path = _data_file(path, "teaching_areas.csv")
+    if not areas_path.exists():
+        return {}
+    result: Dict[str, Dict[str, str]] = {}
+    for row in read_csv_rows(areas_path):
+        area_id = clean_cell(row.get("id"))
+        if area_id:
+            result[area_id] = {key: clean_cell(value) for key, value in row.items()}
+    return result
+
+
+def load_area_links(path: Path) -> Dict[Tuple[str, str], Dict[str, str]]:
+    links_path = _data_file(path, "teaching_area_links.csv")
+    if not links_path.exists():
+        return {}
+    links: Dict[Tuple[str, str], Dict[str, str]] = {}
+    for row in read_csv_rows(links_path):
+        left = clean_cell(row.get("from_teaching_area_id"))
+        right = clean_cell(row.get("to_teaching_area_id"))
+        if not left or not right:
+            continue
+        cleaned = {key: clean_cell(value) for key, value in row.items()}
+        links[(left, right)] = cleaned
+        links[(right, left)] = cleaned
+    return links
+
+
 def load_class_metadata(path: Path) -> Dict[str, Dict[str, str]]:
     classes_path = _data_file(path, "classes.csv")
     if not classes_path.exists():

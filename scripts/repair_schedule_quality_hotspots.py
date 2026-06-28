@@ -25,7 +25,12 @@ from scripts.schedule_class_windows import (  # noqa: E402
     merge_constraints,
 )
 from scripts.schedule_conflicts import write_teacher_time_conflicts_csv  # noqa: E402
-from scripts.schedule_data import load_room_metadata as load_raw_room_metadata, load_room_names  # noqa: E402
+from scripts.schedule_data import (  # noqa: E402
+    load_area_links as load_raw_area_links,
+    load_area_metadata as load_raw_area_metadata,
+    load_room_metadata as load_raw_room_metadata,
+    load_room_names,
+)
 from scripts.schedule_outputs import write_day_table_html  # noqa: E402
 
 
@@ -183,24 +188,11 @@ def load_room_meta(data_dir: Path) -> Dict[str, dict]:
 
 
 def load_area_meta(data_dir: Path) -> Dict[str, dict]:
-    path = data_dir / "teaching_areas.csv"
-    if not path.exists():
-        return {}
-    return {clean(row.get("id")): row for row in read_csv_rows(path) if clean(row.get("id"))}
+    return load_raw_area_metadata(data_dir)
 
 
 def load_area_links(data_dir: Path) -> Dict[Tuple[str, str], dict]:
-    path = data_dir / "teaching_area_links.csv"
-    if not path.exists():
-        return {}
-    links: Dict[Tuple[str, str], dict] = {}
-    for row in read_csv_rows(path):
-        left = clean(row.get("from_teaching_area_id"))
-        right = clean(row.get("to_teaching_area_id"))
-        if left and right:
-            links[(left, right)] = row
-            links[(right, left)] = row
-    return links
+    return load_raw_area_links(data_dir)
 
 
 def row_teacher_key(row: dict) -> str:

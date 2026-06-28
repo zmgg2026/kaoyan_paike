@@ -16,6 +16,8 @@ if str(ROOT) not in sys.path:
 
 from scripts.csv_utils import clean_cell as clean, read_csv_rows, write_csv_rows
 from scripts.schedule_data import (
+    load_area_links as load_raw_area_links,
+    load_area_metadata as load_raw_area_metadata,
     load_class_metadata as load_raw_class_metadata,
     load_room_metadata as load_raw_room_metadata,
 )
@@ -105,25 +107,11 @@ def load_room_metadata(data_dir: Path) -> Dict[str, dict]:
 
 
 def load_area_metadata(data_dir: Path) -> Dict[str, dict]:
-    path = data_dir / "teaching_areas.csv"
-    if not path.exists():
-        return {}
-    return {clean(row.get("id")): row for row in read_csv_rows(path) if clean(row.get("id"))}
+    return load_raw_area_metadata(data_dir)
 
 
 def load_area_links(data_dir: Path) -> Dict[Tuple[str, str], dict]:
-    path = data_dir / "teaching_area_links.csv"
-    if not path.exists():
-        return {}
-    links: Dict[Tuple[str, str], dict] = {}
-    for row in read_csv_rows(path):
-        left = clean(row.get("from_teaching_area_id"))
-        right = clean(row.get("to_teaching_area_id"))
-        if not left or not right:
-            continue
-        links[(left, right)] = row
-        links[(right, left)] = row
-    return links
+    return load_raw_area_links(data_dir)
 
 
 def load_schedule_halfdays(schedule_csv: Path, class_meta: Dict[str, dict]) -> List[Halfday]:

@@ -8,6 +8,8 @@ from pathlib import Path
 
 from scripts.schedule_data import (
     load_active_blackout_dates,
+    load_area_links,
+    load_area_metadata,
     load_class_metadata,
     load_room_maps,
     load_room_metadata,
@@ -167,6 +169,45 @@ class ScheduleDataTest(unittest.TestCase):
         self.assertEqual(from_directory_json["R201"]["is_active"], "False")
         self.assertEqual(from_directory_json["R201"]["capacity"], "0")
         self.assertEqual(from_json, from_directory_json)
+
+    def test_load_area_metadata_and_links_use_current_resource_tables(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            data_dir = Path(tmp)
+            with (data_dir / "teaching_areas.csv").open("w", newline="", encoding="utf-8") as handle:
+                writer = csv.DictWriter(handle, fieldnames=["id", "name", "region"])
+                writer.writeheader()
+                writer.writerow({"id": "A_NS", "name": "新站校区", "region": "新站"})
+                writer.writerow({"id": "", "name": "空行", "region": ""})
+            with (data_dir / "teaching_area_links.csv").open("w", newline="", encoding="utf-8") as handle:
+                writer = csv.DictWriter(
+                    handle,
+                    fieldnames=["from_teaching_area_id", "to_teaching_area_id", "travel_minutes", "relation_type"],
+                )
+                writer.writeheader()
+                writer.writerow(
+                    {
+                        "from_teaching_area_id": "A_NS",
+                        "to_teaching_area_id": "A_BH",
+                        "travel_minutes": " 40 ",
+                        "relation_type": "跨区",
+                    }
+                )
+                writer.writerow(
+                    {
+                        "from_teaching_area_id": "",
+                        "to_teaching_area_id": "A_IGNORED",
+                        "travel_minutes": "99",
+                        "relation_type": "无效",
+                    }
+                )
+
+            areas = load_area_metadata(data_dir)
+            links = load_area_links(data_dir)
+
+        self.assertEqual(areas, {"A_NS": {"id": "A_NS", "name": "新站校区", "region": "新站"}})
+        self.assertEqual(links[("A_NS", "A_BH")]["travel_minutes"], "40")
+        self.assertIs(links[("A_NS", "A_BH")], links[("A_BH", "A_NS")])
+        self.assertNotIn(("", "A_IGNORED"), links)
 
     def test_load_teacher_name_to_id_defaults_to_six_digit_employee_ids(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
