@@ -17,7 +17,11 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from scripts.csv_utils import read_csv_rows, write_csv_rows
-from scripts.field_utils import normalize_excel_text as clean
+from scripts.field_utils import (
+    normalize_excel_text as clean,
+    normalize_time_text as normalize_one_time,
+    split_time_range_text,
+)
 
 
 DEFAULT_SCHEDULE = Path("outputs/batch_schedule_maintenance.csv")
@@ -44,21 +48,7 @@ def normalize_date(value: object) -> str:
 
 
 def normalize_time(value: object) -> Tuple[str, str]:
-    text = clean(value)
-    if "~" in text:
-        start, end = text.split("~", 1)
-        return normalize_one_time(start), normalize_one_time(end)
-    return normalize_one_time(text), ""
-
-
-def normalize_one_time(value: str) -> str:
-    text = clean(value)
-    for fmt in ("%H:%M", "%H:%M:%S"):
-        try:
-            return datetime.strptime(text, fmt).strftime("%H:%M")
-        except ValueError:
-            pass
-    return text
+    return split_time_range_text(value)
 
 
 def schedule_rows(path: Path, start_date: str, end_date: str, include_subjects: set[str]) -> List[Dict[str, str]]:

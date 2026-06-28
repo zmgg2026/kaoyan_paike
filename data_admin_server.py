@@ -26,6 +26,7 @@ from scripts.field_utils import (
     normalize_int,
     normalize_date_text,
     normalize_text,
+    normalize_time_text,
     parse_bool as normalize_bool,
     split_pipe_values as split_id_list,
 )
@@ -1185,14 +1186,6 @@ def normalize_locked_scheduled_lesson(lesson: Dict[str, Any]) -> Dict[str, Any]:
         "is_locked": normalize_bool(lesson.get("is_locked")) if "is_locked" in lesson else True,
         "notes": normalize_text(lesson.get("notes")),
     }
-
-
-def normalize_time_text(value: Any) -> str:
-    text = normalize_text(value)
-    match = re.search(r"(\d{1,2}):(\d{2})", text)
-    if not match:
-        return text
-    return f"{int(match.group(1)):02d}:{match.group(2)}"
 
 
 def normalize_blank_marker(value: Any) -> str:

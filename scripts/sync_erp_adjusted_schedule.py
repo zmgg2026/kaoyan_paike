@@ -23,6 +23,7 @@ from scripts.build_camp_maintenance_schedule import (  # noqa: E402
     load_class_metadata,
 )
 from scripts.csv_utils import clean_cell as clean, read_csv_rows, write_csv_rows  # noqa: E402
+from scripts.field_utils import split_time_range_text  # noqa: E402
 from scripts.schedule_conflicts import write_teacher_time_conflicts_csv  # noqa: E402
 from scripts.schedule_data import load_room_name_to_id, load_room_names, load_teacher_name_to_id  # noqa: E402
 from scripts.schedule_display import weekday_label  # noqa: E402
@@ -78,11 +79,10 @@ def normalize_date(value: object) -> str:
 
 
 def parse_time_range(value: object) -> Tuple[str, str]:
-    text = clean(value).replace("－", "~").replace("-", "~")
-    if "~" not in text:
+    start, end = split_time_range_text(clean(value))
+    if not end:
         return "", ""
-    start, end = [part.strip() for part in text.split("~", 1)]
-    return start[:5], end[:5]
+    return start, end
 
 
 def period_for_time(start_time: str, end_time: str) -> Tuple[str, str, str]:

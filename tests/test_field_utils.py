@@ -10,10 +10,13 @@ from scripts.field_utils import (
     normalize_int,
     normalize_text,
     parse_date_value,
+    normalize_time_text,
     parse_bool,
     parse_bool_default,
     parse_enabled,
+    parse_time_minutes,
     split_pipe_values,
+    split_time_range_text,
 )
 
 
@@ -50,6 +53,18 @@ class FieldUtilsTest(unittest.TestCase):
         self.assertEqual(parse_date_value("2026/7/1", "开课日期"), date(2026, 7, 1))
         with self.assertRaisesRegex(ValueError, "开课日期 日期格式无法识别: 待确认"):
             parse_date_value("待确认", "开课日期")
+
+    def test_time_helpers_normalize_import_time_text(self) -> None:
+        self.assertEqual(normalize_time_text(None), "")
+        self.assertEqual(normalize_time_text(datetime(2026, 7, 1, 8, 5)), "08:05")
+        self.assertEqual(normalize_time_text("8:00"), "08:00")
+        self.assertEqual(normalize_time_text("08:00:00"), "08:00")
+        self.assertEqual(normalize_time_text("待确认"), "待确认")
+        self.assertEqual(parse_time_minutes("08:30:00"), 510)
+        self.assertIsNone(parse_time_minutes("25:00"))
+        self.assertEqual(split_time_range_text("8:00-10:00"), ("08:00", "10:00"))
+        self.assertEqual(split_time_range_text("08:00－10:00"), ("08:00", "10:00"))
+        self.assertEqual(split_time_range_text("08:00"), ("08:00", ""))
 
     def test_split_pipe_values_trims_and_drops_empty_items(self) -> None:
         self.assertEqual(split_pipe_values("A | | B"), ["A", "B"])

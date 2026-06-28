@@ -13,7 +13,7 @@ from string import Template
 from typing import Dict, List, Mapping, Optional, Set, Tuple
 
 from scripts.csv_utils import write_csv_rows
-from scripts.field_utils import parse_bool, parse_bool_default
+from scripts.field_utils import normalize_time_text as normalize_time_value, parse_bool, parse_bool_default
 from scripts.schedule_modes import assignment_is_shared
 
 
@@ -1010,14 +1010,6 @@ def contiguous_slots_matching_time_range(
             if normalize_time_value(candidate.end_time) == end_time:
                 return tuple(current)
     return ()
-
-
-def normalize_time_value(value: object) -> str:
-    text = str(value or "").strip()
-    match = re.search(r"(\d{1,2}):(\d{2})", text)
-    if not match:
-        return text
-    return f"{int(match.group(1)):02d}:{match.group(2)}"
 
 
 def blank_marker_to_empty(value: object) -> str:

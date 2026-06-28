@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import re
-from datetime import date as Date, datetime
-from typing import Any, Iterable, List
+from datetime import date as Date, datetime, time as Time
+from typing import Any, Iterable, List, Optional, Tuple
 
 
 TRUE_VALUES = {"1", "true", "yes", "y", "是", "对", "启用", "可用", "纳入", "锁定"}
@@ -87,6 +87,43 @@ def parse_date_value(value: Any, label: str = "日期") -> Date:
         return Date.fromisoformat(text)
     except ValueError as exc:
         raise ValueError(f"{label} 日期格式无法识别: {normalize_text(value)}") from exc
+
+
+def normalize_time_text(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, datetime):
+        return value.strftime("%H:%M")
+    if isinstance(value, Time):
+        return value.strftime("%H:%M")
+
+    text = normalize_excel_text(value)
+    match = re.search(r"(\d{1,2}):(\d{2})", text)
+    if not match:
+        return text
+    return f"{int(match.group(1)):02d}:{match.group(2)}"
+
+
+def parse_time_minutes(value: Any) -> Optional[int]:
+    text = normalize_time_text(value)
+    if not text:
+        return None
+    match = re.search(r"(\d{1,2}):(\d{2})", text)
+    if not match:
+        return None
+    hour = int(match.group(1))
+    minute = int(match.group(2))
+    if hour > 23 or minute > 59:
+        return None
+    return hour * 60 + minute
+
+
+def split_time_range_text(value: Any) -> Tuple[str, str]:
+    text = normalize_text(value).replace("－", "~").replace("—", "~").replace("-", "~")
+    if "~" not in text:
+        return normalize_time_text(text), ""
+    start, end = text.split("~", 1)
+    return normalize_time_text(start), normalize_time_text(end)
 
 
 def split_pipe_values(values: Any) -> List[str]:

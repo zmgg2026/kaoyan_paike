@@ -9,7 +9,7 @@ from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Set, 
 
 import data_admin_server
 from scripts.csv_utils import write_csv_rows
-from scripts.field_utils import normalize_int, normalize_text, parse_date_value
+from scripts.field_utils import normalize_int, normalize_text, parse_date_value, parse_time_minutes
 from scripts.product_catalog import product_catalog as shared_product_catalog
 
 
@@ -227,20 +227,6 @@ def first_merge_code(row: Mapping[str, Any]) -> str:
 
 def parse_int(value: Any) -> int:
     return normalize_int(value)
-
-
-def parse_time_minutes(value: Any) -> Optional[int]:
-    text = normalize_text(value)
-    if not text:
-        return None
-    match = re.search(r"(\d{1,2}):(\d{2})", text)
-    if not match:
-        return None
-    hour = int(match.group(1))
-    minute = int(match.group(2))
-    if hour > 23 or minute > 59:
-        return None
-    return hour * 60 + minute
 
 
 def infer_period(value: Any, start_time: str) -> str:
