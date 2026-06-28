@@ -1864,6 +1864,41 @@ class SchedulingPipelineTest(unittest.TestCase):
         self.assertEqual(state["teaching_areas"][0]["region_tag"], "蜀山")
         self.assertEqual(state["rooms"][0]["teaching_area_name"], "环球金融")
 
+    def test_scheduler_room_parser_uses_area_metadata_and_legacy_area_resources(self) -> None:
+        rooms, has_explicit_rooms = scheduler.parse_rooms(
+            {
+                "teaching_areas": [
+                    {
+                        "id": "A1",
+                        "name": "环球金融校区",
+                        "short_name": "环球金融",
+                        "region_tag": "蜀山",
+                    }
+                ],
+                "rooms": [
+                    {
+                        "id": "R1",
+                        "name": "101",
+                        "teaching_area_id": "A1",
+                        "capacity": 80,
+                        "capacity_unlimited": "否",
+                    }
+                ],
+            }
+        )
+        legacy_rooms, legacy_has_explicit_rooms = scheduler.parse_rooms(
+            {"teaching_areas": [{"id": "A_LEGACY", "name": "旧版资源", "region_tag": "包河"}]}
+        )
+
+        self.assertTrue(has_explicit_rooms)
+        self.assertEqual(rooms["R1"].teaching_area_id, "A1")
+        self.assertEqual(rooms["R1"].teaching_area_name, "环球金融")
+        self.assertEqual(rooms["R1"].region_tag, "蜀山")
+        self.assertFalse(rooms["R1"].capacity_unlimited)
+        self.assertFalse(legacy_has_explicit_rooms)
+        self.assertEqual(legacy_rooms["A_LEGACY"].teaching_area_id, "A_LEGACY")
+        self.assertEqual(legacy_rooms["A_LEGACY"].teaching_area_name, "旧版资源")
+
     def test_suite_code_is_inferred_from_class_name_when_empty(self) -> None:
         inferred = data_admin_server.normalize_class({"id": "C1", "name": "考研英语寒暑集训营（27届01班）"})
         preserved = data_admin_server.normalize_class({"id": "C2", "name": "考研英语寒暑集训营（27届01班）", "suite_code": "MANUAL"})

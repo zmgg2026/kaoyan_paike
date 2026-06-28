@@ -512,36 +512,7 @@ def load_input(path: Path) -> ScheduleInput:
 
 def load_input_data(data: dict) -> ScheduleInput:
     time_slots = parse_time_slots(data["time_slots"])
-
-    raw_area_rows = data.get("teaching_areas", [])
-    area_meta_by_id = {
-        row.get("id"): row
-        for row in raw_area_rows
-        if row.get("id")
-    }
-    raw_teaching_areas = data.get("rooms") or data.get("teaching_areas", [])
-    has_explicit_rooms = bool(data.get("rooms"))
-    rooms = {
-        r["id"]: Room(
-            id=r["id"],
-            name=r.get("name") or r["id"],
-            capacity=r.get("capacity"),
-            capacity_unlimited=parse_bool(r.get("capacity_unlimited")),
-            teaching_area_id=r.get("teaching_area_id") or ("" if has_explicit_rooms else r["id"]),
-            teaching_area_name=(
-                r.get("teaching_area_name")
-                or area_meta_by_id.get(r.get("teaching_area_id") or r.get("id"), {}).get("short_name")
-                or area_meta_by_id.get(r.get("teaching_area_id") or r.get("id"), {}).get("name")
-                or ""
-            ),
-            region_tag=(
-                r.get("region_tag")
-                or area_meta_by_id.get(r.get("teaching_area_id") or r.get("id"), {}).get("region_tag")
-                or ""
-            ),
-        )
-        for r in raw_teaching_areas
-    }
+    rooms, has_explicit_rooms = parse_rooms(data)
 
     product_schedule_rules = group_schedule_rules_by_product(data.get("product_schedule_rules", []))
     products = parse_products(data.get("products", []), product_schedule_rules)
@@ -560,6 +531,46 @@ def load_input_data(data: dict) -> ScheduleInput:
         area_travel_minutes=parse_area_travel_minutes(data.get("teaching_area_links", data.get("area_links", []))),
         teacher_unavailability=parse_teacher_unavailability(data.get("teacher_unavailability", [])),
         class_window_constraints=parse_class_window_constraints(data.get("class_window_boundaries", []), rooms),
+    )
+
+
+def area_metadata_by_id(raw_area_rows: List[dict]) -> Dict[object, dict]:
+    return {
+        row.get("id"): row
+        for row in raw_area_rows
+        if row.get("id")
+    }
+
+
+def parse_rooms(data: dict) -> Tuple[Dict[str, Room], bool]:
+    raw_area_rows = data.get("teaching_areas", [])
+    area_meta = area_metadata_by_id(raw_area_rows)
+    raw_room_rows = data.get("rooms") or raw_area_rows
+    has_explicit_rooms = bool(data.get("rooms"))
+    rooms = {
+        row["id"]: room_from_row(row, area_meta, has_explicit_rooms)
+        for row in raw_room_rows
+    }
+    return rooms, has_explicit_rooms
+
+
+def room_from_row(raw_room: dict, area_meta_by_id: Mapping[object, dict], has_explicit_rooms: bool) -> Room:
+    area_key = raw_room.get("teaching_area_id") or raw_room.get("id")
+    area_meta = area_meta_by_id.get(area_key, {})
+    room_id = raw_room["id"]
+    return Room(
+        id=room_id,
+        name=raw_room.get("name") or room_id,
+        capacity=raw_room.get("capacity"),
+        capacity_unlimited=parse_bool(raw_room.get("capacity_unlimited")),
+        teaching_area_id=raw_room.get("teaching_area_id") or ("" if has_explicit_rooms else room_id),
+        teaching_area_name=(
+            raw_room.get("teaching_area_name")
+            or area_meta.get("short_name")
+            or area_meta.get("name")
+            or ""
+        ),
+        region_tag=raw_room.get("region_tag") or area_meta.get("region_tag") or "",
     )
 
 
