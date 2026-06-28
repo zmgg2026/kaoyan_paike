@@ -2,19 +2,19 @@
 from __future__ import annotations
 
 import argparse
-import csv
 import sys
 from collections import Counter, defaultdict
 from dataclasses import dataclass
 from datetime import date as Date, datetime, timedelta
 from pathlib import Path
 from statistics import pstdev
-from typing import Dict, Iterable, List, Optional, Sequence, Tuple
+from typing import Dict, List, Optional, Sequence, Tuple
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from scripts.csv_utils import clean_cell as clean, read_csv_rows, write_csv_rows
 from scripts.schedule_data import (
     load_class_metadata as load_raw_class_metadata,
     load_room_metadata as load_raw_room_metadata,
@@ -52,24 +52,6 @@ class Halfday:
     room_id: str
     room_name: str
     hours: float
-
-
-def clean(value: object) -> str:
-    return str(value or "").strip()
-
-
-def read_csv_rows(path: Path) -> List[dict]:
-    with path.open(newline="", encoding="utf-8-sig") as handle:
-        return list(csv.DictReader(handle))
-
-
-def write_csv_rows(path: Path, fieldnames: Sequence[str], rows: Iterable[dict]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", newline="", encoding="utf-8-sig") as handle:
-        writer = csv.DictWriter(handle, fieldnames=fieldnames, extrasaction="ignore")
-        writer.writeheader()
-        for row in rows:
-            writer.writerow({field: row.get(field, "") for field in fieldnames})
 
 
 def week_start(date_text: str) -> str:

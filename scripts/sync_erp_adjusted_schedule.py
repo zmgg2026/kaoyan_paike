@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import argparse
-import csv
 import html
 import json
 import shutil
@@ -23,6 +22,7 @@ from scripts.build_camp_maintenance_schedule import (  # noqa: E402
     load_all_class_window_constraint_items,
     load_class_metadata,
 )
+from scripts.csv_utils import clean_cell as clean, read_csv_rows, write_csv_rows  # noqa: E402
 from scripts.schedule_conflicts import write_teacher_time_conflicts_csv  # noqa: E402
 from scripts.schedule_data import load_room_name_to_id, load_room_names, load_teacher_name_to_id  # noqa: E402
 from scripts.schedule_modes import assignment_is_shared, assignment_reference_class_id  # noqa: E402
@@ -63,24 +63,6 @@ TIME_SLOT_MAP = {
 
 WEEKDAYS = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"]
 PERIOD_ORDER = {"AM": 0, "PM": 1, "EVENING": 2}
-
-
-def clean(value: object) -> str:
-    return str(value or "").strip()
-
-
-def read_csv_rows(path: Path) -> List[dict]:
-    with path.open(newline="", encoding="utf-8-sig") as handle:
-        return list(csv.DictReader(handle))
-
-
-def write_csv_rows(path: Path, fieldnames: Sequence[str], rows: Iterable[dict]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", newline="", encoding="utf-8-sig") as handle:
-        writer = csv.DictWriter(handle, fieldnames=fieldnames, extrasaction="ignore")
-        writer.writeheader()
-        for row in rows:
-            writer.writerow({field: row.get(field, "") for field in fieldnames})
 
 
 def normalize_date(value: object) -> str:

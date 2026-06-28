@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import argparse
-import csv
 import shutil
 import sys
 from collections import Counter, defaultdict
@@ -19,6 +18,7 @@ from scripts.build_camp_maintenance_schedule import (  # noqa: E402
     assignments_from_rows,
     load_class_metadata,
 )
+from scripts.csv_utils import clean_cell as clean, read_csv_rows, write_csv_rows as write_csv_rows_with_fields  # noqa: E402
 from scripts.schedule_class_windows import (  # noqa: E402
     ClassWindowConstraint,
     load_class_window_constraint_items,
@@ -102,26 +102,12 @@ class Block:
     hours: float
 
 
-def clean(value: object) -> str:
-    return str(value or "").strip()
-
-
 def load_window_constraints(data_dir: Path) -> Dict[str, List[ClassWindowConstraint]]:
     return load_class_window_constraint_items(data_dir / "class_window_boundaries.csv")
 
 
-def read_csv_rows(path: Path) -> List[dict]:
-    with path.open(newline="", encoding="utf-8-sig") as handle:
-        return [dict(row) for row in csv.DictReader(handle)]
-
-
 def write_csv_rows(path: Path, rows: Sequence[dict]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", newline="", encoding="utf-8-sig") as handle:
-        writer = csv.DictWriter(handle, fieldnames=FIELDNAMES, extrasaction="ignore")
-        writer.writeheader()
-        for row in rows:
-            writer.writerow({field: row.get(field, "") for field in FIELDNAMES})
+    write_csv_rows_with_fields(path, FIELDNAMES, rows)
 
 
 def weekday_label(date_text: str) -> str:

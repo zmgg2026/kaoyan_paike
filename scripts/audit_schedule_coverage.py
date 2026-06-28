@@ -2,19 +2,19 @@
 from __future__ import annotations
 
 import argparse
-import csv
 import sys
 from collections import Counter, defaultdict
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Iterable, List, Tuple
+from typing import Dict, List, Tuple
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 import scheduler
+from scripts.csv_utils import clean_cell as clean, read_csv_rows, write_csv_rows
 from scripts.schedule_data import load_class_metadata as load_raw_class_metadata
 
 
@@ -30,11 +30,6 @@ class ClassMeta:
     subject: str
     suite_code: str
     is_locked: str
-
-
-def clean(value: object) -> str:
-    return str(value or "").strip()
-
 
 def load_class_metadata(data_dir: Path) -> Dict[str, ClassMeta]:
     result: Dict[str, ClassMeta] = {}
@@ -94,22 +89,21 @@ def expected_hours(schedule_input: scheduler.ScheduleInput, ignore_teacher: bool
 
 def scheduled_hours(schedule_csv: Path, ignore_teacher: bool = False) -> Counter[CoverageKey]:
     hours: Counter[CoverageKey] = Counter()
-    with schedule_csv.open(newline="", encoding="utf-8-sig") as handle:
-        for row in csv.DictReader(handle):
-            class_id = clean(row.get("class_id"))
-            if not class_id:
-                continue
-            key = coverage_key(
-                class_id,
-                row.get("subject"),
-                row.get("quarter"),
-                row.get("stage"),
-                row.get("course_module"),
-                row.get("course_group"),
-                row.get("teacher_id"),
-                ignore_teacher,
-            )
-            hours[key] += float(row.get("duration_hours") or 0)
+    for row in read_csv_rows(schedule_csv):
+        class_id = clean(row.get("class_id"))
+        if not class_id:
+            continue
+        key = coverage_key(
+            class_id,
+            row.get("subject"),
+            row.get("quarter"),
+            row.get("stage"),
+            row.get("course_module"),
+            row.get("course_group"),
+            row.get("teacher_id"),
+            ignore_teacher,
+        )
+        hours[key] += float(row.get("duration_hours") or 0)
     return hours
 
 
@@ -118,15 +112,6 @@ def class_totals(hours: Counter[CoverageKey]) -> Counter[str]:
     for key, value in hours.items():
         totals[key[0]] += value
     return totals
-
-
-def write_csv(path: Path, fieldnames: List[str], rows: Iterable[dict]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", newline="", encoding="utf-8-sig") as handle:
-        writer = csv.DictWriter(handle, fieldnames=fieldnames)
-        writer.writeheader()
-        for row in rows:
-            writer.writerow(row)
 
 
 def key_row(key: CoverageKey, meta: Dict[str, ClassMeta]) -> dict:
@@ -306,9 +291,9 @@ def main() -> None:
         "scheduled_exact_hours",
         "diff_hours",
     ]
-    write_csv(summary_path, summary_fields, summary_rows)
-    write_csv(gap_path, detail_fields, detail_gap_rows)
-    write_csv(over_path, detail_fields, detail_over_rows)
+    write_csv_rows(summary_path, summary_fields, summary_rows, extrasaction="raise")
+    write_csv_rows(gap_path, detail_fields, detail_gap_rows, extrasaction="raise")
+    write_csv_rows(over_path, detail_fields, detail_over_rows, extrasaction="raise")
 
     demand_class_ids = [
         class_id
@@ -416,9 +401,9 @@ def main() -> None:
         "extra_display_hours",
         "reason",
     ]
-    write_csv(demand_summary_path, demand_fields, demand_rows)
-    write_csv(demand_gap_path, demand_fields, demand_gap_rows)
-    write_csv(display_extra_path, display_extra_fields, display_extra_rows)
+    write_csv_rows(demand_summary_path, demand_fields, demand_rows, extrasaction="raise")
+    write_csv_rows(demand_gap_path, demand_fields, demand_gap_rows, extrasaction="raise")
+    write_csv_rows(display_extra_path, display_extra_fields, display_extra_rows, extrasaction="raise")
 
     missing_rows = [row for row in summary_rows if row["status"] == "MISSING"]
     over_rows = [row for row in summary_rows if row["status"] == "OVER"]
