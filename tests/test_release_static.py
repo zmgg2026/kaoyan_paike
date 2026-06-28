@@ -105,6 +105,16 @@ class ReleaseStaticTest(unittest.TestCase):
         self.assertIn("python3 -m pip install -r requirements.txt", workflow)
         self.assertIn("bash scripts/verify_release.sh", workflow)
 
+    def test_standard_table_schema_lives_outside_admin_server(self) -> None:
+        admin_source = (ROOT / "data_admin_server.py").read_text(encoding="utf-8")
+        schema_source = (ROOT / "scripts" / "table_schema.py").read_text(encoding="utf-8")
+
+        self.assertIn("from scripts.table_schema import", admin_source)
+        self.assertIn("STANDARD_TABLE_FIELDNAMES", schema_source)
+        self.assertIsNone(re.search(r"(?m)^PRODUCT_FIELDNAMES\s*=", admin_source))
+        self.assertIsNone(re.search(r"(?m)^STANDARD_TABLE_FIELDNAMES\s*[:=]", admin_source))
+        self.assertIsNone(re.search(r"(?m)^CLASS_JSON_EXTRA_FIELDNAMES\s*=", admin_source))
+
     def test_cli_scripts_import_project_modules_with_bootstrap(self) -> None:
         project_import = re.compile(
             r"(?m)^\s*("

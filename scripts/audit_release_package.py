@@ -32,6 +32,7 @@ REQUIRED_PATHS = (
     "examples/csv_minimal/time_slots.csv",
     "scripts/audit_release_package.py",
     "scripts/build_release_archive.py",
+    "scripts/table_schema.py",
     "scripts/template_tables.py",
     "scripts/verify_release.sh",
     "scripts/audit_schedule_coverage.py",

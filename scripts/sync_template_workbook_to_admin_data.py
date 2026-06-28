@@ -24,6 +24,7 @@ from scripts.schedule_modes import (
     class_schedule_mode_display_name,
     normalize_class_schedule_mode,
 )
+from scripts.table_schema import CLASS_JSON_EXTRA_FIELDNAMES, STANDARD_TABLE_FIELDNAMES
 from scripts.template_tables import TEMPLATE_SHEET_ALIASES, TEMPLATE_SHEETS
 
 
@@ -424,10 +425,10 @@ def output_fields_for_key(
     csv_export: bool,
     rows: List[Dict[str, Any]] | None = None,
 ) -> List[str]:
-    if key in data_admin_server.STANDARD_TABLE_FIELDNAMES:
-        fields = list(data_admin_server.STANDARD_TABLE_FIELDNAMES[key])
+    if key in STANDARD_TABLE_FIELDNAMES:
+        fields = list(STANDARD_TABLE_FIELDNAMES[key])
         if key == "classes" and not csv_export:
-            fields.extend(data_admin_server.CLASS_JSON_EXTRA_FIELDNAMES)
+            fields.extend(CLASS_JSON_EXTRA_FIELDNAMES)
         return fields
     fields: List[str] = []
     seen = set()
@@ -440,10 +441,10 @@ def output_fields_for_key(
 
 
 def standard_output_rows(key: str, rows: List[Dict[str, Any]], *, csv_export: bool = False) -> List[Dict[str, Any]]:
-    if key not in data_admin_server.STANDARD_TABLE_FIELDNAMES:
+    if key not in STANDARD_TABLE_FIELDNAMES:
         return rows
-    extra_fields = data_admin_server.CLASS_JSON_EXTRA_FIELDNAMES if key == "classes" and not csv_export else ()
-    return data_admin_server.standard_rows(rows, data_admin_server.STANDARD_TABLE_FIELDNAMES[key], extra_fields)
+    extra_fields = CLASS_JSON_EXTRA_FIELDNAMES if key == "classes" and not csv_export else ()
+    return data_admin_server.standard_rows(rows, STANDARD_TABLE_FIELDNAMES[key], extra_fields)
 
 
 def sync(workbook_path: Path) -> Dict[str, int]:

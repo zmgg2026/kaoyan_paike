@@ -36,6 +36,7 @@ from run_scheduling_pipeline import (
     write_missing_teacher_template,
     write_report,
 )
+from scripts import table_schema
 from scripts.template_tables import build_table_aliases, template_sheet_table_pairs
 
 
@@ -1115,7 +1116,9 @@ class SchedulingPipelineTest(unittest.TestCase):
         self.assertEqual(saved_row["employment_type"], "全职")
 
     def test_standard_tables_are_shared_by_admin_pipeline_json_and_csv_exports(self) -> None:
-        self.assertIs(TABLE_FIELDNAMES, data_admin_server.STANDARD_TABLE_FIELDNAMES)
+        self.assertIs(TABLE_FIELDNAMES, table_schema.STANDARD_TABLE_FIELDNAMES)
+        self.assertIs(data_admin_server.STANDARD_TABLE_FIELDNAMES, table_schema.STANDARD_TABLE_FIELDNAMES)
+        self.assertIs(data_admin_server.CLASS_JSON_EXTRA_FIELDNAMES, table_schema.CLASS_JSON_EXTRA_FIELDNAMES)
         self.assertEqual(list(data_admin_server.STANDARD_TABLE_FIELDNAMES), TABLES)
         for table_name, fieldnames in data_admin_server.STANDARD_TABLE_FIELDNAMES.items():
             duplicates = [field for field, count in Counter(fieldnames).items() if count > 1]

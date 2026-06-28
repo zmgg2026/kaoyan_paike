@@ -16,12 +16,10 @@ if str(ROOT) not in sys.path:
 
 import data_admin_server
 from scripts.csv_utils import read_csv_rows, write_csv_rows
+from scripts.table_schema import BUSINESS_PRODUCT_MAPPING_FIELDNAMES, ERP_STANDARD_PRODUCT_FIELDNAMES
 
 
 DATA_DIR = ROOT / "data"
-
-ERP_STANDARD_PRODUCT_FIELDNAMES = data_admin_server.ERP_STANDARD_PRODUCT_FIELDNAMES
-BUSINESS_PRODUCT_MAPPING_FIELDNAMES = data_admin_server.BUSINESS_PRODUCT_MAPPING_FIELDNAMES
 
 ERP_COLUMN_MAP = {
     "erp_product_key": None,

@@ -6,12 +6,15 @@ import unittest
 from pathlib import Path
 
 import data_admin_server
+from scripts import table_schema
 from scripts.csv_utils import read_csv_rows
 from scripts import sync_erp_standard_products as sync_products
 
 
 class SyncErpStandardProductsTest(unittest.TestCase):
-    def test_fieldnames_reuse_admin_schema(self) -> None:
+    def test_fieldnames_reuse_shared_table_schema(self) -> None:
+        self.assertIs(sync_products.BUSINESS_PRODUCT_MAPPING_FIELDNAMES, table_schema.BUSINESS_PRODUCT_MAPPING_FIELDNAMES)
+        self.assertIs(sync_products.ERP_STANDARD_PRODUCT_FIELDNAMES, table_schema.ERP_STANDARD_PRODUCT_FIELDNAMES)
         self.assertIs(sync_products.BUSINESS_PRODUCT_MAPPING_FIELDNAMES, data_admin_server.BUSINESS_PRODUCT_MAPPING_FIELDNAMES)
         self.assertIs(sync_products.ERP_STANDARD_PRODUCT_FIELDNAMES, data_admin_server.ERP_STANDARD_PRODUCT_FIELDNAMES)
 

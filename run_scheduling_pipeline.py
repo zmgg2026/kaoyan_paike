@@ -20,9 +20,10 @@ from scripts.template_tables import (
     build_table_aliases,
     table_name_for as shared_table_name_for,
 )
+from scripts.table_schema import STANDARD_TABLE_FIELDNAMES, TEACHER_ASSIGNMENT_FIELDNAMES
 
 
-TABLES = list(data_admin_server.STANDARD_TABLE_FIELDNAMES)
+TABLES = list(STANDARD_TABLE_FIELDNAMES)
 
 BUSINESS_TABLES = list(BUSINESS_SOURCE_TABLES)
 
@@ -32,7 +33,7 @@ COMPATIBILITY_REPORT_TABLES: List[str] = []
 
 TABLE_ALIASES = build_table_aliases(SOURCE_TABLES)
 
-TABLE_FIELDNAMES = data_admin_server.STANDARD_TABLE_FIELDNAMES
+TABLE_FIELDNAMES = STANDARD_TABLE_FIELDNAMES
 
 
 @dataclass
@@ -724,7 +725,7 @@ def write_missing_teacher_rows_template(
         return None
 
     path = output_dir / f"missing_class_teacher_assignments_{timestamp}.csv"
-    write_csv_rows(path, data_admin_server.TEACHER_ASSIGNMENT_FIELDNAMES, rows, encoding="utf-8")
+    write_csv_rows(path, TEACHER_ASSIGNMENT_FIELDNAMES, rows, encoding="utf-8")
     return path
 
 

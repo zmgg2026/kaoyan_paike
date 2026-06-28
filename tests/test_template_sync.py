@@ -6,6 +6,7 @@ from pathlib import Path
 
 import data_admin_server
 import formal_template
+from scripts import table_schema
 from scripts.csv_utils import read_csv_rows
 from scripts.sync_template_workbook_to_admin_data import (
     SHEET_ALIASES,
@@ -28,6 +29,7 @@ class TemplateSyncTest(unittest.TestCase):
     def test_template_sheet_keys_follow_admin_standard_table_order(self) -> None:
         self.assertIs(TEMPLATE_SHEETS, SHEETS)
         self.assertIs(TEMPLATE_SHEET_ALIASES, SHEET_ALIASES)
+        self.assertIs(data_admin_server.STANDARD_TABLE_FIELDNAMES, table_schema.STANDARD_TABLE_FIELDNAMES)
         self.assertEqual(list(data_admin_server.STANDARD_TABLE_FIELDNAMES), list(SHEETS.values()))
         self.assertEqual(len(SHEETS), len(set(SHEETS.values())))
         for canonical_sheet in SHEET_ALIASES:

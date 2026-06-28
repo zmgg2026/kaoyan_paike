@@ -15,6 +15,7 @@ class ReleasePackageAuditTest(unittest.TestCase):
         self.assertEqual([], audit_paths(REQUIRED_PATHS))
 
     def test_shared_template_metadata_is_required(self) -> None:
+        self.assertIn("scripts/table_schema.py", REQUIRED_PATHS)
         self.assertIn("scripts/template_tables.py", REQUIRED_PATHS)
 
     def test_release_audit_reports_missing_required_paths(self) -> None:
