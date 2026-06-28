@@ -657,6 +657,87 @@ def sanitize_markdown_table_cell(value: object) -> str:
     return str(value or "").replace("|", "\\|").replace("\n", " ").strip()
 
 
+def report_header_lines(source: Path, backup_path: Optional[Path], error: Optional[str]) -> List[str]:
+    lines = [
+        "# 排课导入报告",
+        "",
+        f"- 生成时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+        f"- 源数据: {source}",
+    ]
+    if backup_path:
+        lines.append(f"- 数据备份: {backup_path}")
+    if error:
+        lines.append("- 状态: 失败")
+        lines.append(f"- 错误: {error}")
+    else:
+        lines.append("- 状态: 成功")
+    return lines
+
+
+def report_data_table_lines(tables: Dict[str, LoadedTable], row_counts: Dict[str, int]) -> List[str]:
+    lines = ["", "## 数据表"]
+    for table in report_table_names(tables):
+        loaded = tables.get(table)
+        source_text = loaded.source if loaded else "未提供"
+        lines.append(f"- {table}: {row_counts.get(table, 0)} 行 ({source_text})")
+    return lines
+
+
+def report_warning_lines(warnings: List[str]) -> List[str]:
+    if not warnings:
+        return []
+    return ["", "## 提示", *(f"- {warning}" for warning in warnings)]
+
+
+def report_missing_teacher_lines(missing_teacher_rows: Optional[List[Dict[str, str]]]) -> List[str]:
+    if not missing_teacher_rows:
+        return []
+    lines = [
+        "",
+        "## 缺老师补录摘要",
+        f"- 缺口数量: {len(missing_teacher_rows)}",
+        "- 请下载 `missing_class_teacher_assignments_*.csv` 补齐老师后重新校验。",
+        "",
+        "| 班级 | 产品 | 科目 | 阶段 | 课程组 |",
+        "| --- | --- | --- | --- | --- |",
+    ]
+    for row in missing_teacher_rows[:30]:
+        lines.append(
+            "| "
+            + " | ".join(
+                sanitize_markdown_table_cell(row.get(field, ""))
+                for field in ("class_name", "product_name", "subject", "stage", "course_group")
+            )
+            + " |"
+        )
+    if len(missing_teacher_rows) > 30:
+        lines.append(f"- 仅展示前 30 条，另有 {len(missing_teacher_rows) - 30} 条请查看补录 CSV。")
+    return lines
+
+
+def report_output_lines(
+    scheduler_input_path: Optional[Path],
+    schedule_csv_path: Optional[Path],
+    schedule_html_path: Optional[Path],
+) -> List[str]:
+    if not (scheduler_input_path or schedule_csv_path or schedule_html_path):
+        return []
+    lines = ["", "## 输出"]
+    if scheduler_input_path:
+        lines.append(f"- 排课输入: {scheduler_input_path}")
+    if schedule_csv_path:
+        lines.append(f"- CSV 明细: {schedule_csv_path}")
+    if schedule_html_path:
+        lines.append(f"- HTML 甘特图: {schedule_html_path}")
+    return lines
+
+
+def report_generated_file_lines(generated_files: Optional[List[Path]]) -> List[str]:
+    if not generated_files:
+        return []
+    return ["", "## 生成参考文件", *(f"- {file_path}" for file_path in generated_files)]
+
+
 def write_report(
     path: Path,
     *,
@@ -672,56 +753,13 @@ def write_report(
     missing_teacher_rows: Optional[List[Dict[str, str]]] = None,
     error: Optional[str] = None,
 ) -> None:
-    lines = [
-        "# 排课导入报告",
-        "",
-        f"- 生成时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
-        f"- 源数据: {source}",
-    ]
-    if backup_path:
-        lines.append(f"- 数据备份: {backup_path}")
-    if error:
-        lines.append(f"- 状态: 失败")
-        lines.append(f"- 错误: {error}")
-    else:
-        lines.append("- 状态: 成功")
-    lines.extend(["", "## 数据表"])
-    for table in report_table_names(tables):
-        loaded = tables.get(table)
-        source_text = loaded.source if loaded else "未提供"
-        lines.append(f"- {table}: {row_counts.get(table, 0)} 行 ({source_text})")
-    if warnings:
-        lines.extend(["", "## 提示"])
-        lines.extend(f"- {warning}" for warning in warnings)
-    if missing_teacher_rows:
-        lines.extend(["", "## 缺老师补录摘要"])
-        lines.append(f"- 缺口数量: {len(missing_teacher_rows)}")
-        lines.append("- 请下载 `missing_class_teacher_assignments_*.csv` 补齐老师后重新校验。")
-        lines.extend(["", "| 班级 | 产品 | 科目 | 阶段 | 课程组 |", "| --- | --- | --- | --- | --- |"])
-        for row in missing_teacher_rows[:30]:
-            lines.append(
-                "| "
-                + " | ".join(
-                    sanitize_markdown_table_cell(
-                        row.get(field, "")
-                    )
-                    for field in ("class_name", "product_name", "subject", "stage", "course_group")
-                )
-                + " |"
-            )
-        if len(missing_teacher_rows) > 30:
-            lines.append(f"- 仅展示前 30 条，另有 {len(missing_teacher_rows) - 30} 条请查看补录 CSV。")
-    if scheduler_input_path or schedule_csv_path or schedule_html_path:
-        lines.extend(["", "## 输出"])
-        if scheduler_input_path:
-            lines.append(f"- 排课输入: {scheduler_input_path}")
-        if schedule_csv_path:
-            lines.append(f"- CSV 明细: {schedule_csv_path}")
-        if schedule_html_path:
-            lines.append(f"- HTML 甘特图: {schedule_html_path}")
-    if generated_files:
-        lines.extend(["", "## 生成参考文件"])
-        lines.extend(f"- {path}" for path in generated_files)
+    lines: List[str] = []
+    lines.extend(report_header_lines(source, backup_path, error))
+    lines.extend(report_data_table_lines(tables, row_counts))
+    lines.extend(report_warning_lines(warnings))
+    lines.extend(report_missing_teacher_lines(missing_teacher_rows))
+    lines.extend(report_output_lines(scheduler_input_path, schedule_csv_path, schedule_html_path))
+    lines.extend(report_generated_file_lines(generated_files))
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 

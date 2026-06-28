@@ -14,6 +14,7 @@ import data_admin_server
 import scheduler
 from generate_time_slots import generate_time_slots, parse_weekdays
 from run_scheduling_pipeline import (
+    LoadedTable,
     PipelineError,
     SOURCE_TABLES,
     TABLES,
@@ -28,6 +29,7 @@ from run_scheduling_pipeline import (
     table_name_for,
     write_missing_teacher_rows_template,
     write_missing_teacher_template,
+    write_report,
 )
 
 
@@ -369,6 +371,48 @@ class SchedulingPipelineTest(unittest.TestCase):
             self.assertIn("状态: 失败", report)
             self.assertIn("## 缺老师补录摘要", report)
             self.assertIn("missing_class_teacher_assignments_20260629_010000.csv", report)
+
+    def test_write_report_escapes_missing_teacher_preview_and_lists_outputs(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            report_path = root / "report.md"
+            missing_rows = [
+                {
+                    "class_name": f"英语|{index}\n班",
+                    "product_name": "产品|A",
+                    "subject": "英语",
+                    "stage": "基础",
+                    "course_group": "阅读|写作",
+                }
+                for index in range(31)
+            ]
+
+            write_report(
+                report_path,
+                source=root / "incoming",
+                tables={"classes": LoadedTable("classes", "classes.csv", [{"id": "C1"}])},
+                row_counts={"classes": 1},
+                warnings=["已使用上传/后台课节表 2 行。"],
+                backup_path=None,
+                scheduler_input_path=root / "data" / "scheduler_input_draft.json",
+                schedule_csv_path=root / "outputs" / "schedule.csv",
+                schedule_html_path=root / "outputs" / "schedule.html",
+                generated_files=[root / "outputs" / "missing.csv"],
+                missing_teacher_rows=missing_rows,
+                error="班级数据校验失败",
+            )
+
+            report = report_path.read_text(encoding="utf-8")
+
+        self.assertIn("- 状态: 失败", report)
+        self.assertIn("- classes: 1 行 (classes.csv)", report)
+        self.assertIn("## 提示", report)
+        self.assertIn("| 英语\\|0 班 | 产品\\|A | 英语 | 基础 | 阅读\\|写作 |", report)
+        self.assertNotIn("| 英语\\|30 班 |", report)
+        self.assertIn("- 仅展示前 30 条，另有 1 条请查看补录 CSV。", report)
+        self.assertIn("## 输出", report)
+        self.assertIn("- 排课输入:", report)
+        self.assertIn("## 生成参考文件", report)
 
     def test_numbered_template_sheets_use_english_header_row(self) -> None:
         try:
