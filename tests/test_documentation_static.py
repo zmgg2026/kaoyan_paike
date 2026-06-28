@@ -50,6 +50,13 @@ class DocumentationStaticTest(unittest.TestCase):
         self.assertNotIn("372 条缺老师", checklist)
         self.assertIn("真实 `data/` 不进入 GitHub 发布包", checklist)
 
+    def test_department_guide_includes_audit_commands(self) -> None:
+        guide = (ROOT / "docs" / "department-reuse-user-guide.md").read_text(encoding="utf-8")
+
+        self.assertIn("scripts/audit_schedule_coverage.py", guide)
+        self.assertIn("scripts/audit_schedule_quality.py", guide)
+        self.assertIn("硬冲突和覆盖缺口必须处理", guide)
+
 
 if __name__ == "__main__":
     unittest.main()

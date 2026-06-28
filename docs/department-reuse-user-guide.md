@@ -141,6 +141,24 @@ python3 scheduler.py \
 
 当前项目已有自动化测试覆盖这些方向，但业务发布前仍建议抽查重点班级、重点老师和跨教学区课程。
 
+可执行的审计命令：
+
+```bash
+python3 scripts/audit_schedule_coverage.py \
+  --data-dir data \
+  --schedule-csv outputs/schedule_<timestamp>.csv \
+  --out-dir outputs \
+  --timestamp <timestamp>
+
+python3 scripts/audit_schedule_quality.py \
+  --data-dir data \
+  --schedule-csv outputs/schedule_<timestamp>.csv \
+  --out-dir outputs \
+  --timestamp <timestamp>
+```
+
+覆盖审计用于看课时是否排足；质量审计用于看周课量、同日负载、老师跨教学区移动等体验问题。硬冲突和覆盖缺口必须处理，质量问题按优先级处理或说明原因。
+
 ## 7. 只读发布
 
 只读发布用于给同事查看结果，不开放后台保存、导入和排课接口。

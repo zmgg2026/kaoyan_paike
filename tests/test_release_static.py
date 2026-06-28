@@ -30,6 +30,14 @@ class ReleaseStaticTest(unittest.TestCase):
 
         self.assertEqual([], offenders)
 
+    def test_release_verification_runs_audits(self) -> None:
+        script = (ROOT / "scripts" / "verify_release.sh").read_text(encoding="utf-8")
+
+        self.assertIn("scripts/audit_schedule_coverage.py", script)
+        self.assertIn("scripts/audit_schedule_quality.py", script)
+        self.assertIn("schedule_coverage_audit_verify_run.md", script)
+        self.assertIn("schedule_quality_report_verify_run.md", script)
+
 
 if __name__ == "__main__":
     unittest.main()

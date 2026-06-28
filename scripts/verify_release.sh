@@ -53,11 +53,25 @@ run "$PYTHON_BIN" run_scheduling_pipeline.py \
   --output-dir "$WORK_DIR/csv_minimal_outputs" \
   --timestamp verify_run
 
+run "$PYTHON_BIN" scripts/audit_schedule_coverage.py \
+  --data-dir "$WORK_DIR/csv_minimal_data" \
+  --schedule-csv "$WORK_DIR/csv_minimal_outputs/schedule_verify_run.csv" \
+  --out-dir "$WORK_DIR/csv_minimal_outputs" \
+  --timestamp verify_run
+
+run "$PYTHON_BIN" scripts/audit_schedule_quality.py \
+  --data-dir "$WORK_DIR/csv_minimal_data" \
+  --schedule-csv "$WORK_DIR/csv_minimal_outputs/schedule_verify_run.csv" \
+  --out-dir "$WORK_DIR/csv_minimal_outputs" \
+  --timestamp verify_run
+
 test -s "$WORK_DIR/input_example_schedule.csv"
 test -s "$WORK_DIR/input_example_schedule.html"
 test -s "$WORK_DIR/csv_minimal_outputs/schedule_verify_run.csv"
 test -s "$WORK_DIR/csv_minimal_outputs/schedule_verify_run.html"
 test -s "$WORK_DIR/csv_minimal_outputs/import_report_verify_run.md"
+test -s "$WORK_DIR/csv_minimal_outputs/schedule_coverage_audit_verify_run.md"
+test -s "$WORK_DIR/csv_minimal_outputs/schedule_quality_report_verify_run.md"
 
 if [[ "${RUN_REAL_DATA_PREFLIGHT:-0}" == "1" && -d data ]]; then
   run "$PYTHON_BIN" run_scheduling_pipeline.py \
