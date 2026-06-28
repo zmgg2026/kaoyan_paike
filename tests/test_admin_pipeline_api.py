@@ -47,6 +47,44 @@ class AdminPipelineApiTest(unittest.TestCase):
         data_admin_server.OUTPUT_DIR = ORIGINAL_OUTPUT_DIR
         data_admin_server.PIPELINE_JOBS.clear()
 
+    def test_markdown_preview_renders_readable_safe_html(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "report.md"
+            path.write_text(
+                "\n".join(
+                    [
+                        "# 排课报告",
+                        "",
+                        "## 概览",
+                        "- 覆盖缺口：0",
+                        "- <script>alert(1)</script>",
+                        "",
+                        "| 班级 | 状态 |",
+                        "| --- | --- |",
+                        "| C1 | 通过 |",
+                        "",
+                        "```",
+                        "<danger>",
+                        "```",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+
+            body = data_admin_server.markdown_preview_html(path, '/outputs/report.md?next=<script>"')
+
+        self.assertIn("<title>排课报告</title>", body)
+        self.assertIn('<article class="markdown-body">', body)
+        self.assertIn("<h2>概览</h2>", body)
+        self.assertIn("<li>覆盖缺口：0</li>", body)
+        self.assertIn("<table>", body)
+        self.assertIn("<th>班级</th>", body)
+        self.assertIn("<td>C1</td>", body)
+        self.assertIn("&lt;danger&gt;", body)
+        self.assertIn("&lt;script&gt;alert(1)&lt;/script&gt;", body)
+        self.assertNotIn("<script>alert(1)</script>", body)
+        self.assertIn('/outputs/report.md?next=&lt;script&gt;&quot;', body)
+
     def test_upload_run_job_and_output_file_access(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

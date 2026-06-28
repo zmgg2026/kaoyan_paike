@@ -3045,36 +3045,149 @@ def read_utf8_text(path: Path) -> str:
     return data.decode("utf-8", errors="replace")
 
 
-def markdown_preview_html(path: Path, source_url: str) -> str:
-    text = read_utf8_text(path)
-    title = path.stem
+MARKDOWN_HEADING_RE = re.compile(r"^(#{1,6})\s+(.+)$")
+MARKDOWN_UNORDERED_LIST_RE = re.compile(r"^\s*[-*]\s+(.+)$")
+MARKDOWN_ORDERED_LIST_RE = re.compile(r"^\s*\d+[.)]\s+(.+)$")
+MARKDOWN_TABLE_SEPARATOR_RE = re.compile(r"^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?\s*$")
+
+
+def markdown_preview_title(text: str, fallback: str) -> str:
     for line in text.splitlines():
         stripped = line.strip()
         if stripped.startswith("#"):
-            title = stripped.lstrip("#").strip() or title
+            return stripped.lstrip("#").strip() or fallback
+    return fallback
+
+
+def markdown_table_cells(line: str) -> List[str]:
+    text = line.strip()
+    if text.startswith("|"):
+        text = text[1:]
+    if text.endswith("|"):
+        text = text[:-1]
+    return [cell.strip() for cell in text.split("|")]
+
+
+def is_markdown_table_start(lines: List[str], index: int) -> bool:
+    return (
+        index + 1 < len(lines)
+        and "|" in lines[index]
+        and bool(MARKDOWN_TABLE_SEPARATOR_RE.match(lines[index + 1].strip()))
+    )
+
+
+def render_markdown_table(headers: List[str], rows: List[List[str]]) -> str:
+    header_html = "".join(f"<th>{html_lib.escape(header)}</th>" for header in headers)
+    body_rows = []
+    width = len(headers)
+    for row in rows:
+        padded = [*row, *([""] * max(0, width - len(row)))]
+        cells = "".join(f"<td>{html_lib.escape(cell)}</td>" for cell in padded[:width])
+        body_rows.append(f"<tr>{cells}</tr>")
+    body_html = "\n".join(body_rows)
+    return f"<table><thead><tr>{header_html}</tr></thead><tbody>{body_html}</tbody></table>"
+
+
+def render_markdown_table_at(lines: List[str], index: int) -> Tuple[str, int]:
+    headers = markdown_table_cells(lines[index])
+    index += 2
+    rows = []
+    while index < len(lines) and lines[index].strip().startswith("|"):
+        if MARKDOWN_TABLE_SEPARATOR_RE.match(lines[index].strip()):
+            index += 1
+            continue
+        rows.append(markdown_table_cells(lines[index]))
+        index += 1
+    return render_markdown_table(headers, rows), index
+
+
+def render_markdown_list_at(lines: List[str], index: int, ordered: bool) -> Tuple[str, int]:
+    pattern = MARKDOWN_ORDERED_LIST_RE if ordered else MARKDOWN_UNORDERED_LIST_RE
+    tag = "ol" if ordered else "ul"
+    items = []
+    while index < len(lines):
+        match = pattern.match(lines[index])
+        if not match:
             break
-    escaped_title = html_lib.escape(title)
-    escaped_text = html_lib.escape(text)
-    escaped_source_url = html_lib.escape(source_url, quote=True)
-    return f"""<!doctype html>
-<html lang="zh-CN">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{escaped_title}</title>
-  <style>
-    * {{ box-sizing: border-box; }}
-    body {{
+        items.append(f"<li>{html_lib.escape(match.group(1).strip())}</li>")
+        index += 1
+    return f"<{tag}>\n{''.join(items)}\n</{tag}>", index
+
+
+def render_markdown_code_block_at(lines: List[str], index: int) -> Tuple[str, int]:
+    code_lines = []
+    index += 1
+    while index < len(lines):
+        if lines[index].strip().startswith("```"):
+            index += 1
+            break
+        code_lines.append(lines[index])
+        index += 1
+    code = html_lib.escape("\n".join(code_lines))
+    return f"<pre><code>{code}</code></pre>", index
+
+
+def is_markdown_block_start(lines: List[str], index: int) -> bool:
+    stripped = lines[index].strip()
+    return (
+        not stripped
+        or stripped.startswith("```")
+        or bool(MARKDOWN_HEADING_RE.match(stripped))
+        or bool(MARKDOWN_UNORDERED_LIST_RE.match(stripped))
+        or bool(MARKDOWN_ORDERED_LIST_RE.match(stripped))
+        or is_markdown_table_start(lines, index)
+    )
+
+
+def render_markdown_paragraph_at(lines: List[str], index: int) -> Tuple[str, int]:
+    paragraph_lines = []
+    while index < len(lines) and not is_markdown_block_start(lines, index):
+        paragraph_lines.append(lines[index].strip())
+        index += 1
+    paragraph = "<br>".join(html_lib.escape(line) for line in paragraph_lines)
+    return f"<p>{paragraph}</p>", index
+
+
+def render_markdown_preview_body(text: str) -> str:
+    lines = text.splitlines()
+    rendered = []
+    index = 0
+    while index < len(lines):
+        stripped = lines[index].strip()
+        if not stripped:
+            index += 1
+            continue
+        if stripped.startswith("```"):
+            html, index = render_markdown_code_block_at(lines, index)
+        elif is_markdown_table_start(lines, index):
+            html, index = render_markdown_table_at(lines, index)
+        elif MARKDOWN_UNORDERED_LIST_RE.match(stripped):
+            html, index = render_markdown_list_at(lines, index, ordered=False)
+        elif MARKDOWN_ORDERED_LIST_RE.match(stripped):
+            html, index = render_markdown_list_at(lines, index, ordered=True)
+        elif heading := MARKDOWN_HEADING_RE.match(stripped):
+            level = min(len(heading.group(1)), 4)
+            html = f"<h{level}>{html_lib.escape(heading.group(2).strip())}</h{level}>"
+            index += 1
+        else:
+            html, index = render_markdown_paragraph_at(lines, index)
+        rendered.append(html)
+    return "\n".join(rendered) if rendered else '<p class="empty-state">这个 Markdown 文件暂无内容。</p>'
+
+
+MARKDOWN_PREVIEW_CSS = """
+    * { box-sizing: border-box; }
+    body {
       margin: 0;
       color: #1e2937;
       background: #f5f7fb;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    }}
-    main {{
+    }
+    main {
       width: min(1120px, calc(100vw - 32px));
       margin: 24px auto 40px;
-    }}
-    header {{
+    }
+    header {
       display: flex;
       justify-content: space-between;
       gap: 16px;
@@ -3084,35 +3197,93 @@ def markdown_preview_html(path: Path, source_url: str) -> str:
       border: 1px solid #d9e2ec;
       border-radius: 8px;
       background: #fff;
-    }}
-    h1 {{
+    }
+    h1 {
       margin: 0 0 6px;
       font-size: 22px;
       line-height: 1.35;
-    }}
-    p {{
+    }
+    p {
       margin: 0;
-      color: #64748b;
-      line-height: 1.6;
-    }}
-    a {{
+      color: #475569;
+      line-height: 1.7;
+    }
+    a {
       flex: 0 0 auto;
       color: #0f766e;
       font-weight: 700;
       text-decoration: none;
-    }}
-    pre {{
-      margin: 0;
-      padding: 20px;
+    }
+    .markdown-body {
+      padding: 22px;
+      border: 1px solid #d9e2ec;
+      border-radius: 8px;
+      background: #fff;
+    }
+    .markdown-body h1, .markdown-body h2, .markdown-body h3, .markdown-body h4 {
+      margin: 22px 0 10px;
+      color: #0f172a;
+      line-height: 1.35;
+    }
+    .markdown-body h1:first-child, .markdown-body h2:first-child {
+      margin-top: 0;
+    }
+    .markdown-body h1 { font-size: 24px; }
+    .markdown-body h2 { font-size: 20px; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px; }
+    .markdown-body h3 { font-size: 17px; }
+    .markdown-body h4 { font-size: 15px; }
+    .markdown-body p, .markdown-body ul, .markdown-body ol, .markdown-body table, .markdown-body pre {
+      margin: 0 0 14px;
+    }
+    .markdown-body ul, .markdown-body ol {
+      padding-left: 22px;
+      color: #334155;
+      line-height: 1.7;
+    }
+    .markdown-body table {
+      width: 100%;
+      border-collapse: collapse;
+      overflow: hidden;
+      font-size: 14px;
+    }
+    .markdown-body th, .markdown-body td {
+      padding: 8px 10px;
+      border: 1px solid #d9e2ec;
+      text-align: left;
+      vertical-align: top;
+    }
+    .markdown-body th {
+      background: #eef6f5;
+      color: #0f172a;
+      font-weight: 700;
+    }
+    .markdown-body pre {
+      padding: 14px;
       overflow: auto;
       white-space: pre-wrap;
       word-break: break-word;
       border: 1px solid #d9e2ec;
       border-radius: 8px;
-      background: #fff;
-      font: 14px/1.7 ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
-    }}
-  </style>
+      background: #f8fafc;
+      color: #334155;
+      font: 13px/1.6 ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+    }
+"""
+
+
+def markdown_preview_html(path: Path, source_url: str) -> str:
+    text = read_utf8_text(path)
+    title = markdown_preview_title(text, path.stem)
+    escaped_title = html_lib.escape(title)
+    body_html = render_markdown_preview_body(text)
+    escaped_source_url = html_lib.escape(source_url, quote=True)
+    return f"""<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{escaped_title}</title>
+  <style>{MARKDOWN_PREVIEW_CSS}</style>
 </head>
 <body>
   <main>
@@ -3123,7 +3294,9 @@ def markdown_preview_html(path: Path, source_url: str) -> str:
       </div>
       <a href="{escaped_source_url}" target="_blank" rel="noreferrer">打开原始文件</a>
     </header>
-    <pre>{escaped_text}</pre>
+    <article class="markdown-body">
+      {body_html}
+    </article>
   </main>
 </body>
 </html>
