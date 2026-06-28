@@ -2683,42 +2683,8 @@ def greedy_schedule(
 ) -> Optional[List[Assignment]]:
     search_state = ScheduleSearchState(schedule_input, task_by_id, task_ids_by_class)
 
-    def choose_next_task() -> Optional[Tuple[str, List[Candidate]]]:
-        for cls in schedule_input.classes.values():
-            if search_state.class_anchor_satisfied(cls):
-                continue
-            anchor_choices = [
-                (task_id, search_state.valid_options(task_id, domains, anchor_only=True))
-                for task_id in task_ids_by_class[cls.id]
-                if task_id not in search_state.assignments
-            ]
-            anchor_choices = [(task_id, options) for task_id, options in anchor_choices if options]
-            if not anchor_choices:
-                return None
-            anchor_choices.sort(key=lambda item: (len(item[1]), len(domains[item[0]])))
-            return anchor_choices[0]
-
-        choices = [
-            (task_id, search_state.valid_options(task_id, domains))
-            for task_id in task_by_id
-            if task_id not in search_state.assignments
-            and task_stage_ready(
-                task_by_id[task_id],
-                schedule_input.classes[task_by_id[task_id].class_id],
-                task_by_id,
-                task_ids_by_class,
-                search_state.assignments,
-            )
-        ]
-        if not choices:
-            return None
-        if any(not options for _, options in choices):
-            return None
-        choices.sort(key=lambda item: (len(item[1]), len(domains[item[0]])))
-        return choices[0]
-
     while len(search_state.assignments) < len(task_by_id):
-        choice = choose_next_task()
+        choice = choose_greedy_task(schedule_input, task_by_id, task_ids_by_class, domains, search_state)
         if choice is None:
             return None
         task_id, options = choice
@@ -2729,6 +2695,66 @@ def greedy_schedule(
     if not search_state.start_anchors_satisfied():
         return None
     return list(search_state.assignments.values())
+
+
+def choose_greedy_task(
+    schedule_input: ScheduleInput,
+    task_by_id: Dict[str, CourseBlock],
+    task_ids_by_class: Dict[str, List[str]],
+    domains: Dict[str, List[Candidate]],
+    search_state: ScheduleSearchState,
+) -> Optional[Tuple[str, List[Candidate]]]:
+    anchor_choice = choose_greedy_anchor_task(schedule_input, task_ids_by_class, domains, search_state)
+    if anchor_choice is not None:
+        return anchor_choice
+    return choose_greedy_ready_task(schedule_input, task_by_id, task_ids_by_class, domains, search_state)
+
+
+def choose_greedy_anchor_task(
+    schedule_input: ScheduleInput,
+    task_ids_by_class: Dict[str, List[str]],
+    domains: Dict[str, List[Candidate]],
+    search_state: ScheduleSearchState,
+) -> Optional[Tuple[str, List[Candidate]]]:
+    for cls in schedule_input.classes.values():
+        if search_state.class_anchor_satisfied(cls):
+            continue
+        anchor_choices = [
+            (task_id, search_state.valid_options(task_id, domains, anchor_only=True))
+            for task_id in task_ids_by_class[cls.id]
+            if task_id not in search_state.assignments
+        ]
+        anchor_choices = [(task_id, options) for task_id, options in anchor_choices if options]
+        if not anchor_choices:
+            return None
+        anchor_choices.sort(key=lambda item: (len(item[1]), len(domains[item[0]])))
+        return anchor_choices[0]
+    return None
+
+
+def choose_greedy_ready_task(
+    schedule_input: ScheduleInput,
+    task_by_id: Dict[str, CourseBlock],
+    task_ids_by_class: Dict[str, List[str]],
+    domains: Dict[str, List[Candidate]],
+    search_state: ScheduleSearchState,
+) -> Optional[Tuple[str, List[Candidate]]]:
+    choices = [
+        (task_id, search_state.valid_options(task_id, domains))
+        for task_id in task_by_id
+        if task_id not in search_state.assignments
+        and task_stage_ready(
+            task_by_id[task_id],
+            schedule_input.classes[task_by_id[task_id].class_id],
+            task_by_id,
+            task_ids_by_class,
+            search_state.assignments,
+        )
+    ]
+    if not choices or any(not options for _, options in choices):
+        return None
+    choices.sort(key=lambda item: (len(item[1]), len(domains[item[0]])))
+    return choices[0]
 
 
 def write_csv(assignments: List[Assignment], out_path: Path, schedule_input: Optional[ScheduleInput] = None) -> None:

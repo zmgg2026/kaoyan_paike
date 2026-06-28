@@ -1493,6 +1493,68 @@ class SchedulingPipelineTest(unittest.TestCase):
         self.assertEqual(generated[0].candidate.slots[0].id, "S1")
         self.assertEqual(generated[0].candidate.room_id, "R1")
 
+    def test_greedy_choice_filters_first_lesson_anchor_options(self) -> None:
+        payload = {
+            "time_slots": [
+                {
+                    "id": "S1",
+                    "date": "2026-07-01",
+                    "period": "AM",
+                    "name": "上午一",
+                    "order": 1,
+                    "duration_hours": 2,
+                },
+                {
+                    "id": "S2",
+                    "date": "2026-07-01",
+                    "period": "PM",
+                    "name": "下午一",
+                    "order": 2,
+                    "duration_hours": 2,
+                },
+            ],
+            "rooms": [{"id": "R1", "name": "101", "capacity": 40}],
+            "products": [],
+            "classes": [
+                {
+                    "id": "C1",
+                    "name": "首课测试班",
+                    "first_lesson_date": "2026-07-01",
+                    "first_lesson_period": "PM",
+                    "preferred_room_ids": ["R1"],
+                    "requirements": [
+                        {
+                            "subject": "英语",
+                            "total_hours": 2,
+                            "block_hours": 2,
+                            "teacher_id": "T1",
+                            "teacher_name": "张老师",
+                        }
+                    ],
+                }
+            ],
+        }
+        schedule_input = scheduler.load_input_data(payload)
+        plan = scheduler.build_schedule_plan(schedule_input)
+        search_state = scheduler.ScheduleSearchState(
+            schedule_input,
+            plan.task_by_id,
+            plan.task_ids_by_class,
+        )
+
+        choice = scheduler.choose_greedy_task(
+            schedule_input,
+            plan.task_by_id,
+            plan.task_ids_by_class,
+            plan.domains,
+            search_state,
+        )
+
+        self.assertIsNotNone(choice)
+        _, options = choice
+        self.assertTrue(options)
+        self.assertEqual({candidate.slots[0].period for candidate in options}, {"PM"})
+
     def test_scheduler_respects_teacher_unavailability_date_period(self) -> None:
         payload = {
             "time_slots": [
