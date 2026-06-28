@@ -2940,11 +2940,20 @@ class SchedulingPipelineTest(unittest.TestCase):
             class_conflict_groups={},
             locked_assignments=[],
         )
+        assignment = scheduler.Assignment(locked_task, scheduler.Candidate((slot,), "T1", "张老师", "R1"))
+        html_view = scheduler.build_schedule_html_view([assignment], schedule_input)
+
+        self.assertEqual(schedule_input.classes, {})
+        self.assertEqual([cls.id for cls in html_view.classes], ["C_LOCKED"])
+        self.assertEqual(html_view.slot_index, {"2026-07-01-AM-1": 1})
+        self.assertEqual(html_view.subjects, ["英语"])
+        self.assertIn("英语", html_view.colors)
+        self.assertEqual(html_view.assignments_by_class["C_LOCKED"], [assignment])
 
         with tempfile.TemporaryDirectory() as tmp:
             out_path = Path(tmp) / "schedule.html"
             scheduler.write_html(
-                [scheduler.Assignment(locked_task, scheduler.Candidate((slot,), "T1", "张老师", "R1"))],
+                [assignment],
                 schedule_input,
                 out_path,
             )

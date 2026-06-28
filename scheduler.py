@@ -2560,8 +2560,18 @@ def write_csv(assignments: List[Assignment], out_path: Path, schedule_input: Opt
     write_csv_rows(out_path, SCHEDULE_CSV_FIELDNAMES, rows, encoding="utf-8", extrasaction="raise")
 
 
-def write_html(assignments: List[Assignment], schedule_input: ScheduleInput, out_path: Path) -> None:
-    slots = schedule_input.time_slots
+@dataclass(frozen=True)
+class ScheduleHtmlView:
+    slots: List[TimeSlot]
+    classes: List[SchoolClass]
+    slot_index: Dict[str, int]
+    assignments_by_class: Dict[str, List[Assignment]]
+    subjects: List[str]
+    colors: Dict[str, str]
+
+
+def build_schedule_html_view(assignments: List[Assignment], schedule_input: ScheduleInput) -> ScheduleHtmlView:
+    slots = list(schedule_input.time_slots)
     slot_index = {slot.id: index + 1 for index, slot in enumerate(slots)}
     classes = list(schedule_input.classes.values())
     known_class_ids = {cls.id for cls in classes}
@@ -2590,25 +2600,35 @@ def write_html(assignments: List[Assignment], schedule_input: ScheduleInput, out
     subjects = sorted({assignment.task.subject for assignment in assignments})
     colors = build_subject_colors(subjects)
     assignments_by_class: Dict[str, List[Assignment]] = {cls.id: [] for cls in classes}
-
     for assignment in assignments:
         assignments_by_class[assignment.task.class_id].append(assignment)
+    return ScheduleHtmlView(
+        slots=slots,
+        classes=classes,
+        slot_index=slot_index,
+        assignments_by_class=assignments_by_class,
+        subjects=subjects,
+        colors=colors,
+    )
 
+
+def write_html(assignments: List[Assignment], schedule_input: ScheduleInput, out_path: Path) -> None:
+    view = build_schedule_html_view(assignments, schedule_input)
     slot_columns = "\n".join(
         (
             f'<div class="slot-header"><strong>{escape(slot.date)}</strong>'
             f'<span>{escape(slot.name)}</span>'
             f'<em>{escape(format_slot_time(slot))}</em></div>'
         )
-        for slot in slots
+        for slot in view.slots
     )
     rows = "\n".join(
-        render_class_row(cls, assignments_by_class[cls.id], slot_index, colors)
-        for cls in classes
+        render_class_row(cls, view.assignments_by_class[cls.id], view.slot_index, view.colors)
+        for cls in view.classes
     )
     legend = "\n".join(
-        f'<span class="legend-item"><i style="background:{escape(colors[subject])}"></i>{escape(subject)}</span>'
-        for subject in subjects
+        f'<span class="legend-item"><i style="background:{escape(view.colors[subject])}"></i>{escape(subject)}</span>'
+        for subject in view.subjects
     )
 
     out_path.write_text(
@@ -2620,7 +2640,7 @@ def write_html(assignments: List[Assignment], schedule_input: ScheduleInput, out
   <title>班级课表甘特图</title>
   <style>
     :root {{
-      --grid-columns: repeat({len(slots)}, minmax(132px, 1fr));
+      --grid-columns: repeat({len(view.slots)}, minmax(132px, 1fr));
       --border: #d7dce2;
       --muted: #607086;
       --text: #1b2636;
@@ -2678,7 +2698,7 @@ def write_html(assignments: List[Assignment], schedule_input: ScheduleInput, out
       background: var(--panel);
     }}
     .grid {{
-      min-width: {max(760, len(slots) * 132 + 168)}px;
+      min-width: {max(760, len(view.slots) * 132 + 168)}px;
       display: grid;
       grid-template-columns: 168px var(--grid-columns);
     }}
@@ -2742,9 +2762,9 @@ def write_html(assignments: List[Assignment], schedule_input: ScheduleInput, out
         repeating-linear-gradient(
           to right,
           transparent 0,
-          transparent calc(100% / {max(len(slots), 1)} - 1px),
-          var(--border) calc(100% / {max(len(slots), 1)} - 1px),
-          var(--border) calc(100% / {max(len(slots), 1)})
+          transparent calc(100% / {max(len(view.slots), 1)} - 1px),
+          var(--border) calc(100% / {max(len(view.slots), 1)} - 1px),
+          var(--border) calc(100% / {max(len(view.slots), 1)})
         );
     }}
     .bar {{
@@ -2799,9 +2819,9 @@ def write_html(assignments: List[Assignment], schedule_input: ScheduleInput, out
   <header>
     <h1>班级课表甘特图</h1>
     <div class="summary">
-      <span>班级 {len(classes)} 个</span>
+      <span>班级 {len(view.classes)} 个</span>
       <span>课程块 {len(assignments)} 个</span>
-      <span>课节 {len(slots)} 个</span>
+      <span>课节 {len(view.slots)} 个</span>
     </div>
   </header>
   <main>
