@@ -801,6 +801,37 @@ class SchedulingPipelineTest(unittest.TestCase):
 
         self.assertEqual(data_admin_server.GLOBAL_BLACKOUT_FIELDNAMES, header)
 
+    def test_current_conflict_group_active_field_wins_over_stale_legacy_field(self) -> None:
+        payload = {
+            "teaching_areas": [{"id": "A1", "name": "教学区", "is_active": "是"}],
+            "rooms": [{"id": "R1", "name": "101", "teaching_area_id": "A1", "capacity": 80, "is_active": "是"}],
+            "classes": [
+                {"id": "C1", "name": "一班", "product_id": "P1"},
+                {"id": "C2", "name": "二班", "product_id": "P1"},
+            ],
+            "products": [{"id": "P1", "name": "测试产品"}],
+            "class_conflict_groups": [
+                {
+                    "id": "G_STALE",
+                    "name": "旧字段残留互斥组",
+                    "class_ids": "C1|C2",
+                    "is_conflict_group_active": "否",
+                    "is_active": "是",
+                    "conflict_source": "当前字段",
+                    "source": "旧字段",
+                }
+            ],
+            "product_courses": [],
+        }
+        state = data_admin_server.normalize_payload(payload)
+        group = state["class_conflict_groups"][0]
+
+        self.assertFalse(group["is_conflict_group_active"])
+        self.assertFalse(group["is_active"])
+        self.assertEqual("当前字段", group["conflict_source"])
+        self.assertEqual("当前字段", group["source"])
+        self.assertEqual([], data_admin_server.scheduler_conflict_groups(state, state["classes"], []))
+
     def test_historical_lesson_fieldnames_are_separate_from_locked_schedule(self) -> None:
         self.assertEqual(data_admin_server.HISTORICAL_SCHEDULED_LESSON_FIELDNAMES, TABLE_FIELDNAMES["historical_scheduled_lessons"])
         self.assertIn("is_locked", data_admin_server.LOCKED_SCHEDULED_LESSON_FIELDNAMES)

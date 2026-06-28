@@ -1436,8 +1436,17 @@ def class_teacher_assignment_rows(state: Dict[str, Any]) -> List[Dict[str, Any]]
     return rows
 
 
+def class_conflict_group_is_active(group: Dict[str, Any]) -> bool:
+    value = group.get("is_conflict_group_active")
+    if value in ("", None):
+        value = group.get("is_active", True)
+    return normalize_bool(value)
+
+
 def normalize_class_conflict_group(group: Dict[str, Any]) -> Dict[str, Any]:
     group_id = normalize_text(group.get("id") or group.get("group_id"))
+    is_active = class_conflict_group_is_active(group)
+    conflict_source = normalize_text(group.get("conflict_source") or group.get("source")) or "手动"
     return {
         "row": normalize_int(group.get("row")),
         "id": group_id,
@@ -1445,10 +1454,10 @@ def normalize_class_conflict_group(group: Dict[str, Any]) -> Dict[str, Any]:
         "exam_season": normalize_exam_season(group.get("exam_season")),
         "suite_code": normalize_text(group.get("suite_code")),
         "class_ids": split_id_list(group.get("class_ids")),
-        "is_conflict_group_active": normalize_bool(group.get("is_conflict_group_active", group.get("is_active", True))),
-        "is_active": normalize_bool(group.get("is_active", group.get("is_conflict_group_active", True))),
-        "conflict_source": normalize_text(group.get("conflict_source") or group.get("source")) or "手动",
-        "source": normalize_text(group.get("source") or group.get("conflict_source")) or "手动",
+        "is_conflict_group_active": is_active,
+        "is_active": is_active,
+        "conflict_source": conflict_source,
+        "source": conflict_source,
         "notes": normalize_text(group.get("notes")),
     }
 
@@ -2004,7 +2013,7 @@ def validate_state(state: Dict[str, Any]) -> None:
         if room_ids_in_boundary and not any(room_id in active_room_ids for room_id in room_ids_in_boundary):
             errors.append(f"班级排课窗口 {label} 已填写教室，但没有任何启用教室可用于自动排课: {'|'.join(room_ids_in_boundary)}")
     for group in state["class_conflict_groups"]:
-        if normalize_bool(group.get("is_active")) and len(group.get("class_ids", [])) < 2:
+        if class_conflict_group_is_active(group) and len(group.get("class_ids", [])) < 2:
             errors.append(f"班级互斥关系 {group['name'] or group['id']} 至少需要选择 2 个班级")
         for class_id in group.get("class_ids", []):
             if class_id not in class_ids:
@@ -2117,7 +2126,7 @@ def scheduler_conflict_groups(
     class_ids.update(lesson.get("class_id", "") for lesson in locked_scheduled_lessons or [])
     class_ids.discard("")
     for group in groups:
-        if not normalize_bool(group.get("is_active")):
+        if not class_conflict_group_is_active(group):
             continue
         group_class_ids = [class_id for class_id in unique_list(group.get("class_ids", [])) if class_id in class_ids]
         if len(group_class_ids) < 2:
