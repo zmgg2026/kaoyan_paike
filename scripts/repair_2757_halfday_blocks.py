@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import argparse
-import csv
 import json
 import shutil
 import sys
@@ -18,6 +17,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 import scripts.build_camp_maintenance_schedule as maintenance
+from scripts.csv_utils import read_csv_with_fieldnames, write_csv_rows
 from scripts.schedule_data import load_room_names
 from scripts.schedule_outputs import write_day_table_html
 
@@ -41,17 +41,11 @@ def clean(value: object) -> str:
 
 
 def read_csv(path: Path) -> Tuple[List[str], List[Dict[str, str]]]:
-    with path.open(newline="", encoding="utf-8-sig") as handle:
-        reader = csv.DictReader(handle)
-        return list(reader.fieldnames or []), list(reader)
+    return read_csv_with_fieldnames(path)
 
 
 def write_csv(path: Path, fieldnames: Sequence[str], rows: Iterable[Dict[str, str]]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", newline="", encoding="utf-8-sig") as handle:
-        writer = csv.DictWriter(handle, fieldnames=fieldnames)
-        writer.writeheader()
-        writer.writerows(rows)
+    write_csv_rows(path, fieldnames, rows)
 
 
 def load_class_conflict_map(path: Path) -> Dict[str, set[str]]:

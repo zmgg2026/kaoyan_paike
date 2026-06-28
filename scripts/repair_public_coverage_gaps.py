@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import argparse
-import csv
 import json
 import shutil
 import sys
@@ -17,6 +16,7 @@ if str(ROOT) not in sys.path:
 
 import scheduler
 from scripts import build_camp_maintenance_schedule as maintenance
+from scripts.csv_utils import read_csv_rows, read_csv_with_fieldnames, write_csv_rows as write_csv_rows_with_fields
 from scripts.schedule_data import load_class_metadata, load_room_names
 from scripts.schedule_display import week_start, weekday_label
 from scripts.schedule_outputs import write_day_table_html
@@ -61,17 +61,11 @@ def iter_dates(start: str, end: str) -> Iterable[str]:
 
 
 def load_csv_rows(path: Path) -> Tuple[List[str], List[dict]]:
-    with path.open(newline="", encoding="utf-8-sig") as handle:
-        reader = csv.DictReader(handle)
-        return list(reader.fieldnames or []), list(reader)
+    return read_csv_with_fieldnames(path)
 
 
 def write_csv_rows(path: Path, fieldnames: Sequence[str], rows: Sequence[dict]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", newline="", encoding="utf-8-sig") as handle:
-        writer = csv.DictWriter(handle, fieldnames=fieldnames)
-        writer.writeheader()
-        writer.writerows(rows)
+    write_csv_rows_with_fields(path, fieldnames, rows)
 
 
 def suite_code_for_class(class_id: str, class_rows: Dict[str, dict]) -> str:
@@ -531,7 +525,7 @@ def main() -> None:
     fieldnames, rows = load_csv_rows(args.schedule_csv)
     class_rows = {
         row["id"]: row
-        for row in csv.DictReader((data_dir / "classes.csv").open(newline="", encoding="utf-8-sig"))
+        for row in read_csv_rows(data_dir / "classes.csv")
         if row.get("id")
     }
     room_names = load_room_names(data_dir)
@@ -540,12 +534,12 @@ def main() -> None:
     requirement_lookup = build_requirement_lookup(schedule_input, target_classes)
     gap_rows = [
         row
-        for row in csv.DictReader(args.gap_csv.open(newline="", encoding="utf-8-sig"))
+        for row in read_csv_rows(args.gap_csv)
         if row.get("class_id") in target_classes and float(row.get("diff_hours") or 0) > 0
     ]
     over_rows = [
         row
-        for row in csv.DictReader(args.over_csv.open(newline="", encoding="utf-8-sig"))
+        for row in read_csv_rows(args.over_csv)
         if row.get("class_id") in target_classes and float(row.get("diff_hours") or 0) < 0
     ]
     tasks, offset_lines = make_gap_tasks(gap_rows, over_rows, requirement_lookup, class_rows, room_names)

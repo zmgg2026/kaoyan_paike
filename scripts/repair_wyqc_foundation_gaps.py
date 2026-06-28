@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import argparse
-import csv
 import shutil
 import sys
 from collections import Counter, defaultdict
@@ -18,6 +17,7 @@ if str(ROOT) not in sys.path:
 import scheduler
 from scripts import audit_schedule_coverage as coverage
 from scripts import build_camp_maintenance_schedule as maintenance
+from scripts.csv_utils import write_csv_rows as write_csv_rows_with_fields
 from scripts.schedule_display import assignment_standard_lesson_count, week_start
 from scripts.schedule_outputs import write_batch_csv, write_day_table_html
 
@@ -102,12 +102,8 @@ def write_rows(path: Path, rows: Sequence[dict]) -> None:
     if not rows:
         path.write_text("", encoding="utf-8")
         return
-    path.parent.mkdir(parents=True, exist_ok=True)
     fieldnames = list(rows[0].keys())
-    with path.open("w", newline="", encoding="utf-8") as handle:
-        writer = csv.DictWriter(handle, fieldnames=fieldnames)
-        writer.writeheader()
-        writer.writerows(rows)
+    write_csv_rows_with_fields(path, fieldnames, rows, encoding="utf-8")
 
 
 def module_key_from_row(row: dict) -> Tuple[str, str, str, str, str, str]:

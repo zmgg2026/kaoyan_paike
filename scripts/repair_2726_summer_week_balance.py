@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import argparse
-import csv
 import shutil
 import sys
 from collections import Counter, defaultdict
@@ -18,6 +17,7 @@ if str(ROOT) not in sys.path:
 import scheduler
 from scripts import build_camp_maintenance_schedule as maintenance
 from scripts import repair_wyqc_foundation_gaps as gap_repair
+from scripts.csv_utils import read_csv_rows, write_csv_rows as write_csv_rows_with_fields
 from scripts.schedule_display import week_start, weekday_label
 from scripts.schedule_outputs import write_day_table_html
 
@@ -62,16 +62,11 @@ def clean(value: object) -> str:
 
 
 def load_rows(path: Path) -> List[dict]:
-    with path.open(newline="", encoding="utf-8-sig") as handle:
-        return [dict(row) for row in csv.DictReader(handle)]
+    return read_csv_rows(path)
 
 
 def write_rows(path: Path, rows: Sequence[dict], fieldnames: Sequence[str]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", newline="", encoding="utf-8") as handle:
-        writer = csv.DictWriter(handle, fieldnames=fieldnames)
-        writer.writeheader()
-        writer.writerows(rows)
+    write_csv_rows_with_fields(path, fieldnames, rows, encoding="utf-8")
 
 
 def is_target_row(row: dict) -> bool:
