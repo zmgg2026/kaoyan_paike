@@ -17,27 +17,7 @@ from generate_time_slots import generate_time_slots, parse_weekdays
 from scripts.csv_utils import read_csv_text_with_fieldnames, write_csv_rows
 
 
-TABLES = [
-    "schedule_windows",
-    "time_slots",
-    "teaching_areas",
-    "rooms",
-    "teachers",
-    "teacher_unavailability",
-    "products",
-    "product_courses",
-    "product_schedule_rules",
-    "classes",
-    "class_window_boundaries",
-    "class_teacher_assignments",
-    "class_conflict_groups",
-    "locked_scheduled_lessons",
-    "teaching_area_links",
-    "global_blackout_dates",
-    "historical_scheduled_lessons",
-    "business_product_mappings",
-    "erp_standard_products",
-]
+TABLES = list(data_admin_server.STANDARD_TABLE_FIELDNAMES)
 
 BUSINESS_TABLES = [
     "business_classes",

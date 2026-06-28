@@ -13,6 +13,7 @@ import scheduler
 from generate_time_slots import generate_time_slots, parse_weekdays
 from run_scheduling_pipeline import (
     PipelineError,
+    TABLES,
     TABLE_FIELDNAMES,
     build_parser,
     load_source_tables,
@@ -842,6 +843,7 @@ class SchedulingPipelineTest(unittest.TestCase):
 
     def test_standard_tables_are_shared_by_admin_pipeline_json_and_csv_exports(self) -> None:
         self.assertIs(TABLE_FIELDNAMES, data_admin_server.STANDARD_TABLE_FIELDNAMES)
+        self.assertEqual(list(data_admin_server.STANDARD_TABLE_FIELDNAMES), TABLES)
         payload = {
             "products": [],
             "product_courses": [],
