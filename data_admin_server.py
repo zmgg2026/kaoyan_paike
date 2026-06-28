@@ -386,6 +386,30 @@ ERP_STANDARD_PRODUCT_FIELDNAMES = [
     "source_file",
     "notes",
 ]
+
+STANDARD_TABLE_FIELDNAMES: Dict[str, List[str]] = {
+    "schedule_windows": SCHEDULE_WINDOW_FIELDNAMES,
+    "time_slots": TIME_SLOT_FIELDNAMES,
+    "teaching_areas": TEACHING_AREA_FIELDNAMES,
+    "rooms": ROOM_FIELDNAMES,
+    "teachers": TEACHER_FIELDNAMES,
+    "teacher_unavailability": TEACHER_UNAVAILABILITY_FIELDNAMES,
+    "products": PRODUCT_FIELDNAMES,
+    "product_courses": PRODUCT_COURSE_FIELDNAMES,
+    "product_schedule_rules": PRODUCT_RULE_FIELDNAMES,
+    "classes": CLASS_FIELDNAMES,
+    "class_window_boundaries": CLASS_WINDOW_BOUNDARY_FIELDNAMES,
+    "class_teacher_assignments": TEACHER_ASSIGNMENT_FIELDNAMES,
+    "class_conflict_groups": CLASS_CONFLICT_GROUP_FIELDNAMES,
+    "locked_scheduled_lessons": LOCKED_SCHEDULED_LESSON_FIELDNAMES,
+    "teaching_area_links": TEACHING_AREA_LINK_FIELDNAMES,
+    "global_blackout_dates": GLOBAL_BLACKOUT_FIELDNAMES,
+    "historical_scheduled_lessons": HISTORICAL_SCHEDULED_LESSON_FIELDNAMES,
+    "business_product_mappings": BUSINESS_PRODUCT_MAPPING_FIELDNAMES,
+    "erp_standard_products": ERP_STANDARD_PRODUCT_FIELDNAMES,
+}
+
+
 def today_text() -> str:
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
@@ -2183,105 +2207,33 @@ def save_state(payload: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def write_csvs(state: Dict[str, Any]) -> None:
-    write_csv(
-        DATA_DIR / "schedule_windows.csv",
-        state["schedule_windows"],
-        SCHEDULE_WINDOW_FIELDNAMES,
-    )
-    write_csv(
-        DATA_DIR / "time_slots.csv",
-        state["time_slots"],
-        TIME_SLOT_FIELDNAMES,
-    )
-    write_csv(
-        DATA_DIR / "teaching_areas.csv",
-        state["teaching_areas"],
-        TEACHING_AREA_FIELDNAMES,
-    )
-    write_csv(
-        DATA_DIR / "rooms.csv",
-        state["rooms"],
-        ROOM_FIELDNAMES,
-    )
-    write_csv(
-        DATA_DIR / "teachers.csv",
-        state["teachers"],
-        TEACHER_FIELDNAMES,
-    )
-    write_csv(
-        DATA_DIR / "teacher_unavailability.csv",
-        state["teacher_unavailability"],
-        TEACHER_UNAVAILABILITY_FIELDNAMES,
-    )
-    write_csv(
-        DATA_DIR / "products.csv",
-        state["products"],
-        PRODUCT_FIELDNAMES,
-    )
-    write_csv(
-        DATA_DIR / "product_courses.csv",
-        state["product_courses"],
-        PRODUCT_COURSE_FIELDNAMES,
-    )
-    write_csv(
-        DATA_DIR / "product_schedule_rules.csv",
-        state["product_schedule_rules"],
-        PRODUCT_RULE_FIELDNAMES,
-    )
     class_rows: List[Dict[str, Any]] = []
     assignment_rows = class_teacher_assignment_rows(state)
     for cls in state["classes"]:
         class_rows.append({key: value for key, value in cls.items() if key not in {"teacher_assignments", "requirements"}})
-    write_csv(
-        DATA_DIR / "classes.csv",
-        class_rows,
-        CLASS_FIELDNAMES,
-    )
-    write_csv(
-        DATA_DIR / "class_window_boundaries.csv",
-        state["class_window_boundaries"],
-        CLASS_WINDOW_BOUNDARY_FIELDNAMES,
-    )
-    write_csv(
-        DATA_DIR / "class_teacher_assignments.csv",
-        assignment_rows,
-        TEACHER_ASSIGNMENT_FIELDNAMES,
-    )
-    write_csv(
-        DATA_DIR / "class_conflict_groups.csv",
-        state["class_conflict_groups"],
-        CLASS_CONFLICT_GROUP_FIELDNAMES,
-    )
-    write_csv(
-        DATA_DIR / "locked_scheduled_lessons.csv",
-        state["locked_scheduled_lessons"],
-        LOCKED_SCHEDULED_LESSON_FIELDNAMES,
-    )
-    write_csv(
-        DATA_DIR / "teaching_area_links.csv",
-        state["teaching_area_links"],
-        TEACHING_AREA_LINK_FIELDNAMES,
-    )
-    write_csv(
-        DATA_DIR / "global_blackout_dates.csv",
-        state["global_blackout_dates"],
-        GLOBAL_BLACKOUT_FIELDNAMES,
-    )
-    write_csv(
-        DATA_DIR / "historical_scheduled_lessons.csv",
-        state["historical_scheduled_lessons"],
-        HISTORICAL_SCHEDULED_LESSON_FIELDNAMES,
-    )
-    write_csv(
-        DATA_DIR / "erp_standard_products.csv",
-        state["erp_standard_products"],
-        ERP_STANDARD_PRODUCT_FIELDNAMES,
-    )
-    write_csv(
-        DATA_DIR / "business_product_mappings.csv",
-        state["business_product_mappings"],
-        BUSINESS_PRODUCT_MAPPING_FIELDNAMES,
-    )
+    csv_rows_by_table = {
+        "schedule_windows": state["schedule_windows"],
+        "time_slots": state["time_slots"],
+        "teaching_areas": state["teaching_areas"],
+        "rooms": state["rooms"],
+        "teachers": state["teachers"],
+        "teacher_unavailability": state["teacher_unavailability"],
+        "products": state["products"],
+        "product_courses": state["product_courses"],
+        "product_schedule_rules": state["product_schedule_rules"],
+        "classes": class_rows,
+        "class_window_boundaries": state["class_window_boundaries"],
+        "class_teacher_assignments": assignment_rows,
+        "class_conflict_groups": state["class_conflict_groups"],
+        "locked_scheduled_lessons": state["locked_scheduled_lessons"],
+        "teaching_area_links": state["teaching_area_links"],
+        "global_blackout_dates": state["global_blackout_dates"],
+        "historical_scheduled_lessons": state["historical_scheduled_lessons"],
+        "erp_standard_products": state["erp_standard_products"],
+        "business_product_mappings": state["business_product_mappings"],
+    }
+    for table_name, rows in csv_rows_by_table.items():
+        write_csv(DATA_DIR / f"{table_name}.csv", rows, STANDARD_TABLE_FIELDNAMES[table_name])
 
 def build_suite_conflict_groups(classes: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     groups: Dict[str, Dict[str, Any]] = {}

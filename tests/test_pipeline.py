@@ -755,6 +755,21 @@ class SchedulingPipelineTest(unittest.TestCase):
 
         self.assertEqual(data_admin_server.TEACHER_FIELDNAMES, header)
 
+    def test_standard_table_fieldnames_are_shared_by_admin_pipeline_and_csv_exports(self) -> None:
+        self.assertIs(TABLE_FIELDNAMES, data_admin_server.STANDARD_TABLE_FIELDNAMES)
+        payload = {
+            "products": [],
+            "product_courses": [],
+            "classes": [],
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            data_admin_server.DATA_DIR = Path(tmp) / "data"
+            data_admin_server.save_state(payload)
+            for table_name, fieldnames in data_admin_server.STANDARD_TABLE_FIELDNAMES.items():
+                with (data_admin_server.DATA_DIR / f"{table_name}.csv").open(encoding="utf-8") as handle:
+                    header = next(csv.reader(handle))
+                self.assertEqual(fieldnames, header, table_name)
+
     def test_global_blackout_fieldnames_are_shared_by_admin_and_pipeline(self) -> None:
         self.assertEqual(data_admin_server.GLOBAL_BLACKOUT_FIELDNAMES, TABLE_FIELDNAMES["global_blackout_dates"])
         payload = {

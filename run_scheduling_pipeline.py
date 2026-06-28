@@ -182,27 +182,7 @@ TABLE_ALIASES = {
     "固定课表": "locked_scheduled_lessons",
 }
 
-TABLE_FIELDNAMES = {
-    "schedule_windows": data_admin_server.SCHEDULE_WINDOW_FIELDNAMES,
-    "time_slots": data_admin_server.TIME_SLOT_FIELDNAMES,
-    "teaching_areas": data_admin_server.TEACHING_AREA_FIELDNAMES,
-    "rooms": data_admin_server.ROOM_FIELDNAMES,
-    "teachers": data_admin_server.TEACHER_FIELDNAMES,
-    "teacher_unavailability": data_admin_server.TEACHER_UNAVAILABILITY_FIELDNAMES,
-    "products": data_admin_server.PRODUCT_FIELDNAMES,
-    "product_courses": data_admin_server.PRODUCT_COURSE_FIELDNAMES,
-    "product_schedule_rules": data_admin_server.PRODUCT_RULE_FIELDNAMES,
-    "classes": data_admin_server.CLASS_FIELDNAMES,
-    "class_window_boundaries": data_admin_server.CLASS_WINDOW_BOUNDARY_FIELDNAMES,
-    "class_teacher_assignments": data_admin_server.TEACHER_ASSIGNMENT_FIELDNAMES,
-    "class_conflict_groups": data_admin_server.CLASS_CONFLICT_GROUP_FIELDNAMES,
-    "locked_scheduled_lessons": data_admin_server.LOCKED_SCHEDULED_LESSON_FIELDNAMES,
-    "teaching_area_links": data_admin_server.TEACHING_AREA_LINK_FIELDNAMES,
-    "global_blackout_dates": data_admin_server.GLOBAL_BLACKOUT_FIELDNAMES,
-    "historical_scheduled_lessons": data_admin_server.HISTORICAL_SCHEDULED_LESSON_FIELDNAMES,
-    "business_product_mappings": data_admin_server.BUSINESS_PRODUCT_MAPPING_FIELDNAMES,
-    "erp_standard_products": data_admin_server.ERP_STANDARD_PRODUCT_FIELDNAMES,
-}
+TABLE_FIELDNAMES = data_admin_server.STANDARD_TABLE_FIELDNAMES
 
 
 @dataclass
