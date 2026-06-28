@@ -408,6 +408,7 @@ STANDARD_TABLE_FIELDNAMES: Dict[str, List[str]] = {
     "business_product_mappings": BUSINESS_PRODUCT_MAPPING_FIELDNAMES,
     "erp_standard_products": ERP_STANDARD_PRODUCT_FIELDNAMES,
 }
+TABLES_WITH_EMPTY_WARNINGS = {"products", "product_courses", "product_schedule_rules"}
 
 
 def today_text() -> str:
@@ -2025,193 +2026,27 @@ def validate_state(state: Dict[str, Any]) -> None:
 def save_state(payload: Dict[str, Any]) -> Dict[str, Any]:
     state = normalize_payload(payload)
     updated_at = today_text()
-    assignment_rows = class_teacher_assignment_rows(state)
     DATA_DIR.mkdir(parents=True, exist_ok=True)
-
-    write_json(
-        DATA_DIR / "schedule_windows.json",
-        {
+    for table_name, rows in standard_table_rows(state).items():
+        document: Dict[str, Any] = {
             "updated_at": updated_at,
             "source": "data_admin_server.py",
-            "record_count": len(state["schedule_windows"]),
-            "schedule_windows": state["schedule_windows"],
-        },
-    )
-    write_json(
-        DATA_DIR / "time_slots.json",
-        {
-            "updated_at": updated_at,
-            "source": "data_admin_server.py",
-            "record_count": len(state["time_slots"]),
-            "time_slots": state["time_slots"],
-        },
-    )
-    write_json(
-        DATA_DIR / "teaching_areas.json",
-        {
-            "updated_at": updated_at,
-            "source": "data_admin_server.py",
-            "record_count": len(state["teaching_areas"]),
-            "teaching_areas": state["teaching_areas"],
-        },
-    )
-    write_json(
-        DATA_DIR / "rooms.json",
-        {
-            "updated_at": updated_at,
-            "source": "data_admin_server.py",
-            "record_count": len(state["rooms"]),
-            "rooms": state["rooms"],
-        },
-    )
-    write_json(
-        DATA_DIR / "teachers.json",
-        {
-            "updated_at": updated_at,
-            "source": "data_admin_server.py",
-            "record_count": len(state["teachers"]),
-            "teachers": state["teachers"],
-        },
-    )
-    write_json(
-        DATA_DIR / "teacher_unavailability.json",
-        {
-            "updated_at": updated_at,
-            "source": "data_admin_server.py",
-            "record_count": len(state["teacher_unavailability"]),
-            "teacher_unavailability": state["teacher_unavailability"],
-        },
-    )
-    write_json(
-        DATA_DIR / "products.json",
-        {
-            "updated_at": updated_at,
-            "source": "data_admin_server.py",
-            "record_count": len(state["products"]),
-            "products": state["products"],
-            "warnings": [],
-        },
-    )
-    write_json(
-        DATA_DIR / "product_courses.json",
-        {
-            "updated_at": updated_at,
-            "source": "data_admin_server.py",
-            "record_count": len(state["product_courses"]),
-            "product_courses": state["product_courses"],
-            "warnings": [],
-        },
-    )
-    write_json(
-        DATA_DIR / "product_schedule_rules.json",
-        {
-            "updated_at": updated_at,
-            "source": "data_admin_server.py",
-            "record_count": len(state["product_schedule_rules"]),
-            "product_schedule_rules": state["product_schedule_rules"],
-            "warnings": [],
-        },
-    )
-    write_json(
-        DATA_DIR / "classes.json",
-        {
-            "updated_at": updated_at,
-            "source": "data_admin_server.py",
-            "record_count": len(state["classes"]),
-            "classes": state["classes"],
-        },
-    )
-    write_json(
-        DATA_DIR / "class_teacher_assignments.json",
-        {
-            "updated_at": updated_at,
-            "source": "data_admin_server.py",
-            "record_count": len(assignment_rows),
-            "class_teacher_assignments": assignment_rows,
-        },
-    )
-    write_json(
-        DATA_DIR / "class_window_boundaries.json",
-        {
-            "updated_at": updated_at,
-            "source": "data_admin_server.py",
-            "record_count": len(state["class_window_boundaries"]),
-            "class_window_boundaries": state["class_window_boundaries"],
-        },
-    )
-    write_json(
-        DATA_DIR / "class_conflict_groups.json",
-        {
-            "updated_at": updated_at,
-            "source": "data_admin_server.py",
-            "record_count": len(state["class_conflict_groups"]),
-            "class_conflict_groups": state["class_conflict_groups"],
-        },
-    )
-    write_json(
-        DATA_DIR / "locked_scheduled_lessons.json",
-        {
-            "updated_at": updated_at,
-            "source": "data_admin_server.py",
-            "record_count": len(state["locked_scheduled_lessons"]),
-            "locked_scheduled_lessons": state["locked_scheduled_lessons"],
-        },
-    )
-    write_json(
-        DATA_DIR / "teaching_area_links.json",
-        {
-            "updated_at": updated_at,
-            "source": "data_admin_server.py",
-            "record_count": len(state["teaching_area_links"]),
-            "teaching_area_links": state["teaching_area_links"],
-        },
-    )
-    write_json(
-        DATA_DIR / "global_blackout_dates.json",
-        {
-            "updated_at": updated_at,
-            "source": "data_admin_server.py",
-            "record_count": len(state["global_blackout_dates"]),
-            "global_blackout_dates": state["global_blackout_dates"],
-        },
-    )
-    write_json(
-        DATA_DIR / "historical_scheduled_lessons.json",
-        {
-            "updated_at": updated_at,
-            "source": "data_admin_server.py",
-            "record_count": len(state["historical_scheduled_lessons"]),
-            "historical_scheduled_lessons": state["historical_scheduled_lessons"],
-        },
-    )
-    write_json(
-        DATA_DIR / "erp_standard_products.json",
-        {
-            "updated_at": updated_at,
-            "source": "data_admin_server.py",
-            "record_count": len(state["erp_standard_products"]),
-            "erp_standard_products": state["erp_standard_products"],
-        },
-    )
-    write_json(
-        DATA_DIR / "business_product_mappings.json",
-        {
-            "updated_at": updated_at,
-            "source": "data_admin_server.py",
-            "record_count": len(state["business_product_mappings"]),
-            "business_product_mappings": state["business_product_mappings"],
-        },
-    )
+            "record_count": len(rows),
+            table_name: rows,
+        }
+        if table_name in TABLES_WITH_EMPTY_WARNINGS:
+            document["warnings"] = []
+        write_json(DATA_DIR / f"{table_name}.json", document)
     write_csvs(state)
     return {"ok": True, "updated_at": updated_at, "counts": {key: len(value) for key, value in state.items()}}
 
 
-def write_csvs(state: Dict[str, Any]) -> None:
+def standard_table_rows(state: Dict[str, Any], *, csv_export: bool = False) -> Dict[str, List[Dict[str, Any]]]:
     class_rows: List[Dict[str, Any]] = []
     assignment_rows = class_teacher_assignment_rows(state)
     for cls in state["classes"]:
         class_rows.append({key: value for key, value in cls.items() if key not in {"teacher_assignments", "requirements"}})
-    csv_rows_by_table = {
+    return {
         "schedule_windows": state["schedule_windows"],
         "time_slots": state["time_slots"],
         "teaching_areas": state["teaching_areas"],
@@ -2221,7 +2056,7 @@ def write_csvs(state: Dict[str, Any]) -> None:
         "products": state["products"],
         "product_courses": state["product_courses"],
         "product_schedule_rules": state["product_schedule_rules"],
-        "classes": class_rows,
+        "classes": class_rows if csv_export else state["classes"],
         "class_window_boundaries": state["class_window_boundaries"],
         "class_teacher_assignments": assignment_rows,
         "class_conflict_groups": state["class_conflict_groups"],
@@ -2232,7 +2067,10 @@ def write_csvs(state: Dict[str, Any]) -> None:
         "erp_standard_products": state["erp_standard_products"],
         "business_product_mappings": state["business_product_mappings"],
     }
-    for table_name, rows in csv_rows_by_table.items():
+
+
+def write_csvs(state: Dict[str, Any]) -> None:
+    for table_name, rows in standard_table_rows(state, csv_export=True).items():
         write_csv(DATA_DIR / f"{table_name}.csv", rows, STANDARD_TABLE_FIELDNAMES[table_name])
 
 def build_suite_conflict_groups(classes: List[Dict[str, Any]]) -> List[Dict[str, Any]]:

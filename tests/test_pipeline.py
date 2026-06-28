@@ -755,7 +755,7 @@ class SchedulingPipelineTest(unittest.TestCase):
 
         self.assertEqual(data_admin_server.TEACHER_FIELDNAMES, header)
 
-    def test_standard_table_fieldnames_are_shared_by_admin_pipeline_and_csv_exports(self) -> None:
+    def test_standard_tables_are_shared_by_admin_pipeline_json_and_csv_exports(self) -> None:
         self.assertIs(TABLE_FIELDNAMES, data_admin_server.STANDARD_TABLE_FIELDNAMES)
         payload = {
             "products": [],
@@ -769,6 +769,12 @@ class SchedulingPipelineTest(unittest.TestCase):
                 with (data_admin_server.DATA_DIR / f"{table_name}.csv").open(encoding="utf-8") as handle:
                     header = next(csv.reader(handle))
                 self.assertEqual(fieldnames, header, table_name)
+                document = json.loads((data_admin_server.DATA_DIR / f"{table_name}.json").read_text(encoding="utf-8"))
+                self.assertEqual("data_admin_server.py", document["source"], table_name)
+                self.assertIn(table_name, document)
+                self.assertEqual(len(document[table_name]), document["record_count"], table_name)
+                if table_name in data_admin_server.TABLES_WITH_EMPTY_WARNINGS:
+                    self.assertEqual([], document["warnings"], table_name)
 
     def test_global_blackout_fieldnames_are_shared_by_admin_and_pipeline(self) -> None:
         self.assertEqual(data_admin_server.GLOBAL_BLACKOUT_FIELDNAMES, TABLE_FIELDNAMES["global_blackout_dates"])
