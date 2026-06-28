@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import tempfile
 import unittest
+import zipfile
+from pathlib import Path
 
-from scripts.audit_release_package import REQUIRED_PATHS, audit_paths, forbidden_reason, normalize_path
+from scripts.audit_release_package import REQUIRED_PATHS, audit_paths, forbidden_reason, normalize_path, zip_paths
 
 
 class ReleasePackageAuditTest(unittest.TestCase):
@@ -39,6 +42,27 @@ class ReleasePackageAuditTest(unittest.TestCase):
     def test_normalize_path_uses_archive_style_slashes(self) -> None:
         self.assertEqual("foo/bar.csv", normalize_path("./foo/bar.csv"))
         self.assertEqual(".env", normalize_path("./.env"))
+
+    def test_zip_paths_strip_single_github_archive_prefix(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            zip_path = Path(tmp_dir) / "release.zip"
+            with zipfile.ZipFile(zip_path, "w") as archive:
+                for path in REQUIRED_PATHS:
+                    archive.writestr(f"repo-main/{path}", "")
+
+            self.assertEqual([], audit_paths(zip_paths(zip_path)))
+
+    def test_zip_audit_blocks_private_files_inside_archive_prefix(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            zip_path = Path(tmp_dir) / "release.zip"
+            with zipfile.ZipFile(zip_path, "w") as archive:
+                for path in REQUIRED_PATHS:
+                    archive.writestr(f"repo-main/{path}", "")
+                archive.writestr("repo-main/data/classes.csv", "")
+
+            issues = audit_paths(zip_paths(zip_path))
+
+        self.assertTrue(any(issue.endswith("data/classes.csv") for issue in issues))
 
 
 if __name__ == "__main__":

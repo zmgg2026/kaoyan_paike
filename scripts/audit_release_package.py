@@ -5,6 +5,7 @@ import argparse
 import os
 import subprocess
 import sys
+import zipfile
 from pathlib import Path
 from typing import Iterable, List, Sequence
 
@@ -77,7 +78,27 @@ def normalize_path(path: str) -> str:
     normalized = path.replace(os.sep, "/")
     while normalized.startswith("./"):
         normalized = normalized[2:]
-    return normalized
+    return normalized.rstrip("/")
+
+
+def strip_common_archive_prefix(paths: Sequence[str]) -> List[str]:
+    normalized = [normalize_path(path) for path in paths if normalize_path(path)]
+    if any(path in REQUIRED_PATHS for path in normalized):
+        return sorted(normalized)
+    first_parts = {
+        path.split("/", 1)[0]
+        for path in normalized
+        if "/" in path
+    }
+    if len(first_parts) != 1:
+        return sorted(normalized)
+    prefix = next(iter(first_parts))
+    stripped = [
+        path.removeprefix(f"{prefix}/")
+        for path in normalized
+        if path != prefix
+    ]
+    return sorted(path for path in stripped if path)
 
 
 def git_tracked_paths(root: Path) -> List[str] | None:
@@ -106,6 +127,16 @@ def walked_paths(root: Path) -> List[str]:
             continue
         paths.append(normalize_path(str(path.relative_to(root))))
     return sorted(paths)
+
+
+def zip_paths(path: Path) -> List[str]:
+    with zipfile.ZipFile(path) as archive:
+        paths = [
+            normalize_path(info.filename)
+            for info in archive.infolist()
+            if not info.is_dir()
+        ]
+    return strip_common_archive_prefix(paths)
 
 
 def release_paths(root: Path) -> List[str]:
@@ -145,10 +176,14 @@ def audit_paths(paths: Iterable[str]) -> List[str]:
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Audit reusable release package contents.")
     parser.add_argument("--root", type=Path, default=Path.cwd(), help="Project root to audit.")
+    parser.add_argument("--zip", type=Path, help="Zip archive to audit instead of a project root.")
     args = parser.parse_args(argv)
 
-    root = args.root.resolve()
-    paths = release_paths(root)
+    if args.zip:
+        paths = zip_paths(args.zip.resolve())
+    else:
+        root = args.root.resolve()
+        paths = release_paths(root)
     issues = audit_paths(paths)
     if issues:
         print("Release package audit failed:", file=sys.stderr)
