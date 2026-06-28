@@ -737,42 +737,63 @@ def parse_class_window_constraints(raw_constraints: List[dict], rooms: Mapping[s
 def parse_teacher_unavailability(raw_rules: List[dict]) -> Dict[str, List[TeacherUnavailableRule]]:
     rules_by_teacher: Dict[str, List[TeacherUnavailableRule]] = {}
     for index, raw_rule in enumerate(raw_rules, start=1):
-        if not isinstance(raw_rule, dict):
+        rule = parse_teacher_unavailability_rule(raw_rule, index)
+        if not rule:
             continue
-        if not parse_bool_default(raw_rule.get("is_active"), True):
-            continue
-        teacher_id = str(
-            raw_rule.get("teacher_id")
-            or raw_rule.get("employee_id")
-            or raw_rule.get("id")
-            or ""
-        ).strip()
-        if not teacher_id:
-            continue
-        label = f"教师不可排规则 {raw_rule.get('unavailable_id') or index}"
-        start_date = validate_date(raw_rule.get("start_date"), f"{label}/start_date")
-        end_date = validate_date(raw_rule.get("end_date"), f"{label}/end_date")
-        if start_date and end_date and end_date < start_date:
-            raise ValueError(f"{label} 的 end_date 不能早于 start_date")
-        weekdays = parse_weekday_set(raw_rule.get("weekdays"), f"{label}/weekdays")
-        periods = parse_period_set(raw_rule.get("periods"), f"{label}/periods")
-        schedule_window_ids = parse_string_set(
-            raw_rule.get("schedule_window_ids") or raw_rule.get("schedule_window_id")
-        )
-        if not any((start_date, end_date, weekdays, periods, schedule_window_ids)):
-            continue
-        rule = TeacherUnavailableRule(
-            teacher_id=teacher_id,
-            start_date=start_date,
-            end_date=end_date,
-            weekdays=weekdays,
-            periods=periods,
-            schedule_window_ids=schedule_window_ids,
-            unavailable_id=str(raw_rule.get("unavailable_id") or "").strip(),
-            reason=str(raw_rule.get("reason") or raw_rule.get("notes") or "").strip(),
-        )
-        rules_by_teacher.setdefault(teacher_id, []).append(rule)
+        rules_by_teacher.setdefault(rule.teacher_id, []).append(rule)
     return rules_by_teacher
+
+
+def parse_teacher_unavailability_rule(raw_rule: object, index: int) -> Optional[TeacherUnavailableRule]:
+    if not isinstance(raw_rule, dict):
+        return None
+    if not parse_bool_default(raw_rule.get("is_active"), True):
+        return None
+    teacher_id = teacher_unavailability_teacher_id(raw_rule)
+    if not teacher_id:
+        return None
+    label = teacher_unavailability_label(raw_rule, index)
+    start_date, end_date = teacher_unavailability_date_range(raw_rule, label)
+    weekdays, periods, schedule_window_ids = teacher_unavailability_scope(raw_rule, label)
+    if not any((start_date, end_date, weekdays, periods, schedule_window_ids)):
+        return None
+    return TeacherUnavailableRule(
+        teacher_id=teacher_id,
+        start_date=start_date,
+        end_date=end_date,
+        weekdays=weekdays,
+        periods=periods,
+        schedule_window_ids=schedule_window_ids,
+        unavailable_id=str(raw_rule.get("unavailable_id") or "").strip(),
+        reason=str(raw_rule.get("reason") or raw_rule.get("notes") or "").strip(),
+    )
+
+
+def teacher_unavailability_label(raw_rule: dict, index: int) -> str:
+    return f"教师不可排规则 {raw_rule.get('unavailable_id') or index}"
+
+
+def teacher_unavailability_teacher_id(raw_rule: dict) -> str:
+    return str(raw_rule.get("teacher_id") or raw_rule.get("employee_id") or raw_rule.get("id") or "").strip()
+
+
+def teacher_unavailability_date_range(raw_rule: dict, label: str) -> Tuple[Optional[str], Optional[str]]:
+    start_date = validate_date(raw_rule.get("start_date"), f"{label}/start_date")
+    end_date = validate_date(raw_rule.get("end_date"), f"{label}/end_date")
+    if start_date and end_date and end_date < start_date:
+        raise ValueError(f"{label} 的 end_date 不能早于 start_date")
+    return start_date, end_date
+
+
+def teacher_unavailability_scope(
+    raw_rule: dict,
+    label: str,
+) -> Tuple[Optional[Set[int]], Optional[Set[str]], Optional[Set[str]]]:
+    return (
+        parse_weekday_set(raw_rule.get("weekdays"), f"{label}/weekdays"),
+        parse_period_set(raw_rule.get("periods"), f"{label}/periods"),
+        parse_string_set(raw_rule.get("schedule_window_ids") or raw_rule.get("schedule_window_id")),
+    )
 
 
 def parse_area_travel_minutes(raw_links: List[dict]) -> Dict[Tuple[str, str], int]:

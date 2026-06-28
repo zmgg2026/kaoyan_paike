@@ -1390,6 +1390,59 @@ class SchedulingPipelineTest(unittest.TestCase):
         self.assertEqual(requirement.course_code, "ENG001")
         self.assertEqual(requirement.course_name, "")
 
+    def test_parse_teacher_unavailability_accepts_aliases_and_skips_incomplete_rules(self) -> None:
+        rules = scheduler.parse_teacher_unavailability(
+            [
+                "not a row",
+                {
+                    "unavailable_id": "UNAVAIL_T1_LEAVE",
+                    "employee_id": "T1",
+                    "start_date": "2026-07-01",
+                    "end_date": "2026-07-02",
+                    "periods": "AM|晚上",
+                    "notes": "请假",
+                },
+                {
+                    "teacher_id": "T1",
+                    "weekdays": "周一|周三",
+                    "schedule_window_id": "2026暑假",
+                    "reason": "兼职限制",
+                },
+                {
+                    "id": "T2",
+                    "schedule_window_ids": "2026秋季|WINDOW_AUTUMN",
+                    "is_active": True,
+                },
+                {"teacher_id": "T3", "is_active": "否", "periods": "AM"},
+                {"teacher_id": "T4"},
+            ]
+        )
+
+        self.assertEqual(set(rules), {"T1", "T2"})
+        self.assertEqual(len(rules["T1"]), 2)
+        self.assertEqual(rules["T1"][0].unavailable_id, "UNAVAIL_T1_LEAVE")
+        self.assertEqual(rules["T1"][0].start_date, "2026-07-01")
+        self.assertEqual(rules["T1"][0].end_date, "2026-07-02")
+        self.assertEqual(rules["T1"][0].periods, {"AM", "EVENING"})
+        self.assertEqual(rules["T1"][0].reason, "请假")
+        self.assertEqual(rules["T1"][1].weekdays, {0, 2})
+        self.assertEqual(rules["T1"][1].schedule_window_ids, {"2026暑假"})
+        self.assertEqual(rules["T1"][1].reason, "兼职限制")
+        self.assertEqual(rules["T2"][0].schedule_window_ids, {"2026秋季", "WINDOW_AUTUMN"})
+
+    def test_parse_teacher_unavailability_rejects_reversed_date_range(self) -> None:
+        with self.assertRaisesRegex(ValueError, "教师不可排规则 UNAVAIL_BAD 的 end_date 不能早于 start_date"):
+            scheduler.parse_teacher_unavailability(
+                [
+                    {
+                        "unavailable_id": "UNAVAIL_BAD",
+                        "teacher_id": "T1",
+                        "start_date": "2026-07-03",
+                        "end_date": "2026-07-01",
+                    }
+                ]
+            )
+
     def test_parse_product_requirements_preserves_shared_filters_and_legacy_group_field(self) -> None:
         products = scheduler.parse_products(
             [
