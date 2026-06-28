@@ -25,6 +25,7 @@ from run_scheduling_pipeline import (
     load_source_tables,
     main as pipeline_main,
     missing_teacher_rows_for_requirements,
+    overlay_standard_tables_on_state,
     parse_missing_teacher_requirements,
     row_counts_for_tables,
     run_pipeline,
@@ -1178,6 +1179,39 @@ class SchedulingPipelineTest(unittest.TestCase):
         self.assertEqual(state["classes"][0]["teacher_assignments"][0]["course_group"], "阅读类")
         self.assertEqual(state["class_teacher_assignments"][0]["class_id"], "C1")
         self.assertEqual(state["class_teacher_assignments"][0]["teacher_name"], "张老师")
+
+    def test_business_overlay_uses_shared_standard_tables_and_resets_old_class_rows(self) -> None:
+        payload = {
+            "schedule_windows": [{"schedule_window_id": "2026暑假"}],
+            "products": [{"id": "P1", "name": "产品1"}],
+            "product_courses": [{"product_id": "P1", "stage": "基础", "course_group": "阅读类"}],
+            "classes": [{"id": "OLD_CLASS", "name": "旧班级"}],
+            "class_teacher_assignments": [
+                {"class_id": "OLD_CLASS", "teacher_id": "OLD_T", "teacher_name": "旧老师"}
+            ],
+            "business_product_mappings": [{"local_product_id": "P1", "business_product_id": "100"}],
+            "erp_standard_products": [{"erp_product_key": "ERP1"}],
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            data_admin_server.DATA_DIR = Path(tmp) / "data"
+            data_admin_server.save_state(payload)
+
+            overlay = overlay_standard_tables_on_state(
+                {
+                    "class_teacher_assignments": LoadedTable(
+                        "class_teacher_assignments",
+                        "class_teacher_assignments.csv",
+                        [{"class_id": "NEW_CLASS", "teacher_id": "NEW_T", "teacher_name": "新老师"}],
+                    )
+                }
+            )
+
+        self.assertEqual(set(data_admin_server.STANDARD_TABLE_FIELDNAMES), set(overlay))
+        self.assertEqual(overlay["classes"], [])
+        self.assertEqual(overlay["class_teacher_assignments"][0]["class_id"], "NEW_CLASS")
+        self.assertEqual(overlay["business_product_mappings"][0]["business_product_id"], "100")
+        self.assertEqual(overlay["erp_standard_products"][0]["erp_product_key"], "ERP1")
+        self.assertEqual(overlay["schedule_windows"][0]["schedule_window_id"], "2026暑假")
 
     def test_saved_json_rows_are_limited_to_current_table_fields(self) -> None:
         payload = {

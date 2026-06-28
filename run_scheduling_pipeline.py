@@ -461,29 +461,14 @@ def payload_from_tables(tables: Dict[str, LoadedTable]) -> Dict[str, Any]:
     return payload
 
 
+def standard_payload_from_state(state: Dict[str, Any]) -> Dict[str, Any]:
+    return {table: list(state.get(table, [])) for table in TABLES}
+
+
 def overlay_standard_tables_on_state(tables: Dict[str, LoadedTable]) -> Dict[str, Any]:
-    state = data_admin_server.load_state()
-    payload = {
-        "schedule_windows": list(state.get("schedule_windows", [])),
-        "time_slots": list(state.get("time_slots", [])),
-        "teaching_areas": list(state.get("teaching_areas", [])),
-        "rooms": list(state.get("rooms", [])),
-        "teachers": list(state.get("teachers", [])),
-        "teacher_unavailability": list(state.get("teacher_unavailability", [])),
-        "products": list(state.get("products", [])),
-        "product_courses": list(state.get("product_courses", [])),
-        "product_schedule_rules": list(state.get("product_schedule_rules", [])),
-        "classes": [],
-        "class_window_boundaries": list(state.get("class_window_boundaries", [])),
-        "class_teacher_assignments": [],
-        "class_conflict_groups": list(state.get("class_conflict_groups", [])),
-        "locked_scheduled_lessons": list(state.get("locked_scheduled_lessons", [])),
-        "teaching_area_links": list(state.get("teaching_area_links", [])),
-        "global_blackout_dates": list(state.get("global_blackout_dates", [])),
-        "historical_scheduled_lessons": list(state.get("historical_scheduled_lessons", [])),
-        "business_product_mappings": list(state.get("business_product_mappings", [])),
-        "erp_standard_products": list(state.get("erp_standard_products", [])),
-    }
+    payload = standard_payload_from_state(data_admin_server.load_state())
+    payload["classes"] = []
+    payload["class_teacher_assignments"] = []
     for table in TABLES:
         if table in tables:
             payload[table] = list(tables[table].rows)
