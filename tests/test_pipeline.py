@@ -1423,6 +1423,56 @@ class SchedulingPipelineTest(unittest.TestCase):
         self.assertEqual(requirement.course_code, "ENG001")
         self.assertEqual(requirement.course_name, "")
 
+    def test_parse_time_slots_sorts_and_preserves_window_aliases(self) -> None:
+        slots = scheduler.parse_time_slots(
+            [
+                {
+                    "id": "S2",
+                    "date": "2026-07-01",
+                    "period": "PM",
+                    "name": "下午一",
+                    "order": "2",
+                    "duration_hours": "2",
+                    "window_id": "2026暑假",
+                    "window_name": "暑假",
+                },
+                {
+                    "id": "S1",
+                    "date": "2026-07-01",
+                    "period": "AM",
+                    "order": 1,
+                    "duration_hours": 4,
+                    "schedule_window_id": "2026暑假",
+                    "season_window_id": "WINDOW_SUMMER",
+                    "season_name": "暑假",
+                },
+            ]
+        )
+
+        self.assertEqual([slot.id for slot in slots], ["S1", "S2"])
+        self.assertEqual(slots[0].name, "S1")
+        self.assertEqual(slots[0].duration_hours, 4)
+        self.assertEqual(slots[0].season_window_id, "WINDOW_SUMMER")
+        self.assertEqual(slots[1].schedule_window_id, "2026暑假")
+        self.assertEqual(slots[1].season_name, "暑假")
+
+    def test_parse_time_slots_rejects_invalid_rows_and_duration(self) -> None:
+        with self.assertRaisesRegex(ValueError, "time_slots 现在需要使用对象格式"):
+            scheduler.parse_time_slots(["S1"])
+
+        with self.assertRaisesRegex(ValueError, "重复的课节 id: S1"):
+            scheduler.parse_time_slots(
+                [
+                    {"id": "S1", "date": "2026-07-01", "period": "AM", "order": 1},
+                    {"id": "S1", "date": "2026-07-01", "period": "PM", "order": 2},
+                ]
+            )
+
+        with self.assertRaisesRegex(ValueError, "课节 S1 的 duration_hours 必须大于 0"):
+            scheduler.parse_time_slots(
+                [{"id": "S1", "date": "2026-07-01", "period": "AM", "order": 1, "duration_hours": 0}]
+            )
+
     def test_parse_teacher_unavailability_accepts_aliases_and_skips_incomplete_rules(self) -> None:
         rules = scheduler.parse_teacher_unavailability(
             [

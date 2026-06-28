@@ -611,39 +611,48 @@ def room_from_row(raw_room: dict, area_meta_by_id: Mapping[object, dict], has_ex
     )
 
 
+def time_slot_row(raw: object) -> dict:
+    if not isinstance(raw, dict):
+        raise ValueError("time_slots 现在需要使用对象格式，包含 id/date/period/name/order")
+    return raw
+
+
+def time_slot_id(raw: dict, seen: Set[str]) -> str:
+    slot_id = raw["id"]
+    if slot_id in seen:
+        raise ValueError(f"重复的课节 id: {slot_id}")
+    seen.add(slot_id)
+    return slot_id
+
+
+def time_slot_duration(raw: dict, slot_id: str) -> int:
+    duration_hours = int(raw.get("duration_hours", 2))
+    if duration_hours <= 0:
+        raise ValueError(f"课节 {slot_id} 的 duration_hours 必须大于 0")
+    return duration_hours
+
+
+def time_slot_from_row(raw: object, seen: Set[str]) -> TimeSlot:
+    row = time_slot_row(raw)
+    slot_id = time_slot_id(row, seen)
+    return TimeSlot(
+        id=slot_id,
+        date=row["date"],
+        period=row["period"],
+        name=row.get("name", slot_id),
+        order=int(row["order"]),
+        start_time=row.get("start_time"),
+        end_time=row.get("end_time"),
+        duration_hours=time_slot_duration(row, slot_id),
+        schedule_window_id=row.get("schedule_window_id") or row.get("window_id"),
+        season_window_id=row.get("season_window_id"),
+        season_name=row.get("season_name") or row.get("window_name"),
+    )
+
+
 def parse_time_slots(raw_slots: List[dict]) -> List[TimeSlot]:
-    slots: List[TimeSlot] = []
     seen: Set[str] = set()
-
-    for raw in raw_slots:
-        if not isinstance(raw, dict):
-            raise ValueError("time_slots 现在需要使用对象格式，包含 id/date/period/name/order")
-
-        slot_id = raw["id"]
-        if slot_id in seen:
-            raise ValueError(f"重复的课节 id: {slot_id}")
-        seen.add(slot_id)
-
-        duration_hours = int(raw.get("duration_hours", 2))
-        if duration_hours <= 0:
-            raise ValueError(f"课节 {slot_id} 的 duration_hours 必须大于 0")
-
-        slots.append(
-            TimeSlot(
-                id=slot_id,
-                date=raw["date"],
-                period=raw["period"],
-                name=raw.get("name", slot_id),
-                order=int(raw["order"]),
-                start_time=raw.get("start_time"),
-                end_time=raw.get("end_time"),
-                duration_hours=duration_hours,
-                schedule_window_id=raw.get("schedule_window_id") or raw.get("window_id"),
-                season_window_id=raw.get("season_window_id"),
-                season_name=raw.get("season_name") or raw.get("window_name"),
-            )
-        )
-
+    slots = [time_slot_from_row(raw, seen) for raw in raw_slots]
     slots.sort(key=slot_sort_key)
     return slots
 
