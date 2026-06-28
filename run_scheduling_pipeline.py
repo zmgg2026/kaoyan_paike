@@ -209,6 +209,17 @@ class PipelineError(RuntimeError):
     pass
 
 
+def empty_source_row_counts() -> Dict[str, int]:
+    return {table: 0 for table in SOURCE_TABLES}
+
+
+def row_counts_for_tables(tables: Dict[str, LoadedTable]) -> Dict[str, int]:
+    row_counts = {table: len(loaded.rows) for table, loaded in tables.items()}
+    for table in SOURCE_TABLES:
+        row_counts.setdefault(table, 0)
+    return row_counts
+
+
 def normalize_table_name(value: str) -> str:
     text = Path(value).stem if "." in value else value
     return (
@@ -495,6 +506,37 @@ def validate_scheduler_input(state: Dict[str, Any], time_slots: List[Dict[str, A
         scheduler.load_input_data(data_admin_server.build_scheduler_input(state, time_slots=time_slots))
     except ValueError as exc:
         raise PipelineError(str(exc)) from exc
+
+
+def prepare_state_for_scheduling(
+    *,
+    args: argparse.Namespace,
+    tables: Dict[str, LoadedTable],
+    output_dir: Path,
+    timestamp: str,
+    warnings: List[str],
+    generated_files: List[Path],
+    no_time_slots_error: str,
+) -> tuple[Dict[str, Any], List[Dict[str, Any]]]:
+    payload, conversion_warnings, conversion_files = build_payload_from_tables(tables, output_dir, timestamp)
+    warnings.extend(conversion_warnings)
+    generated_files.extend(conversion_files)
+    state = data_admin_server.normalize_payload(payload)
+    validate_required_data(state)
+
+    expanded_rules = expanded_rules_for_state(state)
+    warnings.extend(prepare_class_windows(state, expanded_rules))
+    time_slots, time_slot_warning = time_slots_for_state(
+        state,
+        parse_weekdays(args.exclude_weekdays),
+        args.slot_set,
+        getattr(args, "sunday_policy", "summer-only"),
+    )
+    if time_slot_warning:
+        warnings.append(time_slot_warning)
+    if not available_time_slots(state, time_slots):
+        raise PipelineError(no_time_slots_error)
+    return state, time_slots
 
 
 def parse_iso_date(value: str, label: str) -> date:
@@ -817,7 +859,7 @@ def run_pipeline(args: argparse.Namespace) -> PipelineResult:
     data_admin_server.DATA_DIR = data_dir
 
     tables: Dict[str, LoadedTable] = {}
-    row_counts = {table: 0 for table in SOURCE_TABLES}
+    row_counts = empty_source_row_counts()
     warnings: List[str] = []
     backup_path: Optional[Path] = None
     scheduler_input_path: Optional[Path] = None
@@ -829,27 +871,16 @@ def run_pipeline(args: argparse.Namespace) -> PipelineResult:
 
     try:
         tables = load_source_tables(source)
-        row_counts = {table: len(loaded.rows) for table, loaded in tables.items()}
-        for table in SOURCE_TABLES:
-            row_counts.setdefault(table, 0)
-
-        payload, conversion_warnings, generated_files = build_payload_from_tables(tables, output_dir, timestamp)
-        warnings.extend(conversion_warnings)
-        state = data_admin_server.normalize_payload(payload)
-        validate_required_data(state)
-
-        expanded_rules = expanded_rules_for_state(state)
-        warnings.extend(prepare_class_windows(state, expanded_rules))
-        time_slots, time_slot_warning = time_slots_for_state(
-            state,
-            parse_weekdays(args.exclude_weekdays),
-            args.slot_set,
-            getattr(args, "sunday_policy", "summer-only"),
+        row_counts = row_counts_for_tables(tables)
+        state, time_slots = prepare_state_for_scheduling(
+            args=args,
+            tables=tables,
+            output_dir=output_dir,
+            timestamp=timestamp,
+            warnings=warnings,
+            generated_files=generated_files,
+            no_time_slots_error="没有可用课节，请检查 02_课节表 is_usable 或 16_全局停课日期表。",
         )
-        if time_slot_warning:
-            warnings.append(time_slot_warning)
-        if not available_time_slots(state, time_slots):
-            raise PipelineError("没有可用课节，请检查 02_课节表 is_usable 或 16_全局停课日期表。")
         validate_scheduler_input(state, time_slots)
         backup_path = backup_data_dir(data_dir, output_dir, timestamp)
 
@@ -928,7 +959,7 @@ def run_preflight(args: argparse.Namespace) -> PreflightResult:
 
     data_admin_server.DATA_DIR = data_dir
     tables: Dict[str, LoadedTable] = {}
-    row_counts = {table: 0 for table in SOURCE_TABLES}
+    row_counts = empty_source_row_counts()
     warnings: List[str] = []
     generated_files: List[Path] = []
     state: Optional[Dict[str, Any]] = None
@@ -939,26 +970,17 @@ def run_preflight(args: argparse.Namespace) -> PreflightResult:
 
     try:
         tables = load_source_tables(source)
-        row_counts = {table: len(loaded.rows) for table, loaded in tables.items()}
-        for table in SOURCE_TABLES:
-            row_counts.setdefault(table, 0)
-        payload, conversion_warnings, generated_files = build_payload_from_tables(tables, output_dir, timestamp)
-        warnings.extend(conversion_warnings)
-        state = data_admin_server.normalize_payload(payload)
-        validate_required_data(state)
-        expanded_rules = expanded_rules_for_state(state)
-        warnings.extend(prepare_class_windows(state, expanded_rules))
-        time_slots, time_slot_warning = time_slots_for_state(
-            state,
-            parse_weekdays(args.exclude_weekdays),
-            args.slot_set,
-            getattr(args, "sunday_policy", "summer-only"),
+        row_counts = row_counts_for_tables(tables)
+        state, _time_slots = prepare_state_for_scheduling(
+            args=args,
+            tables=tables,
+            output_dir=output_dir,
+            timestamp=timestamp,
+            warnings=warnings,
+            generated_files=generated_files,
+            no_time_slots_error="上传前校验未找到任何可用课节，请检查 02_课节表 is_usable 或 16_全局停课日期表。",
         )
-        if time_slot_warning:
-            warnings.append(time_slot_warning)
-        if not available_time_slots(state, time_slots):
-            raise PipelineError("上传前校验未找到任何可用课节，请检查 02_课节表 is_usable 或 16_全局停课日期表。")
-        validate_scheduler_input(state, time_slots)
+        validate_scheduler_input(state, _time_slots)
         passed = True
     except Exception as exc:
         if isinstance(exc, BusinessDataError):
@@ -1049,7 +1071,7 @@ def main() -> None:
                     report_path,
                     source=Path(args.source).resolve(),
                     tables={},
-                    row_counts={table: 0 for table in SOURCE_TABLES},
+                    row_counts=empty_source_row_counts(),
                     warnings=[],
                     backup_path=None,
                     scheduler_input_path=None,
@@ -1085,7 +1107,7 @@ def main() -> None:
                 report_path,
                 source=Path(args.source).resolve(),
                 tables={},
-                row_counts={table: 0 for table in SOURCE_TABLES},
+                row_counts=empty_source_row_counts(),
                 warnings=[],
                 backup_path=None,
                 scheduler_input_path=None,

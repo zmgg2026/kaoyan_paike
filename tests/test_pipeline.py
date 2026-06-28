@@ -21,6 +21,7 @@ from run_scheduling_pipeline import (
     load_source_tables,
     missing_teacher_rows_for_requirements,
     parse_missing_teacher_requirements,
+    row_counts_for_tables,
     run_pipeline,
     run_preflight,
     table_name_for,
@@ -3051,6 +3052,17 @@ class SchedulingPipelineTest(unittest.TestCase):
 
             with self.assertRaises(PipelineError):
                 load_source_tables(source)
+
+    def test_source_row_counts_cover_all_standard_tables(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            source = Path(tmp)
+            write_csv(source / "products.csv", ["id", "name"], [{"id": "P1", "name": "A"}])
+
+            row_counts = row_counts_for_tables(load_source_tables(source))
+
+        self.assertEqual(row_counts["products"], 1)
+        self.assertEqual(set(SOURCE_TABLES), set(row_counts))
+        self.assertTrue(all(row_counts[table] == 0 for table in SOURCE_TABLES if table != "products"))
 
     def test_excel_source_is_supported(self) -> None:
         try:
