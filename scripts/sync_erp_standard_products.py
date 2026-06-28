@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
-import csv
 import argparse
 import json
 import re
@@ -10,7 +9,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
-import pandas as pd
+from scripts.csv_utils import read_csv_rows, write_csv_rows
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -145,23 +144,20 @@ CLASS_PRODUCT_PATTERN = re.compile(r"业务产品:\s*([^ ;]+)\s+([^;]+)")
 def text(value: Any) -> str:
     if value is None:
         return ""
-    if isinstance(value, float) and pd.isna(value):
-        return ""
+    try:
+        if value != value:
+            return ""
+    except TypeError:
+        pass
     return str(value).strip()
 
 
 def read_csv(path: Path) -> List[Dict[str, str]]:
-    with path.open(newline="", encoding="utf-8") as handle:
-        return list(csv.DictReader(handle))
+    return read_csv_rows(path)
 
 
 def write_csv(path: Path, rows: List[Dict[str, Any]], fieldnames: List[str]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", newline="", encoding="utf-8") as handle:
-        writer = csv.DictWriter(handle, fieldnames=fieldnames, extrasaction="ignore")
-        writer.writeheader()
-        for row in rows:
-            writer.writerow({field: serialize(row.get(field, "")) for field in fieldnames})
+    write_csv_rows(path, fieldnames, rows, encoding="utf-8", value_formatter=serialize)
 
 
 def write_json(path: Path, payload: Dict[str, Any]) -> None:
@@ -179,6 +175,11 @@ def product_key(course_code: str, version_code: str) -> str:
 
 
 def import_erp_products(source: Path) -> List[Dict[str, str]]:
+    try:
+        import pandas as pd
+    except ModuleNotFoundError as exc:
+        raise RuntimeError("同步 ERP 标准产品需要 pandas，请先安装 requirements.txt") from exc
+
     df = pd.read_excel(source, sheet_name="学校导出数据", dtype=str).fillna("")
     rows: List[Dict[str, str]] = []
     for _, record in df.iterrows():

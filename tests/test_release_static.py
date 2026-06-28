@@ -50,6 +50,7 @@ class ReleaseStaticTest(unittest.TestCase):
             ROOT / "scripts" / "schedule_conflicts.py",
             ROOT / "scripts" / "schedule_outputs.py",
             ROOT / "scripts" / "schedule_scope.py",
+            ROOT / "scripts" / "sync_erp_standard_products.py",
             ROOT / "scripts" / "sync_template_workbook_to_admin_data.py",
         ]
         offenders = []
