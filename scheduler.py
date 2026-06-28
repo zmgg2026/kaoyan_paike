@@ -1654,19 +1654,40 @@ def resolve_product_requirement_teachers(
             product_requirements,
         )
         if not teacher_assignment:
-            detail_text = teacher_assignment_key_text(product_req.subject, product_req.stage, product_req.course_group)
-            if detail_text not in missing_teacher_seen:
-                missing_teacher_labels.append(detail_text)
-                missing_teacher_seen.add(detail_text)
+            add_missing_teacher_label(product_req, missing_teacher_labels, missing_teacher_seen)
             continue
         resolved_requirements.append((product_req, teacher_assignment))
 
     if missing_teacher_labels:
-        raise ValueError(
-            f"班级 {class_id} 的产品 {product_id} 缺少课程老师安排: "
-            + "、".join(missing_teacher_labels)
-        )
+        raise missing_teacher_assignments_error(class_id, product_id, missing_teacher_labels)
     return resolved_requirements
+
+
+def missing_teacher_label(product_req: ProductRequirement) -> str:
+    return teacher_assignment_key_text(product_req.subject, product_req.stage, product_req.course_group)
+
+
+def add_missing_teacher_label(
+    product_req: ProductRequirement,
+    missing_teacher_labels: List[str],
+    missing_teacher_seen: Set[str],
+) -> None:
+    detail_text = missing_teacher_label(product_req)
+    if detail_text in missing_teacher_seen:
+        return
+    missing_teacher_labels.append(detail_text)
+    missing_teacher_seen.add(detail_text)
+
+
+def missing_teacher_assignments_error(
+    class_id: str,
+    product_id: str,
+    missing_teacher_labels: List[str],
+) -> ValueError:
+    return ValueError(
+        f"班级 {class_id} 的产品 {product_id} 缺少课程老师安排: "
+        + "、".join(missing_teacher_labels)
+    )
 
 
 def product_requirement_course_fields(product_req: ProductRequirement) -> Dict[str, object]:

@@ -1639,6 +1639,21 @@ class SchedulingPipelineTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "班级 C1/英语/词汇 的班级教室限制与产品/课程教室限制没有交集"):
             scheduler.class_requirement_from_product_requirement("C1", product_req, teacher, {"R9"})
 
+    def test_resolve_product_requirement_teachers_reports_unique_missing_labels(self) -> None:
+        requirements = [
+            scheduler.ProductRequirement("公共课", "英语", None, "基础", "词汇", "阅读类", 2, 2),
+            scheduler.ProductRequirement("公共课", "英语", None, "基础", "语法", "阅读类", 2, 2),
+            scheduler.ProductRequirement("公共课", "政治", None, "基础", "毛史", "毛史类", 2, 2),
+        ]
+
+        with self.assertRaises(ValueError) as context:
+            scheduler.resolve_product_requirement_teachers("C1", "P1", requirements, {})
+
+        message = str(context.exception)
+
+        self.assertEqual(message, "班级 C1 的产品 P1 缺少课程老师安排: 英语/基础/阅读类、政治/基础/毛史类")
+        self.assertEqual(message.count("英语/基础/阅读类"), 1)
+
     def test_parse_class_window_constraints_expands_rooms_sorts_and_validates_periods(self) -> None:
         rooms = {
             "R1": scheduler.Room("R1", teaching_area_id="A1"),
