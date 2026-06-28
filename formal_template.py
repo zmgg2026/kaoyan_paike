@@ -23,7 +23,8 @@ from business_class_import import (
     learn_teacher_assignments,
     teacher_employee_ids_from_business_rows,
 )
-from scripts.csv_utils import csv_rows_text
+from scripts.csv_utils import csv_rows_text, serialize_csv_value
+from scripts.table_schema import BUSINESS_PRODUCT_MAPPING_FIELDNAMES, TEACHER_ASSIGNMENT_FIELDNAMES
 
 
 @dataclass
@@ -36,7 +37,7 @@ class TemplateGenerationResult:
     warnings: List[str]
 
 def csv_text(rows: Sequence[Mapping[str, Any]], fieldnames: Sequence[str]) -> str:
-    return csv_rows_text(fieldnames, rows, bom=True, value_formatter=data_admin_server.csv_escape)
+    return csv_rows_text(fieldnames, rows, bom=True, value_formatter=serialize_csv_value)
 
 
 def selected_business_rows(rows: Iterable[Mapping[str, Any]]) -> Tuple[List[Mapping[str, Any]], List[str]]:
@@ -273,7 +274,7 @@ def write_workbook(path: Path, sheets: Sequence[Tuple[str, Sequence[Mapping[str,
             cell.font = Font(bold=True)
             cell.fill = header_fill
         for row in rows:
-            sheet.append([data_admin_server.csv_escape(row.get(field, "")) for field in fieldnames])
+            sheet.append([serialize_csv_value(row.get(field, "")) for field in fieldnames])
         autosize_sheet(sheet)
     path.parent.mkdir(parents=True, exist_ok=True)
     workbook.save(path)
@@ -392,8 +393,8 @@ def generate_formal_launch_template(source: Path, output_dir: Path, timestamp: s
 
     sheets: List[Tuple[str, Sequence[Mapping[str, Any]], Sequence[str]]] = [
         ("填写说明", instruction_rows, ["item", "description"]),
-        ("business_product_mappings", product_map_rows, data_admin_server.BUSINESS_PRODUCT_MAPPING_FIELDNAMES),
-        ("class_teacher_assignments", learned_assignment_rows, data_admin_server.TEACHER_ASSIGNMENT_FIELDNAMES),
+        ("business_product_mappings", product_map_rows, BUSINESS_PRODUCT_MAPPING_FIELDNAMES),
+        ("class_teacher_assignments", learned_assignment_rows, TEACHER_ASSIGNMENT_FIELDNAMES),
         ("scheduled_lessons字段说明", scheduled_field_rows, ["field", "required", "description"]),
         ("产品目录参考", product_rows, ["local_product_id", "product_name", "project", "product_line", "sub_product", "product_system", "subject", "subject_category", "course_nature", "course_count"]),
         ("业务班级筛选结果", business_selection_rows, ["class_id", "class_name", "business_product_id", "business_product_name", "product_system", "exam_season", "exam_month", "actual_start_date", "actual_end_date", "room_id", "room_name", "teacher_raw", "merge_detail", "schedule_status"]),

@@ -298,6 +298,16 @@ class TemplateSyncTest(unittest.TestCase):
         self.assertTrue(text.startswith("\ufeff"))
         self.assertIn("1,是,A|B", text)
 
+    def test_formal_template_fieldnames_reuse_shared_table_schema(self) -> None:
+        self.assertIs(
+            formal_template.BUSINESS_PRODUCT_MAPPING_FIELDNAMES,
+            table_schema.BUSINESS_PRODUCT_MAPPING_FIELDNAMES,
+        )
+        self.assertIs(
+            formal_template.TEACHER_ASSIGNMENT_FIELDNAMES,
+            table_schema.TEACHER_ASSIGNMENT_FIELDNAMES,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

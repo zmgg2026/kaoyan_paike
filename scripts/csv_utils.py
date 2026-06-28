@@ -8,6 +8,16 @@ from typing import Callable, Dict, Iterable, List, Optional, Sequence, Tuple
 DEFAULT_ENCODINGS: Sequence[str] = ("utf-8-sig", "utf-8", "gb18030")
 
 
+def serialize_csv_value(value: object) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, bool):
+        return "是" if value else "否"
+    if isinstance(value, list):
+        return "|".join(str(item) for item in value)
+    return str(value)
+
+
 def clean_cell(value: object) -> str:
     if value is None:
         return ""

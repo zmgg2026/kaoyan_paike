@@ -15,7 +15,7 @@ if str(ROOT) not in sys.path:
 from openpyxl import load_workbook
 
 import data_admin_server
-from scripts.csv_utils import write_csv_rows
+from scripts.csv_utils import serialize_csv_value, write_csv_rows
 from scripts.field_utils import normalize_text, parse_bool as normalize_bool
 from scripts.schedule_modes import (
     assignment_actual_scheduled_class_id,
@@ -406,17 +406,9 @@ def json_doc(key: str, rows: List[Dict[str, Any]], workbook_path: Path) -> Dict[
     }
 
 
-def csv_value(value: Any) -> str:
-    if isinstance(value, bool):
-        return "是" if value else "否"
-    if isinstance(value, list):
-        return "|".join(str(item) for item in value)
-    return "" if value is None else str(value)
-
-
 def write_csv(path: Path, rows: List[Dict[str, Any]]) -> None:
     fields = output_fields_for_key("", csv_export=True, rows=rows)
-    write_csv_rows(path, fields, rows, value_formatter=csv_value)
+    write_csv_rows(path, fields, rows, value_formatter=serialize_csv_value)
 
 
 def output_fields_for_key(
@@ -468,7 +460,7 @@ def sync(workbook_path: Path) -> Dict[str, int]:
             DATA_DIR / f"{key}.csv",
             output_fields_for_key(key, csv_export=True),
             csv_rows,
-            value_formatter=csv_value,
+            value_formatter=serialize_csv_value,
         )
 
     return {key: len(rows) for key, rows in tables.items()}

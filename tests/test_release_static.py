@@ -108,12 +108,16 @@ class ReleaseStaticTest(unittest.TestCase):
     def test_standard_table_schema_lives_outside_admin_server(self) -> None:
         admin_source = (ROOT / "data_admin_server.py").read_text(encoding="utf-8")
         schema_source = (ROOT / "scripts" / "table_schema.py").read_text(encoding="utf-8")
+        formal_template_source = (ROOT / "formal_template.py").read_text(encoding="utf-8")
 
         self.assertIn("from scripts.table_schema import", admin_source)
         self.assertIn("STANDARD_TABLE_FIELDNAMES", schema_source)
         self.assertIsNone(re.search(r"(?m)^PRODUCT_FIELDNAMES\s*=", admin_source))
         self.assertIsNone(re.search(r"(?m)^STANDARD_TABLE_FIELDNAMES\s*[:=]", admin_source))
         self.assertIsNone(re.search(r"(?m)^CLASS_JSON_EXTRA_FIELDNAMES\s*=", admin_source))
+        self.assertIn("from scripts.table_schema import", formal_template_source)
+        self.assertNotIn("data_admin_server.BUSINESS_PRODUCT_MAPPING_FIELDNAMES", formal_template_source)
+        self.assertNotIn("data_admin_server.TEACHER_ASSIGNMENT_FIELDNAMES", formal_template_source)
 
     def test_cli_scripts_import_project_modules_with_bootstrap(self) -> None:
         project_import = re.compile(

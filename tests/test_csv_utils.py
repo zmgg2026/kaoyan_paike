@@ -13,6 +13,7 @@ from scripts.csv_utils import (
     read_csv_rows,
     read_csv_text_with_fieldnames,
     read_csv_with_fieldnames,
+    serialize_csv_value,
     write_csv_rows,
 )
 
@@ -87,6 +88,13 @@ class CsvUtilsTest(unittest.TestCase):
 
         self.assertTrue(text.startswith("\ufeff"))
         self.assertIn("1,是,A|B", text)
+
+    def test_serialize_csv_value_matches_template_and_admin_format(self) -> None:
+        self.assertEqual(serialize_csv_value(None), "")
+        self.assertEqual(serialize_csv_value(True), "是")
+        self.assertEqual(serialize_csv_value(False), "否")
+        self.assertEqual(serialize_csv_value(["A", "B"]), "A|B")
+        self.assertEqual(serialize_csv_value(0), "0")
 
     def test_write_csv_rows_can_raise_for_extra_fields(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

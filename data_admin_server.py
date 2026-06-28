@@ -20,7 +20,7 @@ from types import SimpleNamespace
 from typing import Any, Dict, Iterable, List, Optional, Set, Tuple
 from urllib.parse import unquote, urlparse
 
-from scripts.csv_utils import csv_rows_text, write_csv_rows
+from scripts.csv_utils import csv_rows_text, serialize_csv_value, write_csv_rows
 from scripts.field_utils import normalize_text, parse_bool as normalize_bool, split_pipe_values as split_id_list
 from scripts.schedule_modes import (
     assignment_is_shared,
@@ -95,13 +95,7 @@ def write_json(path: Path, data: Dict[str, Any]) -> None:
 
 
 def csv_escape(value: Any) -> str:
-    if value is None:
-        return ""
-    if isinstance(value, bool):
-        return "是" if value else "否"
-    if isinstance(value, list):
-        return "|".join(str(item) for item in value)
-    return str(value)
+    return serialize_csv_value(value)
 
 
 def write_csv(path: Path, rows: List[Dict[str, Any]], fieldnames: List[str]) -> None:
