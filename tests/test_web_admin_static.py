@@ -96,6 +96,29 @@ class WebAdminStaticTest(unittest.TestCase):
         self.assertIn("classActualScheduleWindowIds(cls).join", source)
         self.assertNotIn("actual_schedule_window_ids: []", source)
 
+    def test_class_conflict_frontend_edits_current_fields(self) -> None:
+        source = (ROOT / "web_admin" / "app.js").read_text(encoding="utf-8")
+
+        self.assertIn("function conflictGroupIsActive", source)
+        self.assertIn("function conflictGroupSource", source)
+        self.assertIn('data-field="is_conflict_group_active"', source)
+        self.assertIn('data-field="conflict_source"', source)
+        self.assertIn("conflictGroupIsActive(group)", source)
+        self.assertIn("conflictGroupSource(group)", source)
+        self.assertIn('if (field === "is_conflict_group_active") item.is_active = value;', source)
+        self.assertIn('if (field === "conflict_source") item.source = value;', source)
+        self.assertIn("is_conflict_group_active: true", source)
+        self.assertIn('conflict_source: "手动"', source)
+        self.assertIn('conflict_source: "套班编码"', source)
+        self.assertNotIn(
+            'data-list="class_conflict_groups" data-index="${index}" data-field="is_active"',
+            source,
+        )
+        self.assertNotIn(
+            'data-list="class_conflict_groups" data-index="${index}" data-field="source"',
+            source,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

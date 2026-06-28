@@ -293,6 +293,17 @@ function hydrateLabels() {
   }
 }
 
+function conflictGroupIsActive(group) {
+  const value = group?.is_conflict_group_active;
+  if (value === "" || value === undefined || value === null) return group?.is_active !== false;
+  const normalized = String(value).trim().toLowerCase();
+  return value !== false && normalized !== "否" && normalized !== "false";
+}
+
+function conflictGroupSource(group) {
+  return group?.conflict_source || group?.source || "手动";
+}
+
 async function saveData() {
   if (isSavingData) return;
   isSavingData = true;
@@ -3273,7 +3284,7 @@ function renderOverview() {
       || !Number(rule.block_hours || rule.block_hours_override || 0);
   }).length;
   const blackoutCount = (state.global_blackout_dates || []).filter((item) => item.is_active !== false).length;
-  const activeConflictGroups = (state.class_conflict_groups || []).filter((group) => group.is_active !== false).length;
+  const activeConflictGroups = (state.class_conflict_groups || []).filter(conflictGroupIsActive).length;
   const lockedLessonCount = (state.locked_scheduled_lessons || []).filter((lesson) => lesson.is_locked !== false).length;
   const productIssueCount = productsMissingCore + productsWithoutCourses + coursesMissingHours + rulesMissingWindow + businessMappingNeedsReview;
   const layerCards = [
@@ -4840,8 +4851,8 @@ function suiteConflictGroupsFromClasses() {
         exam_season: cls.exam_season || "",
         suite_code: cls.suite_code || "",
         class_ids: [],
-        is_active: true,
-        source: "套班编码",
+        is_conflict_group_active: true,
+        conflict_source: "套班编码",
         notes: "按套班编码自动生成",
       });
     }
@@ -4859,7 +4870,7 @@ function conflictSearchText(group) {
     group.name,
     group.exam_season,
     group.suite_code,
-    group.source,
+    conflictGroupSource(group),
     arrayValues(group.class_ids).map(classOptionLabel).join(" "),
     group.notes,
   ].filter(Boolean).join(" ").toLowerCase();
@@ -4874,11 +4885,11 @@ function renderClassConflicts() {
     .map((group, index) => ({ group, index }))
     .filter(({ group }) => !keyword || conflictSearchText(group).includes(keyword));
   const rows = limitDisplayedRows(matchedRows, visibleRowLimits.classConflicts);
-  const activeGroups = groups.filter((group) => group.is_active !== false).length;
-  const autoGroups = groups.filter((group) => (group.source || "") === "套班编码").length;
-  const manualGroups = groups.filter((group) => (group.source || "") !== "套班编码").length;
+  const activeGroups = groups.filter(conflictGroupIsActive).length;
+  const autoGroups = groups.filter((group) => conflictGroupSource(group) === "套班编码").length;
+  const manualGroups = groups.filter((group) => conflictGroupSource(group) !== "套班编码").length;
   const generatedSuiteGroups = suiteConflictGroupsFromClasses().length;
-  const invalidActiveGroups = groups.filter((group) => group.is_active !== false && uniqueList(group.class_ids).length < 2).length;
+  const invalidActiveGroups = groups.filter((group) => conflictGroupIsActive(group) && uniqueList(group.class_ids).length < 2).length;
   const missingClassRefs = groups.reduce((sum, group) => {
     return sum + uniqueList(group.class_ids).filter((classId) => !classIdSet.has(classId)).length;
   }, 0);
@@ -4970,7 +4981,7 @@ function classConflictTable(rows) {
                   </td>
                   <td>
                     <div class="class-conflict-tags">
-                      <select data-list="class_conflict_groups" data-index="${index}" data-field="source">${selectOptions(["套班编码", "手动"], group.source || "手动", "来源")}</select>
+                      <select data-list="class_conflict_groups" data-index="${index}" data-field="conflict_source">${selectOptions(["套班编码", "手动"], conflictGroupSource(group), "来源")}</select>
                       <input data-list="class_conflict_groups" data-index="${index}" data-field="suite_code" value="${html(group.suite_code)}" placeholder="套班编码">
                       <input data-list="class_conflict_groups" data-index="${index}" data-field="exam_season" value="${html(group.exam_season)}" placeholder="考季">
                     </div>
@@ -4979,7 +4990,7 @@ function classConflictTable(rows) {
                     ${classConflictClassPicker(group, index)}
                     <div class="field-caption">已选 ${arrayValues(group.class_ids).length} 个班级</div>
                   </td>
-                  <td><label class="inline-check"><input type="checkbox" data-list="class_conflict_groups" data-index="${index}" data-field="is_active" ${group.is_active ? "checked" : ""}>启用</label></td>
+                  <td><label class="inline-check"><input type="checkbox" data-list="class_conflict_groups" data-index="${index}" data-field="is_conflict_group_active" ${conflictGroupIsActive(group) ? "checked" : ""}>启用</label></td>
                   <td><textarea data-list="class_conflict_groups" data-index="${index}" data-field="notes">${html(group.notes)}</textarea></td>
                   <td><button type="button" class="small danger" data-action="delete-class-conflict" data-index="${index}">删除</button></td>
                 </tr>
@@ -6022,8 +6033,8 @@ function addClassConflictGroup() {
     exam_season: "",
     suite_code: "",
     class_ids: [],
-    is_active: true,
-    source: "手动",
+    is_conflict_group_active: true,
+    conflict_source: "手动",
     notes: "",
   });
   showStatus("已新增班级互斥组，请用班级编码搜索添加至少 2 个互斥班级。", "ok");
@@ -6498,6 +6509,12 @@ function handleValueChange(target, event = null) {
       value = arrayValues(value);
     }
     setByIndex(listName, rowIndex, field, value);
+    if (listName === "class_conflict_groups") {
+      const item = state.class_conflict_groups[rowIndex];
+      if (!item) return;
+      if (field === "is_conflict_group_active") item.is_active = value;
+      if (field === "conflict_source") item.source = value;
+    }
     if (listName === "class_window_boundaries") {
       const item = state.class_window_boundaries[rowIndex];
       if (!item) return;
