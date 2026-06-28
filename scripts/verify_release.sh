@@ -5,6 +5,7 @@ ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 PYTHON_BIN="${PYTHON_BIN:-python3}"
 TMP_ROOT="${TMPDIR:-/tmp}"
 WORK_DIR="$(mktemp -d "$TMP_ROOT/ai-schedule-verify.XXXXXX")"
+export PYTHONPYCACHEPREFIX="$WORK_DIR/pycache"
 
 cleanup() {
   rm -rf "$WORK_DIR"

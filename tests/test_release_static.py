@@ -69,6 +69,7 @@ class ReleaseStaticTest(unittest.TestCase):
     def test_release_verification_compiles_all_python_scripts(self) -> None:
         script = (ROOT / "scripts" / "verify_release.sh").read_text(encoding="utf-8")
 
+        self.assertIn('export PYTHONPYCACHEPREFIX="$WORK_DIR/pycache"', script)
         self.assertIn('find scripts -name "*.py"', script)
         self.assertIn("-m py_compile \"$script_path\"", script)
 
