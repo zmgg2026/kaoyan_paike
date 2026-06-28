@@ -46,6 +46,21 @@ class WebAdminStaticTest(unittest.TestCase):
         self.assertIn('["季节窗口", "寒假 1-2 月，春季 3-6 月，暑假 7-8 月，秋季 9-12 月。"]', source)
         self.assertNotIn('["全局窗口", "寒假 1-2 月，春季 3-6 月，暑假 7-8 月，秋季 9-12 月。"]', source)
 
+    def test_product_rule_templates_are_season_window_based(self) -> None:
+        source = (ROOT / "web_admin" / "app.js").read_text(encoding="utf-8")
+        start = source.index("function defaultScheduleRuleTemplates()")
+        end = source.index("\nfunction loadScheduleRuleTemplates()", start)
+        body = source[start:end]
+
+        self.assertNotIn('"2026-', body)
+        self.assertNotIn("RULE_LONG_CAMP_OPEN_NORMAL", body)
+        self.assertIn('season_window_id: season.season_window_id || ""', body)
+        self.assertIn("window_name: windowName", body)
+        self.assertIn('start_date: ""', body)
+        self.assertIn('end_date: ""', body)
+        self.assertIn("same_half_day_4h_same_teacher_required: blockHours >= 4", body)
+        self.assertIn('"RULE_WYQ_WINTER_WEEKEND_DAY"', body)
+
 
 if __name__ == "__main__":
     unittest.main()
