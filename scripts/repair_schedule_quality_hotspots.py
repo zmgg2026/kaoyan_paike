@@ -22,6 +22,7 @@ from scripts.build_camp_maintenance_schedule import (  # noqa: E402
 from scripts.csv_utils import clean_cell as clean, read_csv_rows, write_csv_rows as write_csv_rows_with_fields  # noqa: E402
 from scripts.field_utils import split_cli_arg_set, split_delimited_values  # noqa: E402
 from scripts.period_utils import PERIOD_ORDER  # noqa: E402
+from scripts.product_catalog import stage_rank_map_from_context  # noqa: E402
 from scripts.schedule_class_windows import (  # noqa: E402
     ClassWindowConstraint,
     load_class_window_constraint_items,
@@ -76,19 +77,6 @@ FAR_REGION_PAIRS = {
     ("新站", "翡翠湖"),
     ("翡翠湖", "新站"),
 }
-
-STAGE_ORDERS = {
-    "寒暑营": {"寒假": 0, "春季": 1, "暑假": 2, "秋季": 3, "基础": 0, "强化": 1, "冲刺": 2},
-    "无忧寒": {"寒假": 0, "春季": 1, "暑假": 2, "秋季": 3, "基础": 0, "强化": 1, "冲刺": 2},
-    "全年营": {"导学1": 0, "导学2": 1, "一轮": 2, "二轮": 3, "三轮": 4, "四轮": 5},
-    "半年营": {"基础": 0, "强化": 1, "冲刺": 2},
-    "暑假营": {"基础": 0, "强化": 1, "冲刺": 2},
-    "无忧秋": {"基础": 0, "强化": 1, "冲刺": 2},
-    "无忧春": {"基础": 0, "强化": 1, "冲刺": 2},
-    "无忧暑": {"基础": 0, "强化": 1, "冲刺": 2},
-    "冲刺营": {"冲刺": 0},
-}
-
 
 @dataclass(frozen=True)
 class Block:
@@ -288,7 +276,7 @@ def block_window(block: Block, class_meta: Dict[str, dict], window_constraints: 
 
 
 def stage_rank(block: Block, class_meta: Dict[str, dict]) -> Optional[int]:
-    order = STAGE_ORDERS.get(block.sub_product, {})
+    order = stage_rank_map_from_context(block.sub_product)
     if block.stage in order:
         return order[block.stage]
     quarter = clean(class_meta.get(block.class_id, {}).get("quarter"))
@@ -302,7 +290,7 @@ def preserves_stage_order(rows: Sequence[dict], block: Block, target_date: str, 
     if rank is None:
         return True
     ignored = set(block.indices)
-    order = STAGE_ORDERS.get(block.sub_product, {})
+    order = stage_rank_map_from_context(block.sub_product)
     for index, row in enumerate(rows):
         if index in ignored:
             continue

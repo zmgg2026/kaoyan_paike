@@ -16,6 +16,7 @@ if str(ROOT) not in sys.path:
 
 from scripts.build_camp_maintenance_schedule import load_class_metadata  # noqa: E402
 from scripts.csv_utils import read_csv_rows  # noqa: E402
+from scripts.product_catalog import stage_rank_map_from_context  # noqa: E402
 from scripts.repair_schedule_quality_hotspots import (  # noqa: E402
     PERIOD_ORDER,
     PERIOD_SLOTS,
@@ -226,7 +227,7 @@ def best_week_assignments(
     best_cost = 10**9
     best: List[Tuple[Block, str, str]] = []
 
-    stage_order = {"基础": 0, "强化": 1, "冲刺": 2}
+    stage_order = stage_rank_map_from_context("无忧秋")
 
     def allowed_candidates(subject: str, remaining: Tuple[int, ...]) -> List[int]:
         if not remaining:

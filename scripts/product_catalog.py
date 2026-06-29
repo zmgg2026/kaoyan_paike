@@ -14,6 +14,17 @@ STAGE_ORDER_PROFILES = (
     (frozenset({"半年营", "暑假营", "无忧秋", "无忧春", "无忧暑"}), ("基础", "强化", "冲刺")),
     (frozenset({"冲刺营"}), ("冲刺",)),
 )
+STAGE_RANK_PROFILES = {
+    "寒暑营": {"寒假": 0, "春季": 1, "暑假": 2, "秋季": 3, "基础": 0, "强化": 1, "冲刺": 2},
+    "无忧寒": {"寒假": 0, "春季": 1, "暑假": 2, "秋季": 3, "基础": 0, "强化": 1, "冲刺": 2},
+    "全年营": {"导学1": 0, "导学2": 1, "一轮": 2, "二轮": 3, "三轮": 4, "四轮": 5},
+    "半年营": {"基础": 0, "强化": 1, "冲刺": 2},
+    "暑假营": {"基础": 0, "强化": 1, "冲刺": 2},
+    "无忧秋": {"基础": 0, "强化": 1, "冲刺": 2},
+    "无忧春": {"基础": 0, "强化": 1, "冲刺": 2},
+    "无忧暑": {"基础": 0, "强化": 1, "冲刺": 2},
+    "冲刺营": {"冲刺": 0},
+}
 PRODUCT_PROJECT_OPTIONS = ["考研", "专升本", "四六级"]
 PRODUCT_LINE_OPTIONS = ["考研复试", "考研集训营", "考研无忧", "考研个性化", "考研其他", "专升本", "四六级"]
 
@@ -39,6 +50,14 @@ def infer_stage_order_from_context(*values: Any) -> List[str]:
         if any(keyword in text for keyword in keywords):
             return list(order)
     return []
+
+
+def stage_rank_map_from_context(*values: Any) -> Dict[str, int]:
+    text = label_text(*values)
+    for keyword, rank_map in STAGE_RANK_PROFILES.items():
+        if keyword in text:
+            return dict(rank_map)
+    return {stage: index for index, stage in enumerate(infer_stage_order_from_context(*values))}
 
 
 def infer_project(product_name: str) -> str:

@@ -62,6 +62,14 @@ class ProductCatalogTest(unittest.TestCase):
             ["基础", "强化", "冲刺"],
         )
         self.assertEqual(product_catalog.infer_stage_order_from_context("冲刺营"), ["冲刺"])
+        self.assertEqual(
+            product_catalog.stage_rank_map_from_context("寒暑营"),
+            {"寒假": 0, "春季": 1, "暑假": 2, "秋季": 3, "基础": 0, "强化": 1, "冲刺": 2},
+        )
+        self.assertEqual(
+            product_catalog.stage_rank_map_from_context("考研全年营"),
+            {"导学1": 0, "导学2": 1, "一轮": 2, "二轮": 3, "三轮": 4, "四轮": 5},
+        )
 
     def test_product_project_and_line_options_are_shared(self) -> None:
         self.assertEqual(product_catalog.PRODUCT_PROJECT_OPTIONS, ["考研", "专升本", "四六级"])
