@@ -713,7 +713,8 @@ class SchedulingPipelineTest(unittest.TestCase):
                         "name": "本轮班",
                         "product_id": "P_ACTIVE",
                         "subject": "英语",
-                        "stages": "基础",
+                        "selected_stages": "基础",
+                        "stages": "强化",
                         "size": 30,
                     },
                     {
@@ -734,6 +735,7 @@ class SchedulingPipelineTest(unittest.TestCase):
 
         self.assertEqual([item["id"] for item in scheduler_input["products"]], ["P_ACTIVE"])
         self.assertEqual([item["id"] for item in scheduler_input["classes"]], ["C_ACTIVE"])
+        self.assertEqual(scheduler_input["classes"][0]["stages"], ["基础"])
         self.assertEqual(
             [item["product_id"] for item in scheduler_input["product_schedule_rules"]],
             ["P_ACTIVE"],
@@ -2949,6 +2951,19 @@ class SchedulingPipelineTest(unittest.TestCase):
         self.assertFalse(normalized["is_manual_schedule_locked"])
         self.assertNotIn("is_schedule_locked", normalized)
 
+    def test_normalize_class_prefers_current_selected_stages_field(self) -> None:
+        normalized = data_admin_server.normalize_class(
+            {
+                "id": "C1",
+                "name": "班级1",
+                "selected_stages": "基础",
+                "stages": "旧阶段",
+            }
+        )
+
+        self.assertEqual(normalized["selected_stages"], ["基础"])
+        self.assertEqual(normalized["stages"], ["基础"])
+
     def test_professional_import_marks_current_manual_lock_field(self) -> None:
         from scripts.import_locked_professional_schedules import update_class_lock_flags
 
@@ -3698,6 +3713,7 @@ class SchedulingPipelineTest(unittest.TestCase):
                     "product_id": "P1",
                     "subject": "英语",
                     "selected_stages": ["基础"],
+                    "stages": ["强化"],
                     "teacher_assignments": [
                         {"subject": "英语", "stage": "基础", "course_group": "阅读类", "teacher_id": "T1", "teacher_name": "张老师"}
                     ],

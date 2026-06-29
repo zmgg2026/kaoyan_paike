@@ -310,7 +310,7 @@ python3 generate_time_slots.py \
 - `classes.exam_month`: 考试月份，使用 `YYYY-MM` 格式，例如 `2026-12`、`2027-12`。
 - `classes.suite_code`: 套班编码，用于后续把存在套班关系的班级归到同一组。
 - `classes.subject`: 班级科目。若产品已维护科目，班级会自动继承；若产品未维护科目，可在班级侧选择科目，用于同步老师安排和导出排课输入时筛选课程。
-- `classes.stages`: 班级阶段，可多选。可选值来自已选产品和已选科目下的阶段；不选表示继承该科目的全部阶段。
+- `classes.selected_stages`: 班级阶段，可多选。可选值来自已选产品和已选科目下的阶段；不选表示继承该科目的全部阶段。
 - `classes.start_date` / `classes.start_period`: 班级可排窗口的最早日期和时段，可选。例如 `2026-07-06` + `PM` 表示这个班不早于 7 月 6 日下午排课；不再表示首课必须当天开始。
 - `classes.first_lesson_date` / `classes.first_lesson_period`: 固定首课锚点，可选。只有真正要求第一节课落在某天时才填写。例如 `2026-07-06` + `PM` 表示首课必须排在 7 月 6 日下午或更晚时段；如果填 `AM`，首课可以排在当天上午、下午或晚上。
 - `classes.end_date` / `classes.end_period`: 班级最晚可上课的日期和时段，可选。例如 `2026-08-20` + `AM` 表示最后只能排到 8 月 20 日上午。

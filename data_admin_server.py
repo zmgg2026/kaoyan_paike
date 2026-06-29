@@ -1031,9 +1031,12 @@ def normalize_product_rule(rule: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def normalized_class_stage_fields(cls: Dict[str, Any]) -> Dict[str, List[str]]:
+    selected_stages = split_id_list(cls.get("selected_stages"))
+    if not selected_stages:
+        selected_stages = split_id_list(cls.get("stages", cls.get("stage")))
     return {
-        "selected_stages": split_id_list(cls.get("selected_stages", cls.get("stages", cls.get("stage")))),
-        "stages": split_id_list(cls.get("stages", cls.get("selected_stages", cls.get("stage")))),
+        "selected_stages": selected_stages,
+        "stages": selected_stages,
     }
 
 
@@ -1434,7 +1437,7 @@ def sync_class_teacher_assignment_rows(
 
 def product_courses_for_class(cls: Dict[str, Any], product_courses: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     class_subject = normalize_text(cls.get("subject"))
-    selected_stages = set(split_id_list(cls.get("stages") or cls.get("selected_stages")))
+    selected_stages = set(split_id_list(cls.get("selected_stages") or cls.get("stages")))
     return [
         course
         for course in product_courses
@@ -2189,7 +2192,7 @@ def scheduler_class_payloads(
             "course_nature": cls.get("course_nature", ""),
             "subject_category": cls.get("subject_category", ""),
             "subject": cls["subject"],
-            "stages": cls["stages"],
+            "stages": split_id_list(cls.get("selected_stages") or cls.get("stages")),
             "exam_season": cls.get("exam_season", ""),
             "exam_month": cls.get("exam_month", ""),
             "suite_code": cls.get("suite_code", ""),

@@ -63,6 +63,8 @@ class DocumentationStaticTest(unittest.TestCase):
         self.assertNotIn("当前排课范围按 `2026-07-01` 到 `2026-12-13` 处理", readme)
         self.assertNotIn("157 个可排课日期、785 个可用课节", readme)
         self.assertIn("正式排课范围以 `01_年度排课窗口表`、`02_课节表` 和 `11_班级排课窗口表` 为准", readme)
+        self.assertIn("classes.selected_stages", readme)
+        self.assertNotIn("classes.stages", readme)
 
     def test_release_checklist_does_not_require_private_data(self) -> None:
         checklist = (ROOT / "docs" / "github-release-checklist.md").read_text(encoding="utf-8")
