@@ -35,6 +35,26 @@ def normalize_excel_text(value: Any) -> str:
     return normalize_text(value)
 
 
+def normalize_excel_cell_text(value: Any, number_format: Any = "") -> str:
+    if value is None:
+        return ""
+    if isinstance(value, datetime):
+        return value.date().isoformat()
+    if isinstance(value, Date):
+        return value.isoformat()
+    if isinstance(value, bool):
+        return "是" if value else "否"
+    if isinstance(value, (int, float)):
+        if isinstance(value, float) and not value.is_integer():
+            return str(value)
+        number = str(int(value))
+        format_text = normalize_text(number_format)
+        if format_text and set(format_text) == {"0"} and len(format_text) > len(number):
+            return number.zfill(len(format_text))
+        return number
+    return normalize_text(value)
+
+
 def is_blank_marker(value: Any) -> bool:
     return normalize_text(value) in BLANK_MARKERS
 

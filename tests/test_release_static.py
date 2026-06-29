@@ -145,6 +145,7 @@ class ReleaseStaticTest(unittest.TestCase):
         field_utils_source = (ROOT / "scripts" / "field_utils.py").read_text(encoding="utf-8")
 
         self.assertIn("def row_value", field_utils_source)
+        self.assertIn("def normalize_excel_cell_text", field_utils_source)
         self.assertIn("from scripts.field_utils import", admin_source)
         self.assertIn("from scripts.field_utils import", product_catalog_source)
         self.assertIn("from scripts.field_utils import", business_import_source)
@@ -156,6 +157,7 @@ class ReleaseStaticTest(unittest.TestCase):
         self.assertIn("normalize_blank_marker", admin_source)
         self.assertIn("blank_marker_to_empty", scheduler_source)
         self.assertIn("is_blank_marker", business_import_source)
+        self.assertIn("normalize_excel_cell_text", pipeline_source)
         self.assertIsNone(re.search(r"(?m)^def normalize_int\(", admin_source))
         self.assertIsNone(re.search(r"(?m)^def normalize_float\(", admin_source))
         self.assertIsNone(re.search(r"(?m)^def normalize_date_text\(", admin_source))
@@ -173,6 +175,8 @@ class ReleaseStaticTest(unittest.TestCase):
         self.assertIn("parse_time_minutes", business_import_source)
         self.assertNotIn("datetime.strptime(candidate, fmt)", business_import_source)
         self.assertNotIn("data_admin_server.normalize_text", pipeline_source)
+        self.assertNotIn("isinstance(value, datetime)", pipeline_source)
+        self.assertNotIn("set(number_format) == {\"0\"}", pipeline_source)
         self.assertNotIn("str(value or \"\").strip()", camp_maintenance_source)
 
     def test_boolean_parsing_lives_in_shared_field_utils(self) -> None:

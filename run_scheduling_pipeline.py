@@ -15,7 +15,7 @@ import scheduler
 from business_class_import import BusinessDataError, convert_business_tables
 from generate_time_slots import generate_time_slots, parse_weekdays
 from scripts.csv_utils import clean_csv_rows, read_csv_with_fieldnames, write_csv_rows
-from scripts.field_utils import normalize_text
+from scripts.field_utils import normalize_excel_cell_text, normalize_text
 from scripts.product_catalog import product_catalog as shared_product_catalog
 from scripts.template_tables import (
     BUSINESS_SOURCE_TABLES,
@@ -144,24 +144,7 @@ def load_csv_table_rows(path: Path) -> List[Dict[str, str]]:
 
 
 def cell_text(cell: Any) -> str:
-    value = cell.value
-    if value is None:
-        return ""
-    if isinstance(value, datetime):
-        return value.date().isoformat()
-    if isinstance(value, date):
-        return value.isoformat()
-    if isinstance(value, bool):
-        return "是" if value else "否"
-    if isinstance(value, (int, float)):
-        if isinstance(value, float) and not value.is_integer():
-            return str(value)
-        number = str(int(value))
-        number_format = str(getattr(cell, "number_format", "") or "")
-        if number_format and set(number_format) == {"0"} and len(number_format) > len(number):
-            return number.zfill(len(number_format))
-        return number
-    return str(value).strip()
+    return normalize_excel_cell_text(cell.value, getattr(cell, "number_format", ""))
 
 
 def read_xlsx_tables(path: Path) -> List[LoadedTable]:

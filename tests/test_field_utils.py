@@ -8,6 +8,7 @@ from scripts.field_utils import (
     is_blank_marker,
     normalize_blank_marker,
     normalize_date_text,
+    normalize_excel_cell_text,
     normalize_iso_date_text,
     normalize_excel_text,
     normalize_float,
@@ -51,6 +52,17 @@ class FieldUtilsTest(unittest.TestCase):
         self.assertEqual(normalize_excel_text(123.0), "123")
         self.assertEqual(normalize_excel_text(123.5), "123.5")
         self.assertEqual(normalize_excel_text("  RM001  "), "RM001")
+
+    def test_normalize_excel_cell_text_handles_typed_workbook_values(self) -> None:
+        self.assertEqual(normalize_excel_cell_text(None), "")
+        self.assertEqual(normalize_excel_cell_text(datetime(2026, 7, 1, 8, 30)), "2026-07-01")
+        self.assertEqual(normalize_excel_cell_text(date(2026, 7, 1)), "2026-07-01")
+        self.assertEqual(normalize_excel_cell_text(True), "是")
+        self.assertEqual(normalize_excel_cell_text(False), "否")
+        self.assertEqual(normalize_excel_cell_text(123.0), "123")
+        self.assertEqual(normalize_excel_cell_text(123.5), "123.5")
+        self.assertEqual(normalize_excel_cell_text(123, "000000"), "000123")
+        self.assertEqual(normalize_excel_cell_text("  RM001  "), "RM001")
 
     def test_normalize_int_and_float_handle_empty_and_invalid_values(self) -> None:
         self.assertEqual(normalize_int("4.0"), 4)
