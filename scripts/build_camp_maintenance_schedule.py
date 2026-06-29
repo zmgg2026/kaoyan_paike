@@ -94,7 +94,11 @@ from scripts.schedule_batch import (
     LONG_CAMP_MATH_MAX_CONSECUTIVE_DAYS,
     SUMMER_PREFERRED_WEEKLY_HALFDAY_MAX,
 )
-from scripts.subject_utils import CORE_PUBLIC_SUBJECT_PREFERRED_PERIODS, CORE_PUBLIC_SUBJECTS
+from scripts.subject_utils import (
+    CORE_PUBLIC_SUBJECT_PREFERRED_PERIODS,
+    CORE_PUBLIC_SUBJECTS,
+    PUBLIC_SUBJECT_PLACEMENT_ORDER as PUBLIC_SUBJECT_PRIORITY,
+)
 
 _raw_class_ids_for_suite_codes = raw_class_ids_for_suite_codes
 _raw_load_class_metadata = raw_load_class_metadata
@@ -148,7 +152,6 @@ PUBLIC_PRODUCT_ORDER = (
     "冲刺营",
 )
 ADDITIONAL_PUBLIC_PRODUCTS = ("全年营", "无忧暑", "无忧秋", "无忧春", "冲刺营")
-PUBLIC_SUBJECT_PRIORITY = {"数学": 0, "政治": 1, "英语": 2, "语文": 3}
 PUBLIC_SAME_CLASS_SUBJECT_DAY_HOURS = 8
 WYQC_PRODUCTS = {"无忧秋", "无忧春"}
 WYQC_SUITE_PRIORITY = {

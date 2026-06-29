@@ -582,11 +582,13 @@ class ReleaseStaticTest(unittest.TestCase):
         wyqc_week_balance_repair_source = (ROOT / "scripts" / "repair_wyqc_summer_week_balance.py").read_text(encoding="utf-8")
         wyqc_deadline_repair_source = (ROOT / "scripts" / "repair_wyqc_foundation_deadlines.py").read_text(encoding="utf-8")
         halfday_repair_source = (ROOT / "scripts" / "repair_2757_halfday_blocks.py").read_text(encoding="utf-8")
+        public_coverage_repair_source = (ROOT / "scripts" / "repair_public_coverage_gaps.py").read_text(encoding="utf-8")
         subject_utils_source = (ROOT / "scripts" / "subject_utils.py").read_text(encoding="utf-8")
 
         self.assertIn("CORE_PUBLIC_SUBJECTS", subject_utils_source)
         self.assertIn("PUBLIC_SUBJECTS_WITH_CHINESE", subject_utils_source)
         self.assertIn("PUBLIC_SUBJECT_SORT_ORDER", subject_utils_source)
+        self.assertIn("PUBLIC_SUBJECT_PLACEMENT_ORDER", subject_utils_source)
         self.assertIn("CORE_PUBLIC_SUBJECT_PREFERRED_PERIODS", subject_utils_source)
         self.assertIn("from scripts.subject_utils import CORE_PUBLIC_SUBJECTS", scheduler_source)
         self.assertIn("from scripts.subject_utils import CORE_PUBLIC_SUBJECTS", business_import_source)
@@ -596,6 +598,8 @@ class ReleaseStaticTest(unittest.TestCase):
         self.assertIn("from scripts.subject_utils import PUBLIC_SUBJECTS_WITH_CHINESE", erp_lesson_map_source)
         self.assertIn("CORE_PUBLIC_SUBJECTS", schedule_batch_source)
         self.assertIn("CORE_PUBLIC_SUBJECTS", camp_maintenance_source)
+        self.assertIn("PUBLIC_SUBJECT_PLACEMENT_ORDER as PUBLIC_SUBJECT_PRIORITY", camp_maintenance_source)
+        self.assertIn("PUBLIC_SUBJECT_PLACEMENT_ORDER as SUBJECT_ORDER", public_coverage_repair_source)
         self.assertIn("CORE_PUBLIC_SUBJECTS", suite_week_balance_repair_source)
         self.assertIn("CORE_PUBLIC_SUBJECTS", wyqc_week_balance_repair_source)
         self.assertIn("CORE_PUBLIC_SUBJECTS", wyqc_deadline_repair_source)
@@ -623,12 +627,15 @@ class ReleaseStaticTest(unittest.TestCase):
             audit_quality_source,
             quality_hotspot_repair_source,
             halfday_repair_source,
+            public_coverage_repair_source,
             suite_week_balance_repair_source,
             wyqc_week_balance_repair_source,
             wyqc_deadline_repair_source,
         ):
             self.assertIsNone(re.search(r'(?m)^PUBLIC_(?:TEACHER_)?SUBJECTS\s*=\s*\{"英语", "政治", "数学", "语文"\}', source))
             self.assertIsNone(re.search(r'(?m)^SUBJECT_ORDER\s*=\s*\{"数学": 0, "英语": 1, "政治": 2, "语文": 3\}', source))
+            self.assertIsNone(re.search(r'(?m)^SUBJECT_ORDER\s*=\s*\{"数学": 0, "政治": 1, "英语": 2\}', source))
+            self.assertIsNone(re.search(r'(?m)^PUBLIC_SUBJECT_PRIORITY\s*=\s*\{"数学": 0, "政治": 1, "英语": 2, "语文": 3\}', source))
             self.assertNotIn('{"英语", "政治", "数学"}', source)
             self.assertNotIn('{"英语", "数学", "政治"}', source)
             self.assertNotIn('{"数学": "AM", "英语": "PM", "政治": "PM"}', source)

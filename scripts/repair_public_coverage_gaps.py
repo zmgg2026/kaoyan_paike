@@ -23,6 +23,7 @@ from scripts.period_utils import PERIOD_ORDER
 from scripts.schedule_data import load_class_metadata, load_room_names
 from scripts.schedule_display import week_start, weekday_label
 from scripts.schedule_outputs import write_day_table_html
+from scripts.subject_utils import PUBLIC_SUBJECT_PLACEMENT_ORDER as SUBJECT_ORDER
 from scripts.time_slot_templates import lesson_slot_order, period_slot_specs
 
 DEFAULT_TARGET_CLASSES = {
@@ -40,7 +41,6 @@ DEFAULT_TARGET_CLASSES = {
 }
 PERIOD_SLOTS = period_slot_specs(("AM", "PM"))
 SLOT_ORDER = lesson_slot_order()
-SUBJECT_ORDER = {"数学": 0, "政治": 1, "英语": 2}
 
 
 def load_csv_rows(path: Path) -> Tuple[List[str], List[dict]]:
