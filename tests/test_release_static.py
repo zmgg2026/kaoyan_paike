@@ -285,6 +285,12 @@ class ReleaseStaticTest(unittest.TestCase):
         self.assertIsNone(re.search(r"(?m)^WEEKDAY_LABELS\s*=", schedule_display_source))
         self.assertNotIn('["周一", "周二", "周三", "周四", "周五", "周六", "周日"]', business_import_source)
 
+    def test_time_slot_generator_reuses_shared_date_normalization(self) -> None:
+        generator_source = (ROOT / "generate_time_slots.py").read_text(encoding="utf-8")
+
+        self.assertIn("from scripts.field_utils import normalize_iso_date_text", generator_source)
+        self.assertNotIn("datetime.strptime", generator_source)
+
     def test_window_normalization_lives_in_shared_window_utils(self) -> None:
         scheduler_source = (ROOT / "scheduler.py").read_text(encoding="utf-8")
         class_windows_source = (ROOT / "scripts" / "schedule_class_windows.py").read_text(encoding="utf-8")

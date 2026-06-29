@@ -14,7 +14,7 @@ from types import SimpleNamespace
 
 import data_admin_server
 import scheduler
-from generate_time_slots import generate_time_slots, parse_weekdays
+from generate_time_slots import generate_time_slots, parse_date, parse_weekdays
 from run_scheduling_pipeline import (
     LoadedTable,
     PipelineError,
@@ -339,6 +339,13 @@ class SchedulingPipelineTest(unittest.TestCase):
         }
         self.assertEqual(counts_by_date["2026-08-02"], 0)
         self.assertEqual(counts_by_date["2026-09-06"], 5)
+
+    def test_generate_time_slots_parse_date_uses_shared_import_formats(self) -> None:
+        self.assertEqual(parse_date("2026/07/01"), date(2026, 7, 1))
+        self.assertEqual(parse_date("20260701"), date(2026, 7, 1))
+        self.assertEqual(parse_date("2026.07.01 00:00:00"), date(2026, 7, 1))
+        with self.assertRaisesRegex(ValueError, "日期格式无法识别"):
+            parse_date("not-a-date", "测试日期")
 
     def test_csv_pipeline_generates_schedule_and_dynamic_input(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

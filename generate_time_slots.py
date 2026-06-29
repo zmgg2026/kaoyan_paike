@@ -3,10 +3,11 @@ from __future__ import annotations
 
 import argparse
 import json
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 from pathlib import Path
 from typing import List, Set
 
+from scripts.field_utils import normalize_iso_date_text
 from scripts.weekday_utils import SUNDAY, parse_weekday_set
 
 
@@ -53,8 +54,8 @@ DEFAULT_DAY_SLOTS = [
     },
 ]
 
-def parse_date(value: str) -> date:
-    return datetime.strptime(value, "%Y-%m-%d").date()
+def parse_date(value: str, label: str = "日期") -> date:
+    return date.fromisoformat(normalize_iso_date_text(value, label))
 
 
 def parse_weekdays(values: str) -> Set[int]:
@@ -141,8 +142,8 @@ def main() -> None:
 
     excluded_weekdays = parse_weekdays(args.exclude_weekdays)
     slots = generate_time_slots(
-        parse_date(args.start),
-        parse_date(args.end),
+        parse_date(args.start, "--start"),
+        parse_date(args.end, "--end"),
         excluded_weekdays,
         args.slot_set,
         args.sunday_policy,
