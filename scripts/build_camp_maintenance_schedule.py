@@ -11796,7 +11796,7 @@ def run_full(data_dir: Path, perf: PerfLog) -> None:
                 f"- 未发布原因: 老师同时间硬冲突 {len(publish_blocking_teacher_conflicts)} 条",
                 f"- 候选输出 CSV: {rejected_csv}",
                 f"- 候选输出 HTML: {rejected_html}",
-                f"- 继续保留正式总维护页: {OUTPUT_HTML}",
+                f"- 继续保留正式课表维护总表: {OUTPUT_HTML}",
             ],
         )
         print(
@@ -11863,7 +11863,7 @@ def run_full(data_dir: Path, perf: PerfLog) -> None:
                 f"- 未发布原因: {coverage_lines[0]}",
                 f"- 候选输出 CSV: {rejected_csv}",
                 f"- 候选输出 HTML: {rejected_html}",
-                f"- 继续保留正式总维护页: {OUTPUT_HTML}",
+                f"- 继续保留正式课表维护总表: {OUTPUT_HTML}",
             ],
         )
         print(
@@ -11924,7 +11924,7 @@ def run_full(data_dir: Path, perf: PerfLog) -> None:
     shutil.copyfile(OUTPUT_CSV, LEGACY_OUTPUT_CSV)
     shutil.copyfile(OUTPUT_HTML, LEGACY_OUTPUT_HTML)
     shutil.copyfile(OUTPUT_REPORT, LEGACY_OUTPUT_REPORT)
-    print(f"已更新总维护页: {assignment_standard_lesson_count(assignments)} 条课节")
+    print(f"已更新课表维护总表: {assignment_standard_lesson_count(assignments)} 条课节")
     print(OUTPUT_CSV)
     print(OUTPUT_HTML)
 
@@ -12514,7 +12514,7 @@ def run_fast(
             + "\n\n"
             f"- 候选输出 CSV: {rejected_csv}\n"
             f"- 候选输出 HTML: {rejected_html}\n"
-            f"- 继续保留正式总维护页: {OUTPUT_HTML}\n",
+            f"- 继续保留正式课表维护总表: {OUTPUT_HTML}\n",
             encoding="utf-8",
         )
         raise ValueError(
@@ -12566,7 +12566,7 @@ def run_fast(
     shutil.copyfile(OUTPUT_HTML, LEGACY_OUTPUT_HTML)
     shutil.copyfile(OUTPUT_REPORT, LEGACY_OUTPUT_REPORT)
     print(
-        "已快速更新总维护页: "
+        "已快速更新课表维护总表: "
         f"复用 {assignment_standard_lesson_count(reused_assignments)} 条，"
         f"重排 {assignment_standard_lesson_count(new_assignments)} 条"
     )

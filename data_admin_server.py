@@ -18,7 +18,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, Dict, Iterable, List, Optional, Set, Tuple
-from urllib.parse import unquote, urlparse
+from urllib.parse import quote, unquote, urlparse
 
 from scripts.csv_utils import csv_rows_text, serialize_csv_value, write_csv_rows
 from scripts.field_utils import (
@@ -2501,6 +2501,61 @@ def path_url(path: Optional[Path]) -> str:
     return "/" + relative.as_posix()
 
 
+def file_status_entry(key: str, label: str, detail: str, path: Path, *, preview_url: str = "") -> Dict[str, Any]:
+    exists = path.exists() and path.is_file()
+    updated_at = ""
+    size_bytes = 0
+    if exists:
+        stat = path.stat()
+        updated_at = datetime.fromtimestamp(stat.st_mtime).strftime("%Y-%m-%d %H:%M")
+        size_bytes = stat.st_size
+    return {
+        "key": key,
+        "label": label,
+        "detail": detail,
+        "path": str(path),
+        "url": path_url(path),
+        "preview_url": preview_url,
+        "exists": exists,
+        "updated_at": updated_at,
+        "size_bytes": size_bytes,
+    }
+
+
+def current_results_status() -> Dict[str, Any]:
+    template_path = OUTPUT_DIR / "ai_scheduling_sop_20260625" / "AI排课基础数据模板.xlsx"
+    return {
+        "ok": True,
+        "template": file_status_entry(
+            "data_template",
+            "AI排课基础数据模板",
+            "下载后填写基础数据；如果文件缺失，可用原始导出生成预填模板。",
+            template_path,
+        ),
+        "results": [
+            file_status_entry(
+                "schedule_html",
+                "课表总表",
+                "按班级、课次、老师、教室和锁定状态核对排课结果。",
+                OUTPUT_DIR / "batch_schedule_maintenance.html",
+            ),
+            file_status_entry(
+                "schedule_report",
+                "排课报告",
+                "查看覆盖、冲突、缺口和生成过程摘要。",
+                OUTPUT_DIR / "batch_schedule_maintenance_report.md",
+                preview_url="/preview/outputs/batch_schedule_maintenance_report.md",
+            ),
+            file_status_entry(
+                "schedule_csv",
+                "CSV 明细",
+                "用于 ERP 对齐、二次分析或导入核对。",
+                OUTPUT_DIR / "batch_schedule_maintenance.csv",
+            ),
+        ],
+    }
+
+
 def output_path_from_url(path_text: str) -> Path:
     normalized = unquote(path_text)
     if normalized == "/outputs":
@@ -2550,6 +2605,15 @@ def mime_type_for(path: Path) -> str:
         if "charset=" not in mime_type:
             return f"{mime_type}; charset=utf-8"
     return mime_type
+
+
+def content_disposition_value(disposition: str, filename: str) -> str:
+    ascii_filename = filename.encode("ascii", "ignore").decode("ascii").replace('"', "")
+    if not ascii_filename:
+        suffix = Path(filename).suffix or ".dat"
+        ascii_filename = f"download{suffix}"
+    encoded_filename = quote(filename)
+    return f'{disposition}; filename="{ascii_filename}"; filename*=UTF-8\'\'{encoded_filename}'
 
 
 def read_utf8_text(path: Path) -> str:
@@ -3131,6 +3195,9 @@ class AdminHandler(BaseHTTPRequestHandler):
             job_id = parsed.path.rsplit("/", 1)[-1]
             self.send_json(get_batch_schedule_job(job_id))
             return
+        if parsed.path == "/api/results/status":
+            self.send_json(current_results_status())
+            return
         if parsed.path == "/api/products/download":
             self.send_download(
                 products_csv_download_text().encode("utf-8"),
@@ -3218,7 +3285,7 @@ class AdminHandler(BaseHTTPRequestHandler):
     def send_download(self, body: bytes, filename: str, content_type: str) -> None:
         self.send_response(200)
         self.send_header("Content-Type", content_type)
-        self.send_header("Content-Disposition", f'attachment; filename="{filename}"')
+        self.send_header("Content-Disposition", content_disposition_value("attachment", filename))
         self.send_header("Cache-Control", "no-store")
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
@@ -3237,7 +3304,7 @@ class AdminHandler(BaseHTTPRequestHandler):
         body = path.read_bytes()
         self.send_response(200)
         self.send_header("Content-Type", mime_type)
-        self.send_header("Content-Disposition", f'inline; filename="{path.name}"')
+        self.send_header("Content-Disposition", content_disposition_value("inline", path.name))
         self.send_header("Cache-Control", "no-store")
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
@@ -3256,7 +3323,7 @@ class AdminHandler(BaseHTTPRequestHandler):
         body = markdown_preview_html(path, f"{source_prefix}/{relative}").encode("utf-8")
         self.send_response(200)
         self.send_header("Content-Type", "text/html; charset=utf-8")
-        self.send_header("Content-Disposition", f'inline; filename="{path.stem}.html"')
+        self.send_header("Content-Disposition", content_disposition_value("inline", f"{path.stem}.html"))
         self.send_header("Cache-Control", "no-store")
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
@@ -3275,7 +3342,7 @@ class AdminHandler(BaseHTTPRequestHandler):
         body = path.read_bytes()
         self.send_response(200)
         self.send_header("Content-Type", mime_type)
-        self.send_header("Content-Disposition", f'inline; filename="{path.name}"')
+        self.send_header("Content-Disposition", content_disposition_value("inline", path.name))
         self.send_header("Cache-Control", "no-store")
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()

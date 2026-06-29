@@ -2364,6 +2364,10 @@ label span,
   line-height: 1.45;
 }
 
+.template-entry-grid > .result-file-card {
+  min-height: 128px;
+}
+
 .compact-upload {
   grid-template-columns: minmax(220px, 1fr) 72px;
 }
@@ -2583,17 +2587,22 @@ label span,
   justify-content: flex-start;
 }
 
-.batch-result-links {
+.result-file-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
 }
 
-.batch-result-links a {
+.result-file-grid.compact {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.result-file-card {
   min-height: 92px;
   display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-content: start;
-  gap: 7px;
+  gap: 5px 8px;
   padding: 14px;
   border: 1px solid var(--border);
   border-left: 4px solid var(--accent);
@@ -2604,22 +2613,63 @@ label span,
   box-shadow: var(--shadow);
 }
 
-.batch-result-links a:nth-child(2) {
+.result-file-card:nth-child(2) {
   border-left-color: var(--blue);
 }
 
-.batch-result-links a:nth-child(3) {
+.result-file-card:nth-child(3) {
   border-left-color: var(--amber);
 }
 
-.batch-result-links strong {
+.result-file-card.available:hover {
+  border-color: var(--accent);
+  background: #fbfefe;
+}
+
+.result-file-card.missing {
+  border-left-color: var(--border-strong);
+  background: #f7f8fa;
+  box-shadow: none;
+}
+
+.result-file-card strong,
+.result-file-card span,
+.result-file-card small {
+  display: block;
+}
+
+.result-file-card strong {
   font-size: 14px;
 }
 
-.batch-result-links span {
+.result-file-card em {
+  align-self: start;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: #e9f6f3;
+  color: var(--accent-dark);
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.result-file-card.missing em {
+  background: #edf0f3;
+  color: var(--muted);
+}
+
+.result-file-card span {
+  grid-column: 1 / -1;
   color: var(--muted);
   font-size: 12px;
   line-height: 1.45;
+}
+
+.result-file-card small {
+  grid-column: 1 / -1;
+  color: var(--text);
+  font-size: 12px;
 }
 
 .stat {
@@ -4379,7 +4429,7 @@ td select[multiple] {
   .class-conflict-flow-grid,
   .publish-link-grid,
   .template-entry-grid,
-  .batch-result-links,
+  .result-file-grid,
   .split,
   .form-grid,
   .form-grid.two,

@@ -9,6 +9,7 @@ import unittest
 import urllib.request
 from http.server import ThreadingHTTPServer
 from pathlib import Path
+from urllib.parse import quote
 
 import data_admin_server
 
@@ -160,6 +161,115 @@ class AdminPipelineApiTest(unittest.TestCase):
                 with urllib.request.urlopen(head_request, timeout=20) as response:
                     self.assertIn("text/html", response.headers["Content-Type"])
                     self.assertEqual(b"", response.read())
+            finally:
+                server.shutdown()
+                thread.join(timeout=5)
+                server.server_close()
+
+    def test_results_status_api_reports_downloadable_files(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            data_admin_server.DATA_DIR = root / "data"
+            data_admin_server.OUTPUT_DIR = root / "outputs"
+            data_admin_server.OUTPUT_DIR.mkdir(parents=True)
+            template_path = data_admin_server.OUTPUT_DIR / "ai_scheduling_sop_20260625" / "AI排课基础数据模板.xlsx"
+            template_path.parent.mkdir(parents=True)
+            template_path.write_bytes(b"xlsx")
+            (data_admin_server.OUTPUT_DIR / "batch_schedule_maintenance.html").write_text("<h1>课表</h1>", encoding="utf-8")
+            (data_admin_server.OUTPUT_DIR / "batch_schedule_maintenance_report.md").write_text("# 排课报告", encoding="utf-8")
+
+            server = ThreadingHTTPServer(("127.0.0.1", 0), data_admin_server.AdminHandler)
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            base_url = f"http://127.0.0.1:{server.server_port}"
+
+            try:
+                status = request_json(f"{base_url}/api/results/status")
+                self.assertTrue(status["template"]["exists"])
+                self.assertEqual(status["template"]["url"], "/outputs/ai_scheduling_sop_20260625/AI排课基础数据模板.xlsx")
+                result_by_key = {item["key"]: item for item in status["results"]}
+                self.assertTrue(result_by_key["schedule_html"]["exists"])
+                self.assertTrue(result_by_key["schedule_report"]["exists"])
+                self.assertEqual(result_by_key["schedule_report"]["preview_url"], "/preview/outputs/batch_schedule_maintenance_report.md")
+                self.assertFalse(result_by_key["schedule_csv"]["exists"])
+                self.assertEqual(result_by_key["schedule_csv"]["url"], "/outputs/batch_schedule_maintenance.csv")
+            finally:
+                server.shutdown()
+                thread.join(timeout=5)
+                server.server_close()
+
+    def test_output_file_headers_support_unicode_filenames(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            data_admin_server.DATA_DIR = root / "data"
+            data_admin_server.OUTPUT_DIR = root / "outputs"
+            file_path = data_admin_server.OUTPUT_DIR / "ai_scheduling_sop_20260625" / "AI排课基础数据模板.xlsx"
+            file_path.parent.mkdir(parents=True)
+            file_path.write_bytes(b"xlsx")
+
+            server = ThreadingHTTPServer(("127.0.0.1", 0), data_admin_server.AdminHandler)
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            base_url = f"http://127.0.0.1:{server.server_port}"
+            encoded_path = "/outputs/ai_scheduling_sop_20260625/" + quote("AI排课基础数据模板.xlsx")
+
+            try:
+                head_request = urllib.request.Request(f"{base_url}{encoded_path}", method="HEAD")
+                with urllib.request.urlopen(head_request, timeout=20) as response:
+                    self.assertEqual(response.status, 200)
+                    self.assertIn("filename*=UTF-8''AI", response.headers["Content-Disposition"])
+                    self.assertEqual(b"", response.read())
+
+                with urllib.request.urlopen(f"{base_url}{encoded_path}", timeout=20) as response:
+                    self.assertEqual(response.status, 200)
+                    self.assertEqual(response.read(), b"xlsx")
+            finally:
+                server.shutdown()
+                thread.join(timeout=5)
+                server.server_close()
+
+    def test_product_and_class_import_export_api_round_trip(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            data_admin_server.DATA_DIR = root / "data"
+            data_admin_server.OUTPUT_DIR = root / "outputs"
+
+            server = ThreadingHTTPServer(("127.0.0.1", 0), data_admin_server.AdminHandler)
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            base_url = f"http://127.0.0.1:{server.server_port}"
+
+            try:
+                product_csv = (
+                    "id,name,project,product_line,sub_product,product_system,season_window_ids,"
+                    "applicable_stages,standard_capacity,capacity_type,subject_category,subject,course_nature,notes\n"
+                    "P_IMPORT,测试产品,考研,考研无忧,无忧暑,常规体系,WINDOW_SUMMER,基础,30,班课,公共课,英语,正课,测试导入\n"
+                )
+                product_response = request_json(f"{base_url}/api/products/import", {"csv": product_csv})
+                self.assertEqual(product_response["imported"], 1)
+                self.assertEqual(product_response["total_products"], 1)
+
+                class_csv = (
+                    "id,name,product_id,selected_stages,project,product_line,sub_product,product_system,course_nature,"
+                    "subject_category,subject,exam_season,exam_month,suite_code,standard_capacity,capacity_type,size,"
+                    "start_date,start_period,first_lesson_date,first_lesson_period,end_date,end_period,"
+                    "preferred_teaching_area_ids,preferred_room_ids,preferred_room_is_required,is_manual_schedule_locked,notes\n"
+                    "C_IMPORT,测试班级,P_IMPORT,基础,考研,考研无忧,无忧暑,常规体系,正课,"
+                    "公共课,英语,27考研,2026-12,9999,30,班课,20,"
+                    "2026-07-01,AM,,,2026-08-31,PM,,,否,否,测试导入\n"
+                )
+                class_response = request_json(f"{base_url}/api/classes/import", {"csv": class_csv})
+                self.assertEqual(class_response["imported"], 1)
+                self.assertEqual(class_response["total_classes"], 1)
+
+                with urllib.request.urlopen(f"{base_url}/api/products/download", timeout=20) as response:
+                    product_download = response.read().decode("utf-8-sig")
+                    self.assertIn("P_IMPORT", product_download)
+                    self.assertIn("测试产品", product_download)
+                with urllib.request.urlopen(f"{base_url}/api/classes/download", timeout=20) as response:
+                    class_download = response.read().decode("utf-8-sig")
+                    self.assertIn("C_IMPORT", class_download)
+                    self.assertIn("测试班级", class_download)
             finally:
                 server.shutdown()
                 thread.join(timeout=5)

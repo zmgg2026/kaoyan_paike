@@ -161,6 +161,7 @@ let preflightResult = null;
 let batchScheduleJob = null;
 let batchSchedulePollTimer = null;
 let classTeacherSearchRenderTimer = null;
+let resultStatus = null;
 
 const batchSchedulePage = {
   title: "排课结果核对总表",
@@ -256,6 +257,7 @@ async function loadData() {
   showStatus("正在加载本地数据...");
   updateSaveControls("正在加载本地数据...");
   state = await requestJson("/api/data");
+  await refreshResultStatus();
   state.global_blackout_dates = state.global_blackout_dates || [];
   state.schedule_windows = state.schedule_windows || [];
   state.time_slots = state.time_slots || [];
@@ -276,6 +278,14 @@ async function loadData() {
   updateSaveControls("数据已加载，修改后请保存");
   showStatus("数据已加载。", "ok");
   render();
+}
+
+async function refreshResultStatus() {
+  try {
+    resultStatus = await requestJson("/api/results/status");
+  } catch (error) {
+    resultStatus = { ok: false, error: error.message, template: null, results: [] };
+  }
 }
 
 function hydrateLabels() {
@@ -472,6 +482,7 @@ async function pollBatchScheduleJob(jobId) {
     }, 1200);
   } else if (result.status === "succeeded") {
     batchSchedulePage.url = `/outputs/batch_schedule_maintenance.html?ts=${Date.now()}`;
+    await refreshResultStatus();
     showStatus("课表维护页已更新。", "ok");
     if (activeTab === "launch" || activeTab === "batchSchedules") renderLaunch();
   } else if (result.status === "failed") {
@@ -3390,6 +3401,64 @@ function renderOverview() {
   `;
 }
 
+function outputFileEntry(key) {
+  return (resultStatus?.results || []).find((item) => item.key === key) || null;
+}
+
+function formatFileSize(sizeBytes) {
+  const size = Number(sizeBytes || 0);
+  if (!size) return "";
+  if (size < 1024) return `${size} B`;
+  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
+  return `${(size / 1024 / 1024).toFixed(1)} MB`;
+}
+
+function fileMetaText(entry) {
+  if (!entry?.exists) return "当前未生成";
+  const parts = [];
+  if (entry.updated_at) parts.push(`更新：${entry.updated_at}`);
+  const sizeText = formatFileSize(entry.size_bytes);
+  if (sizeText) parts.push(sizeText);
+  return parts.join(" · ") || "已生成";
+}
+
+function fileCard(entry, fallback) {
+  const item = entry || fallback;
+  const exists = entry?.exists;
+  const targetUrl = entry?.preview_url || item.url || "";
+  const toneClass = exists ? "available" : "missing";
+  const body = `
+    <strong>${html(item.label)}</strong>
+    <em>${exists ? "可打开" : "未生成"}</em>
+    <span>${html(item.detail)}</span>
+    <small>${html(fileMetaText(entry))}</small>
+  `;
+  if (exists && targetUrl) {
+    return `<a class="result-file-card ${toneClass}" href="${html(targetUrl)}" target="_blank" rel="noreferrer">${body}</a>`;
+  }
+  return `<div class="result-file-card ${toneClass}">${body}</div>`;
+}
+
+function currentResultCards() {
+  return [
+    fileCard(outputFileEntry("schedule_html"), {
+      label: batchSchedulePage.title,
+      detail: batchSchedulePage.detail,
+      url: batchSchedulePage.url,
+    }),
+    fileCard(outputFileEntry("schedule_report"), {
+      label: "排课报告",
+      detail: "查看覆盖、冲突、缺口和生成过程摘要。",
+      url: scheduleReportPreviewUrl,
+    }),
+    fileCard(outputFileEntry("schedule_csv"), {
+      label: "CSV 明细",
+      detail: "用于 ERP 对齐、二次分析或导入核对。",
+      url: "/outputs/batch_schedule_maintenance.csv",
+    }),
+  ].join("");
+}
+
 function renderLaunch() {
   const pipeline = pipelineJob;
   const batch = batchScheduleJob;
@@ -3481,9 +3550,16 @@ function renderLaunch() {
   const preflightStatus = preflightResult
     ? (preflightResult.passed ? "校验通过" : "校验未通过")
     : "未校验";
-  const hasResult = pipeline?.status === "succeeded" || batch?.status === "succeeded";
+  const availableResultCount = (resultStatus?.results || []).filter((item) => item.exists).length;
+  const hasResult = pipeline?.status === "succeeded" || batch?.status === "succeeded" || availableResultCount > 0;
+  const templateStatus = resultStatus?.template;
+  const templateDownloadCard = fileCard(templateStatus, {
+    label: dataTemplatePage.title,
+    detail: dataTemplatePage.detail,
+    url: dataTemplatePage.url,
+  });
   const operationSteps = [
-    ["01", "填写模板", "可下载", "先下载基础数据模板，或用原始导出生成一份预填模板。", "neutral"],
+    ["01", "填写模板", templateStatus?.exists ? "可下载" : "需生成", "先下载基础数据模板，或用原始导出生成一份预填模板。", templateStatus?.exists ? "ok" : "neutral"],
     ["02", "校验数据", preflightStatus, "上传填写后的模板或 CSV，只看能不能排；不会覆盖现有课表。", preflightResult?.passed ? "ok" : preflightResult ? "warning" : "neutral"],
     ["03", "生成课表", statusLabel(pipeline), "第一次出正式结果，或需要从头重排时使用。", toneFor(pipeline)],
     ["04", "维护课表", statusLabel(batch), "已有结果后，只改套班、班级或子产品时使用；窗口和场地以班级排课窗口为准。", toneFor(batch)],
@@ -3511,10 +3587,7 @@ function renderLaunch() {
       "功能：下载基础数据模板；如果手上是 ERP 或业务导出文件，也可以先生成一份预填模板再补充。",
       `
         <div class="template-entry-grid">
-          <a class="template-entry-card primary-card" href="${html(dataTemplatePage.url)}" target="_blank" rel="noreferrer">
-            <strong>${html(dataTemplatePage.title)}</strong>
-            <span>${html(dataTemplatePage.detail)}</span>
-          </a>
+          ${templateDownloadCard}
           <div class="template-entry-card">
             <strong>生成预填模板</strong>
             <span>上传原始导出文件，系统生成 Excel 模板、CSV 模板包和模板报告。</span>
@@ -3589,21 +3662,10 @@ function renderLaunch() {
 
     ${section(
       "5. 查看结果",
-      "功能：排课成功后统一查看结果。先看排课报告是否有硬问题，再打开总表和 CSV 做人工核对。",
+      "功能：排课成功后统一查看结果。先看排课报告是否有硬问题，再打开总表和 CSV 做人工核对；未生成的文件不会显示成可点击链接。",
       `
-        <div class="batch-result-links">
-          <a href="${html(batchSchedulePage.url)}" target="_blank" rel="noreferrer">
-            <strong>${html(batchSchedulePage.title)}</strong>
-            <span>${html(batchSchedulePage.detail)}</span>
-          </a>
-          <a href="${html(scheduleReportPreviewUrl)}" target="_blank" rel="noreferrer">
-            <strong>排课报告</strong>
-            <span>用 UTF-8 预览覆盖、冲突、缺口和生成过程摘要。</span>
-          </a>
-          <a href="/outputs/batch_schedule_maintenance.csv" target="_blank" rel="noreferrer">
-            <strong>CSV 明细</strong>
-            <span>用于导入核对、二次分析或和 ERP 结果对齐。</span>
-          </a>
+        <div class="result-file-grid">
+          ${currentResultCards()}
         </div>
       `,
     )}
@@ -3624,11 +3686,6 @@ function renderPublish() {
   const publishLinks = [
     ["线上只读分享页", "给同事查看最终课表", "https://production.xdf-schedule-maintenance.pages.dev/schedule"],
     ["本地只读验证", "发布前在本机先确认展示效果", "http://127.0.0.1:8780/schedule"],
-  ];
-  const resultLinks = [
-    ["课表总表", "查看本轮排课结果", "/outputs/batch_schedule_maintenance.html"],
-    ["排课报告", "UTF-8 预览覆盖、冲突和缺口结论", scheduleReportPreviewUrl],
-    ["CSV 明细", "用于 ERP 对齐或二次核对", "/outputs/batch_schedule_maintenance.csv"],
   ];
   const reuseLinks = [
     ["方法复用专题页", "给同事理解这套工作方法", "/share/ai-scheduling-project/method-reuse.html"],
@@ -3665,14 +3722,8 @@ function renderPublish() {
     ${section(
       "发布前核对资料",
       `功能：发布前自己核对用。报告默认打开预览页；如需下载原始 Markdown，可打开 ${html(scheduleReportRawUrl)}。`,
-      `<div class="publish-link-grid compact">
-        ${resultLinks.map(([label, detail, url]) => `
-          <a href="${html(url)}" target="_blank" rel="noreferrer">
-            <strong>${html(label)}</strong>
-            <em>${html(detail)}</em>
-            <span>${html(url)}</span>
-          </a>
-        `).join("")}
+      `<div class="result-file-grid compact">
+        ${currentResultCards()}
       </div>`,
     )}
     ${section(

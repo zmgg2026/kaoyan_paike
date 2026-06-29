@@ -174,6 +174,19 @@ class WebAdminStaticTest(unittest.TestCase):
         self.assertIn('"/preview/docs/ai-scheduling-sop.md"', source)
         self.assertNotIn('["排课报告", "查看覆盖、冲突和缺口结论", "/outputs/batch_schedule_maintenance_report.md"]', source)
 
+    def test_launch_page_uses_result_file_status_cards(self) -> None:
+        source = (ROOT / "web_admin" / "app.js").read_text(encoding="utf-8")
+        styles = (ROOT / "web_admin" / "styles.css").read_text(encoding="utf-8")
+
+        self.assertIn('requestJson("/api/results/status")', source)
+        self.assertIn("function fileCard(entry, fallback)", source)
+        self.assertIn("currentResultCards()", source)
+        self.assertIn("未生成的文件不会显示成可点击链接", source)
+        self.assertIn(".result-file-grid", styles)
+        self.assertIn(".result-file-card.missing", styles)
+        self.assertNotIn("batch-result-links", source)
+        self.assertNotIn("batch-result-links", styles)
+
 
 if __name__ == "__main__":
     unittest.main()
