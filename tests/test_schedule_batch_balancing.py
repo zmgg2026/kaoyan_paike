@@ -18,6 +18,7 @@ from scripts.build_camp_maintenance_schedule import (
     WYQC_AUTUMN_START,
     WYQC_SPRINT_START_BY_SUBJECT,
     assignment_from_row,
+    clean as maintenance_clean,
     coverage_gap_blocking_lines,
     long_camp_subject_week_targets,
     public_coverage_gap_rows_from_totals,
@@ -124,6 +125,11 @@ def make_pm_blocks() -> list[tuple[scheduler.TimeSlot, ...]]:
 
 
 class ScheduleScopeDateTest(unittest.TestCase):
+    def test_maintenance_clean_preserves_falsey_non_empty_values(self) -> None:
+        self.assertEqual(maintenance_clean(0), "0")
+        self.assertEqual(maintenance_clean(False), "False")
+        self.assertEqual(maintenance_clean("无"), "")
+
     def test_normalize_date_uses_shared_import_formats(self) -> None:
         self.assertEqual(normalize_date("2026/7/1"), "2026-07-01")
         self.assertEqual(normalize_date("2026.7.1"), "2026-07-01")

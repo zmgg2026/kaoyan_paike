@@ -141,6 +141,7 @@ class ReleaseStaticTest(unittest.TestCase):
         scheduler_source = (ROOT / "scheduler.py").read_text(encoding="utf-8")
         erp_lesson_map_source = (ROOT / "scripts" / "build_erp_lesson_id_map.py").read_text(encoding="utf-8")
         erp_adjusted_sync_source = (ROOT / "scripts" / "sync_erp_adjusted_schedule.py").read_text(encoding="utf-8")
+        camp_maintenance_source = (ROOT / "scripts" / "build_camp_maintenance_schedule.py").read_text(encoding="utf-8")
 
         self.assertIn("from scripts.field_utils import", admin_source)
         self.assertIn("from scripts.field_utils import", product_catalog_source)
@@ -149,6 +150,7 @@ class ReleaseStaticTest(unittest.TestCase):
         self.assertIn("from scripts.field_utils import", scheduler_source)
         self.assertIn("from scripts.field_utils import", erp_lesson_map_source)
         self.assertIn("from scripts.field_utils import", erp_adjusted_sync_source)
+        self.assertIn("normalize_blank_marker", camp_maintenance_source)
         self.assertIn("normalize_blank_marker", admin_source)
         self.assertIn("blank_marker_to_empty", scheduler_source)
         self.assertIn("is_blank_marker", business_import_source)
@@ -167,6 +169,7 @@ class ReleaseStaticTest(unittest.TestCase):
         self.assertIn("parse_time_minutes", business_import_source)
         self.assertNotIn("datetime.strptime(candidate, fmt)", business_import_source)
         self.assertNotIn("data_admin_server.normalize_text", pipeline_source)
+        self.assertNotIn("str(value or \"\").strip()", camp_maintenance_source)
 
     def test_boolean_parsing_lives_in_shared_field_utils(self) -> None:
         field_utils_source = (ROOT / "scripts" / "field_utils.py").read_text(encoding="utf-8")

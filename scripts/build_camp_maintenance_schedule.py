@@ -22,6 +22,7 @@ if str(ROOT) not in sys.path:
 import scheduler
 from scripts.csv_utils import read_csv_rows
 from scripts.field_utils import (
+    normalize_blank_marker,
     parse_bool,
     parse_enabled,
     parse_datetime_value,
@@ -505,8 +506,7 @@ LOCKED_SCHEDULE_PATH = Path("data/locked_scheduled_lessons.csv")
 
 
 def clean(value: object) -> str:
-    text = str(value or "").strip()
-    return "" if text in {"", "-", "—", "无", "暂无", "NULL", "N/A", "None"} else text
+    return normalize_blank_marker(value)
 
 
 def parse_dt(value: object) -> datetime:
