@@ -329,14 +329,14 @@ def build_lookups(
     classes: List[Dict[str, Any]],
 ) -> Dict[str, Any]:
     product_map = product_lookup_map(products, product_courses)
-    subjects, quarters, stages, modules, groups = course_lookup_sets(product_courses)
+    subjects, window_names, stages, modules, groups = course_lookup_sets(product_courses)
     teacher_map = teacher_lookup_map(teachers, classes)
 
     return {
         "products": product_lookup_rows(product_map),
         "product_lines": ["考研复试", "考研集训营", "考研无忧", "考研个性化", "考研其他", "专升本", "四六级"],
         "subjects": sorted(subjects),
-        "quarters": sorted(quarters),
+        "window_names": sorted(window_names),
         "stages": sort_stage_values(stages),
         "course_modules": sorted(modules),
         "course_groups": sorted(groups),
@@ -401,14 +401,14 @@ def product_lookup_from_course(course: Dict[str, Any], product_id: str) -> Dict[
 
 def course_lookup_sets(product_courses: List[Dict[str, Any]]) -> Tuple[Set[str], Set[str], Set[str], Set[str], Set[str]]:
     subjects: Set[str] = set()
-    quarters: Set[str] = set()
+    window_names: Set[str] = set()
     stages: Set[str] = set()
     modules: Set[str] = set()
     groups: Set[str] = set()
     for course in product_courses:
         for key, bucket in (
             ("subject", subjects),
-            ("window_name", quarters),
+            ("window_name", window_names),
             ("stage", stages),
             ("course_module", modules),
             ("course_group", groups),
@@ -418,7 +418,7 @@ def course_lookup_sets(product_courses: List[Dict[str, Any]]) -> Tuple[Set[str],
                 value = normalize_text(course.get("quarter"))
             if value:
                 bucket.add(value)
-    return subjects, quarters, stages, modules, groups
+    return subjects, window_names, stages, modules, groups
 
 
 def teacher_lookup_map(teachers: List[Dict[str, Any]], classes: List[Dict[str, Any]]) -> Dict[str, Dict[str, str]]:

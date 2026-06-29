@@ -189,6 +189,8 @@ class ReleaseStaticTest(unittest.TestCase):
         self.assertNotIn('"stages": split_id_list(cls.get("selected_stages")', admin_source)
         self.assertNotIn('"quarter": course.get("window_name")', admin_source)
         self.assertIn('"window_name": course.get("window_name")', admin_source)
+        self.assertIn('"window_names": sorted(window_names)', admin_source)
+        self.assertNotIn('"quarters": sorted(', admin_source)
         self.assertNotIn('"quarter": requirement.get("quarter"', admin_source)
         self.assertIn('"window_name": requirement.get("window_name")', admin_source)
         self.assertNotIn('"quarter",\n    "stage",', Path("scripts/table_schema.py").read_text(encoding="utf-8"))
