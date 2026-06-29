@@ -15,6 +15,7 @@ from scripts.field_utils import (
     normalize_text,
     parse_date_value,
     parse_time_minutes,
+    row_value,
     split_delimited_values,
 )
 from scripts.period_utils import VALID_PERIODS, normalize_period, period_from_time_text
@@ -73,14 +74,6 @@ class BusinessDataError(ValueError):
 
 def compact_text(value: Any) -> str:
     return "".join(normalize_text(value).split())
-
-
-def row_value(row: Mapping[str, Any], *keys: str) -> str:
-    for key in keys:
-        value = normalize_text(row.get(key))
-        if value:
-            return value
-    return ""
 
 
 def empty_rows(tables: Mapping[str, Any], table_name: str) -> List[Dict[str, Any]]:

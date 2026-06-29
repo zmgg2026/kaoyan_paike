@@ -142,7 +142,9 @@ class ReleaseStaticTest(unittest.TestCase):
         erp_lesson_map_source = (ROOT / "scripts" / "build_erp_lesson_id_map.py").read_text(encoding="utf-8")
         erp_adjusted_sync_source = (ROOT / "scripts" / "sync_erp_adjusted_schedule.py").read_text(encoding="utf-8")
         camp_maintenance_source = (ROOT / "scripts" / "build_camp_maintenance_schedule.py").read_text(encoding="utf-8")
+        field_utils_source = (ROOT / "scripts" / "field_utils.py").read_text(encoding="utf-8")
 
+        self.assertIn("def row_value", field_utils_source)
         self.assertIn("from scripts.field_utils import", admin_source)
         self.assertIn("from scripts.field_utils import", product_catalog_source)
         self.assertIn("from scripts.field_utils import", business_import_source)
@@ -164,6 +166,8 @@ class ReleaseStaticTest(unittest.TestCase):
         self.assertIsNone(re.search(r"(?m)^def normalize_one_time\(", erp_lesson_map_source))
         self.assertIsNone(re.search(r"(?m)^def is_blank_marker\(", business_import_source))
         self.assertIsNone(re.search(r"(?m)^def normalize_int\(", product_catalog_source))
+        self.assertIsNone(re.search(r"(?m)^def row_value\(", business_import_source))
+        self.assertIsNone(re.search(r"(?m)^def row_value\(", camp_maintenance_source))
         self.assertNotIn("data_admin_server.normalize_int", business_import_source)
         self.assertIn("parse_date_value", business_import_source)
         self.assertIn("parse_time_minutes", business_import_source)

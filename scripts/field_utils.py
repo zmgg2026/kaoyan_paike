@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 from datetime import date as Date, datetime, time as Time
-from typing import Any, Iterable, List, Optional, Tuple
+from typing import Any, Iterable, List, Mapping, Optional, Tuple
 
 
 TRUE_VALUES = {"1", "true", "yes", "y", "on", "是", "对", "启用", "可用", "纳入", "锁定"}
@@ -17,6 +17,14 @@ def normalize_text(value: Any) -> str:
     if value is None:
         return ""
     return str(value).strip()
+
+
+def row_value(row: Mapping[str, Any], *keys: str) -> str:
+    for key in keys:
+        value = normalize_text(row.get(key))
+        if value:
+            return value
+    return ""
 
 
 def normalize_excel_text(value: Any) -> str:

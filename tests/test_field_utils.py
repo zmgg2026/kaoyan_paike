@@ -20,6 +20,7 @@ from scripts.field_utils import (
     parse_bool_default,
     parse_enabled,
     parse_time_minutes,
+    row_value,
     split_delimited_values,
     split_pipe_values,
     split_time_range_text,
@@ -31,6 +32,12 @@ class FieldUtilsTest(unittest.TestCase):
         self.assertEqual(normalize_text(None), "")
         self.assertEqual(normalize_text("  C1  "), "C1")
         self.assertEqual(normalize_text(0), "0")
+
+    def test_row_value_returns_first_non_empty_candidate(self) -> None:
+        row = {"empty": " ", "zero": 0, "fallback": "C1"}
+        self.assertEqual(row_value(row, "empty", "zero", "fallback"), "0")
+        self.assertEqual(row_value({"flag": False}, "flag"), "False")
+        self.assertEqual(row_value(row, "missing", "empty"), "")
 
     def test_blank_marker_helpers_share_placeholder_values(self) -> None:
         self.assertTrue(is_blank_marker("暂无"))

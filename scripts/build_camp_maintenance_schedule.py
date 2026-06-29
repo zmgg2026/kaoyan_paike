@@ -26,6 +26,7 @@ from scripts.field_utils import (
     parse_bool,
     parse_enabled,
     parse_datetime_value,
+    row_value,
     split_delimited_values as split_pipe_values,
 )
 from scripts.schedule_class_windows import (
@@ -628,15 +629,6 @@ def improve_long_camp_week_balance(
         week_quotas,
         LONG_CAMP_PREFERRED_PERIODS,
     )
-
-
-def row_value(row: Dict[str, object], *keys: str) -> object:
-    for key in keys:
-        value = row.get(key)
-        if not clean(value):
-            continue
-        return value
-    return ""
 
 
 def load_rooms_for_capacity(path: Path) -> Dict[str, scheduler.Room]:
