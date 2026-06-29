@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import date, datetime, time
 import tempfile
 import unittest
 from pathlib import Path
@@ -11,6 +12,7 @@ from scripts.csv_utils import read_csv_rows
 from scripts.sync_template_workbook_to_admin_data import (
     SHEET_ALIASES,
     SHEETS,
+    cell_value,
     enrich_rows,
     output_fields_for_key,
     standard_output_rows,
@@ -26,6 +28,13 @@ from scripts.template_tables import (
 
 
 class TemplateSyncTest(unittest.TestCase):
+    def test_template_cell_value_reuses_shared_date_time_normalization(self) -> None:
+        self.assertEqual(cell_value("date", "2026/7/1"), "2026-07-01")
+        self.assertEqual(cell_value("start_date", date(2026, 7, 2)), "2026-07-02")
+        self.assertEqual(cell_value("end_date", datetime(2026, 7, 3, 9, 30)), "2026-07-03")
+        self.assertEqual(cell_value("start_time", "9:05"), "09:05")
+        self.assertEqual(cell_value("end_time", time(18, 30)), "18:30")
+
     def test_template_sheet_keys_follow_admin_standard_table_order(self) -> None:
         self.assertIs(TEMPLATE_SHEETS, SHEETS)
         self.assertIs(TEMPLATE_SHEET_ALIASES, SHEET_ALIASES)

@@ -153,14 +153,6 @@ def normalize_number(value: Any, *, integer: bool) -> int | float | str:
     return int(number) if integer else number
 
 
-def normalize_date(value: Any) -> str:
-    return normalize_date_text(value)
-
-
-def normalize_time(value: Any) -> str:
-    return normalize_time_text(value)
-
-
 def normalize_list(value: Any) -> List[str]:
     return split_delimited_values(value)
 
@@ -175,9 +167,9 @@ def cell_value(field: str, value: Any) -> Any:
     if field in FLOAT_FIELDS:
         return normalize_number(value, integer=False)
     if field in DATE_FIELDS:
-        return normalize_date(value)
+        return normalize_date_text(value)
     if field in TIME_FIELDS:
-        return normalize_time(value)
+        return normalize_time_text(value)
     return normalize_text(value)
 
 

@@ -233,6 +233,8 @@ class ReleaseStaticTest(unittest.TestCase):
         for source in (erp_export_source, erp_lesson_map_source, failed_review_source, erp_adjusted_sync_source):
             self.assertIsNone(re.search(r"(?m)^def normalize_date\(", source))
             self.assertNotIn("datetime.strptime", source)
+        self.assertIsNone(re.search(r"(?m)^def normalize_date\(", template_sync_source))
+        self.assertIsNone(re.search(r"(?m)^def normalize_time\(", template_sync_source))
         self.assertIsNone(re.search(r"(?m)^def display_date\(", erp_export_source))
         self.assertIsNone(re.search(r"(?m)^def display_date\(", failed_review_source))
 
