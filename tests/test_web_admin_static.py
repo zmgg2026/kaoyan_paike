@@ -123,6 +123,16 @@ class WebAdminStaticTest(unittest.TestCase):
         self.assertNotIn('new Set(["英语", "政治", "数学", "语文"])', source)
         self.assertNotIn('const seasonWindowOrder = ["寒假", "春季", "暑假", "秋季"];', source)
 
+    def test_product_project_and_line_options_use_lookups(self) -> None:
+        source = (ROOT / "web_admin" / "app.js").read_text(encoding="utf-8")
+
+        self.assertIn("return arrayValues(state.lookups?.product_projects);", source)
+        self.assertIn("return arrayValues(state.lookups?.product_lines);", source)
+        self.assertIn("selectOptions(productProjects(), product.project", source)
+        self.assertIn("selectOptions(productLines(), product.product_line", source)
+        self.assertNotIn('selectOptions(["考研", "专升本", "四六级"], product.project', source)
+        self.assertNotIn('return ["考研复试", "考研集训营", "考研无忧", "考研个性化", "考研其他", "专升本", "四六级"];', source)
+
     def test_business_mapping_editor_writes_current_local_product_field_only(self) -> None:
         source = (ROOT / "web_admin" / "app.js").read_text(encoding="utf-8")
 

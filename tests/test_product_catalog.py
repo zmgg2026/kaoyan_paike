@@ -20,6 +20,8 @@ class ProductCatalogTest(unittest.TestCase):
         self.assertIs(data_admin_server.sort_stage_values, product_catalog.sort_stage_values)
         self.assertIs(data_admin_server.product_stage_order, product_catalog.product_stage_order)
         self.assertIs(data_admin_server.DEFAULT_STAGE_ORDER, product_catalog.DEFAULT_STAGE_ORDER)
+        self.assertIs(data_admin_server.PRODUCT_PROJECT_OPTIONS, product_catalog.PRODUCT_PROJECT_OPTIONS)
+        self.assertIs(data_admin_server.PRODUCT_LINE_OPTIONS, product_catalog.PRODUCT_LINE_OPTIONS)
 
     def test_product_catalog_adds_course_only_products_with_current_labels(self) -> None:
         catalog = product_catalog.product_catalog(
@@ -47,6 +49,13 @@ class ProductCatalogTest(unittest.TestCase):
             product_catalog.sort_stage_values(["强化", "四轮", "导学2", "冲刺", "基础", "导学1"]),
         )
         self.assertEqual(product_catalog.DEFAULT_STAGE_ORDER, product_catalog.product_stage_order({}))
+
+    def test_product_project_and_line_options_are_shared(self) -> None:
+        self.assertEqual(product_catalog.PRODUCT_PROJECT_OPTIONS, ["考研", "专升本", "四六级"])
+        self.assertEqual(
+            product_catalog.PRODUCT_LINE_OPTIONS,
+            ["考研复试", "考研集训营", "考研无忧", "考研个性化", "考研其他", "专升本", "四六级"],
+        )
 
 
 if __name__ == "__main__":

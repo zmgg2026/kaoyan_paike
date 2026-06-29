@@ -36,6 +36,8 @@ from scripts.field_utils import (
 from scripts.product_catalog import (
     DEFAULT_STAGE_ORDER,
     DEFAULT_STAGE_ORDER_INDEX,
+    PRODUCT_LINE_OPTIONS,
+    PRODUCT_PROJECT_OPTIONS,
     first_non_empty,
     infer_capacity_type,
     infer_product_line,
@@ -335,7 +337,8 @@ def build_lookups(
 
     return {
         "products": product_lookup_rows(product_map),
-        "product_lines": ["考研复试", "考研集训营", "考研无忧", "考研个性化", "考研其他", "专升本", "四六级"],
+        "product_projects": list(PRODUCT_PROJECT_OPTIONS),
+        "product_lines": list(PRODUCT_LINE_OPTIONS),
         "subjects": sorted(subjects),
         "window_names": sorted(window_names),
         "season_window_order": list(SEASON_WINDOW_ORDER),

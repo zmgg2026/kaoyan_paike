@@ -697,8 +697,12 @@ function productLineOrder(line) {
     : productLines().indexOf(line);
 }
 
+function productProjects() {
+  return arrayValues(state.lookups?.product_projects);
+}
+
 function productLines() {
-  return ["考研复试", "考研集训营", "考研无忧", "考研个性化", "考研其他", "专升本", "四六级"];
+  return arrayValues(state.lookups?.product_lines);
 }
 
 function productTagValues(productRows, field) {
@@ -4256,7 +4260,7 @@ function productMetaTable(rows) {
                       <input data-list="products" data-index="${index}" data-field="name" value="${html(product.name)}" placeholder="产品名称">
                     </div>
                   </td>
-                  <td><select data-list="products" data-index="${index}" data-field="project">${selectOptions(["考研", "专升本", "四六级"], product.project, "请选择")}</select></td>
+                  <td><select data-list="products" data-index="${index}" data-field="project">${selectOptions(productProjects(), product.project, "请选择")}</select></td>
                   <td><select data-list="products" data-index="${index}" data-field="product_line">${selectOptions(productLines(), product.product_line, "请选择")}</select></td>
                   <td><input data-list="products" data-index="${index}" data-field="sub_product" value="${html(product.sub_product)}"></td>
                   <td><input data-list="products" data-index="${index}" data-field="product_system" value="${html(product.product_system)}"></td>

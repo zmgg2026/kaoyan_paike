@@ -8,6 +8,8 @@ from scripts.field_utils import normalize_int, normalize_text, split_pipe_values
 
 DEFAULT_STAGE_ORDER = ["导学", "基础", "强化", "冲刺", "一轮", "二轮", "三轮", "四轮"]
 DEFAULT_STAGE_ORDER_INDEX = {stage: index for index, stage in enumerate(DEFAULT_STAGE_ORDER)}
+PRODUCT_PROJECT_OPTIONS = ["考研", "专升本", "四六级"]
+PRODUCT_LINE_OPTIONS = ["考研复试", "考研集训营", "考研无忧", "考研个性化", "考研其他", "专升本", "四六级"]
 
 
 def unique_list(values: Iterable[Any]) -> List[str]:
