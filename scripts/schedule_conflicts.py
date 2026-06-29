@@ -7,17 +7,11 @@ from typing import Dict, List, Optional, Sequence, Tuple
 
 import scheduler
 from scripts.csv_utils import write_csv_rows
-from scripts.field_utils import normalize_blank_marker as clean
+from scripts.field_utils import normalize_blank_marker as clean, parse_time_minutes
 
 
 def minutes(value: str) -> Optional[int]:
-    if not value or ":" not in value:
-        return None
-    hour_text, minute_text = value.split(":", 1)
-    try:
-        return int(hour_text) * 60 + int(minute_text)
-    except ValueError:
-        return None
+    return parse_time_minutes(value)
 
 
 def assignment_time_interval(assignment: scheduler.Assignment) -> Tuple[str, str, int, int]:

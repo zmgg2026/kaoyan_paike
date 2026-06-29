@@ -7,6 +7,7 @@ import scheduler
 from scripts.calendar_utils import date_range as shared_date_range
 from scripts.calendar_utils import week_dates as shared_week_dates
 from scripts.calendar_utils import week_start as shared_week_start
+from scripts.field_utils import parse_time_minutes
 from scripts.period_utils import PERIOD_LABELS
 from scripts.time_slot_templates import display_lesson_slot_rows
 from scripts.weekday_utils import WEEKDAY_LABELS, weekday_label_for_date
@@ -55,13 +56,7 @@ def subject_colors(subjects: Iterable[str]) -> Dict[str, str]:
 
 
 def time_to_minutes(value: str) -> Optional[int]:
-    if not value or ":" not in value:
-        return None
-    hour_text, minute_text = value.split(":", 1)
-    try:
-        return int(hour_text) * 60 + int(minute_text)
-    except ValueError:
-        return None
+    return parse_time_minutes(value)
 
 
 def standard_display_slots(periods: Sequence[str]) -> List[Dict[str, str]]:

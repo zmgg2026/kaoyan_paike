@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from scripts.schedule_display import date_range, standard_display_slots, week_dates, week_start, weekday_label
+from scripts.schedule_display import date_range, standard_display_slots, time_to_minutes, week_dates, week_start, weekday_label
 
 
 class ScheduleDisplayTest(unittest.TestCase):
@@ -50,6 +50,10 @@ class ScheduleDisplayTest(unittest.TestCase):
                 },
             ],
         )
+
+    def test_time_to_minutes_reuses_shared_time_parsing(self) -> None:
+        self.assertEqual(time_to_minutes("08:30:00"), 510)
+        self.assertIsNone(time_to_minutes("25:00"))
 
 
 if __name__ == "__main__":
