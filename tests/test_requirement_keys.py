@@ -53,6 +53,39 @@ def schedule_input_with_requirement(req: scheduler.Requirement) -> scheduler.Sch
 
 
 class RequirementKeyTest(unittest.TestCase):
+    def test_product_requirement_parsing_prefers_current_window_name_field(self) -> None:
+        rule = scheduler.ScheduleRule(
+            subject=None,
+            stage=None,
+            course_module=None,
+            course_group=None,
+            start_date=None,
+            end_date=None,
+            allowed_periods=None,
+            allowed_weekdays=None,
+            excluded_weekdays=None,
+            block_hours=2,
+            window_names={"暑假"},
+        )
+
+        requirement = scheduler.parse_product_requirement(
+            "P1",
+            {
+                "subject_category": "公共课",
+                "subject": "英语",
+                "window_name": "暑假",
+                "quarter": "旧窗口",
+                "stage": "基础",
+                "course_module": "词汇",
+                "course_group": "阅读类",
+                "total_hours": 2,
+            },
+            [rule],
+        )
+
+        self.assertEqual(requirement.quarter, "暑假")
+        self.assertEqual(requirement.block_hours, 2)
+
     def test_class_requirement_selection_prefers_current_selected_stages_field(self) -> None:
         product = scheduler.Product(
             id="P1",

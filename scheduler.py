@@ -1145,7 +1145,7 @@ def requirement_common_fields(raw_req: dict) -> dict:
     return {
         "subject_category": raw_req.get("subject_category", ""),
         "subject": raw_req["subject"],
-        "quarter": raw_req.get("quarter"),
+        "quarter": raw_req.get("window_name") or raw_req.get("quarter"),
         "stage": raw_req.get("stage"),
         "course_module": raw_req.get("course_module"),
         "course_group": raw_req.get("course_group", raw_req.get("teacher_group")),

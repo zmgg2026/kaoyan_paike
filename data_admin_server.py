@@ -2155,7 +2155,7 @@ def scheduler_product_payloads(
             {
                 "subject_category": course["subject_category"],
                 "subject": course["subject"],
-                "quarter": course.get("window_name") or course.get("quarter", ""),
+                "window_name": course.get("window_name") or course.get("quarter", ""),
                 "stage": course["stage"],
                 "course_module": course["course_module"],
                 "course_group": course["course_group"],

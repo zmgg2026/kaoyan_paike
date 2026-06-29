@@ -1643,7 +1643,8 @@ class SchedulingPipelineTest(unittest.TestCase):
         )
 
         requirement = product_payloads[0]["requirements"][0]
-        self.assertEqual(requirement["quarter"], "暑假")
+        self.assertEqual(requirement["window_name"], "暑假")
+        self.assertNotIn("quarter", requirement)
         self.assertNotIn("block_hours", requirement)
 
         scheduler_rules = data_admin_server.scheduler_rules(state["product_schedule_rules"], {"P1"})
@@ -1651,6 +1652,7 @@ class SchedulingPipelineTest(unittest.TestCase):
             [{"id": "P1", "name": "考研暑假营-英语", "requirements": [requirement]}],
             scheduler.group_schedule_rules_by_product(scheduler_rules),
         )["P1"]
+        self.assertEqual(parsed_product.requirements[0].quarter, "暑假")
         self.assertEqual(parsed_product.requirements[0].block_hours, 4)
 
     def test_scheduler_rules_export_preserves_season_window(self) -> None:
