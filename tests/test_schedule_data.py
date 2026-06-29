@@ -77,9 +77,9 @@ class ScheduleDataTest(unittest.TestCase):
             metadata = load_class_metadata(data_dir)
 
         self.assertEqual(metadata["CLASS_UNLOCKED_CURRENT"]["is_manual_schedule_locked"], "否")
-        self.assertEqual(metadata["CLASS_UNLOCKED_CURRENT"]["is_schedule_locked"], "否")
+        self.assertNotIn("is_schedule_locked", metadata["CLASS_UNLOCKED_CURRENT"])
         self.assertEqual(metadata["CLASS_LOCKED_LEGACY"]["is_manual_schedule_locked"], "是")
-        self.assertEqual(metadata["CLASS_LOCKED_LEGACY"]["is_schedule_locked"], "是")
+        self.assertNotIn("is_schedule_locked", metadata["CLASS_LOCKED_LEGACY"])
 
     def test_load_class_metadata_infers_subject_for_compact_class_rows(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

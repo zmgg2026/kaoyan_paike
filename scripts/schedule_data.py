@@ -109,7 +109,6 @@ def load_class_metadata(path: Path) -> Dict[str, Dict[str, str]]:
             "preferred_room_ids": row.get("preferred_room_ids", ""),
             "preferred_room_is_required": row.get("preferred_room_is_required", ""),
             "is_manual_schedule_locked": lock_value,
-            "is_schedule_locked": lock_value,
         }
     return result
 

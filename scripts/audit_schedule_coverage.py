@@ -44,7 +44,7 @@ def load_class_metadata(data_dir: Path) -> Dict[str, ClassMeta]:
             subject_category=clean(row.get("subject_category")),
             subject=clean(row.get("subject")),
             suite_code=clean(row.get("suite_code")),
-            is_locked=clean(row.get("is_schedule_locked")),
+            is_locked=clean(row.get("is_manual_schedule_locked")),
         )
     return result
 
