@@ -430,6 +430,7 @@ class ReleaseStaticTest(unittest.TestCase):
         field_utils_source = (ROOT / "scripts" / "field_utils.py").read_text(encoding="utf-8")
         erp_export_source = (ROOT / "scripts" / "export_erp_lesson_import.py").read_text(encoding="utf-8")
         erp_lesson_map_source = (ROOT / "scripts" / "build_erp_lesson_id_map.py").read_text(encoding="utf-8")
+        erp_adjusted_export_source = (ROOT / "scripts" / "export_erp_adjusted_lesson_import.py").read_text(encoding="utf-8")
         failed_review_source = (ROOT / "scripts" / "build_failed_erp_class_schedule_review.py").read_text(encoding="utf-8")
         erp_adjusted_sync_source = (ROOT / "scripts" / "sync_erp_adjusted_schedule.py").read_text(encoding="utf-8")
         template_sync_source = (ROOT / "scripts" / "sync_template_workbook_to_admin_data.py").read_text(encoding="utf-8")
@@ -438,6 +439,7 @@ class ReleaseStaticTest(unittest.TestCase):
         for source in (
             erp_export_source,
             erp_lesson_map_source,
+            erp_adjusted_export_source,
             failed_review_source,
             erp_adjusted_sync_source,
             template_sync_source,
@@ -448,12 +450,15 @@ class ReleaseStaticTest(unittest.TestCase):
         self.assertIn("normalize_time_text", erp_export_source)
         self.assertIn("normalize_time_text", template_sync_source)
         self.assertIn("split_time_range_text", erp_lesson_map_source)
+        self.assertIn("split_time_range_text", erp_adjusted_export_source)
         self.assertIn("split_time_range_text", erp_adjusted_sync_source)
 
-        for source in (erp_export_source, erp_lesson_map_source, failed_review_source, erp_adjusted_sync_source):
+        for source in (erp_export_source, erp_lesson_map_source, erp_adjusted_export_source, failed_review_source, erp_adjusted_sync_source):
             self.assertIsNone(re.search(r"(?m)^def normalize_date\(", source))
             self.assertNotIn("datetime.strptime", source)
         self.assertIsNone(re.search(r"(?m)^def normalize_date\(", template_sync_source))
+        self.assertIsNone(re.search(r"(?m)^def normalize_time\(", erp_lesson_map_source))
+        self.assertNotIn("normalize_time,", erp_adjusted_export_source)
         self.assertIsNone(re.search(r"(?m)^def normalize_time\(", template_sync_source))
         self.assertIsNone(re.search(r"(?m)^def display_date\(", erp_export_source))
         self.assertIsNone(re.search(r"(?m)^def display_date\(", failed_review_source))

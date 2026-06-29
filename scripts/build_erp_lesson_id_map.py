@@ -31,10 +31,6 @@ DEFAULT_OUTPUT_DIR = Path("outputs")
 PUBLIC_SUBJECTS = {"英语", "政治", "数学", "语文"}
 
 
-def normalize_time(value: object) -> Tuple[str, str]:
-    return split_time_range_text(value)
-
-
 def schedule_rows(path: Path, start_date: str, end_date: str, include_subjects: set[str]) -> List[Dict[str, str]]:
     rows = []
     for row in read_csv_rows(path):
@@ -58,7 +54,7 @@ def schedule_sort_key(row: Dict[str, str]) -> Tuple[str, str, str, str, str, str
 
 
 def erp_sort_key(row: Dict[str, str]) -> Tuple[str, str, str, str, str]:
-    start_time, end_time = normalize_time(row.get("时间"))
+    start_time, end_time = split_time_range_text(row.get("时间"))
     return (
         clean(row.get("班级编码")),
         normalize_date(row.get("日期")),

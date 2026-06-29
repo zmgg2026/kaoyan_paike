@@ -19,9 +19,6 @@ if str(ROOT) not in sys.path:
 from scripts.build_erp_lesson_id_map import (  # noqa: E402
     PUBLIC_SUBJECTS,
     erp_sort_key,
-    normalize_date,
-    normalize_one_time,
-    normalize_time,
     schedule_sort_key,
 )
 from scripts.export_erp_lesson_import import (  # noqa: E402
@@ -42,6 +39,11 @@ from scripts.export_erp_lesson_import import (  # noqa: E402
     validate_template_headers,
 )
 from scripts.csv_utils import read_csv_rows, write_csv_rows  # noqa: E402
+from scripts.field_utils import (  # noqa: E402
+    normalize_date_text as normalize_date,
+    normalize_time_text as normalize_one_time,
+    split_time_range_text,
+)
 from scripts.schedule_data import load_class_metadata, load_room_name_to_id  # noqa: E402
 from scripts.sync_erp_adjusted_schedule import read_erp_rows  # noqa: E402
 
@@ -150,7 +152,7 @@ def semantic_current(
 
 def semantic_erp(row: Dict[str, str], room_name_to_id: Dict[str, str]) -> Dict[str, str]:
     date = normalize_date(row.get("日期"))
-    start_time, end_time = normalize_time(row.get("时间"))
+    start_time, end_time = split_time_range_text(row.get("时间"))
     room_name = clean(row.get("实际教室名称")) or clean(row.get("教室名称"))
     return {
         "date": date,
