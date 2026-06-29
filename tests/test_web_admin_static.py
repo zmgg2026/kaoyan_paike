@@ -123,6 +123,19 @@ class WebAdminStaticTest(unittest.TestCase):
         self.assertIn("classActualScheduleWindowIds(cls).join", source)
         self.assertNotIn("actual_schedule_window_ids", source)
 
+    def test_class_lock_editor_writes_current_manual_lock_field(self) -> None:
+        source = (ROOT / "web_admin" / "app.js").read_text(encoding="utf-8")
+
+        self.assertIn("function classScheduleLocked", source)
+        self.assertIn("cls.is_manual_schedule_locked = classScheduleLocked(cls);", source)
+        self.assertIn("delete cls.is_schedule_locked;", source)
+        self.assertIn('data-field="is_manual_schedule_locked"', source)
+        self.assertNotIn('data-field="is_schedule_locked"', source)
+        self.assertNotIn("is_schedule_locked: false", source)
+        self.assertIn("const autoClasses = allClasses.filter((cls) => !classScheduleLocked(cls)).length;", source)
+        self.assertIn("const lockedClasses = allClasses.filter((cls) => classScheduleLocked(cls)).length;", source)
+        self.assertIn('classScheduleLocked(cls) ? "手动锁定" : "自动排课"', source)
+
     def test_class_conflict_frontend_edits_current_fields(self) -> None:
         source = (ROOT / "web_admin" / "app.js").read_text(encoding="utf-8")
 

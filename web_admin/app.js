@@ -297,12 +297,26 @@ function hydrateLabels() {
   }
   for (const cls of state.classes || []) {
     cls.preferred_room_is_required = Boolean(cls.preferred_room_is_required);
-    cls.is_schedule_locked = Boolean(cls.is_schedule_locked || cls.is_manual_schedule_locked);
-    cls.is_manual_schedule_locked = cls.is_schedule_locked;
+    cls.is_manual_schedule_locked = classScheduleLocked(cls);
+    delete cls.is_schedule_locked;
     if (!arrayValues(cls.stages).length && arrayValues(cls.selected_stages).length) cls.stages = arrayValues(cls.selected_stages);
     applyClassAutoTags(cls, false);
     pruneClassStages(cls, true);
   }
+}
+
+function normalizedBoolean(value) {
+  if (value === true || value === false) return value;
+  const text = String(value ?? "").trim().toLowerCase();
+  if (!text) return false;
+  return ["1", "true", "yes", "y", "on", "是", "对", "启用", "可用", "纳入", "锁定"].includes(text);
+}
+
+function classScheduleLocked(cls) {
+  if (!cls) return false;
+  const current = cls.is_manual_schedule_locked;
+  if (current !== undefined && current !== null && String(current).trim() !== "") return normalizedBoolean(current);
+  return normalizedBoolean(cls.is_schedule_locked);
 }
 
 function conflictGroupIsActive(group) {
@@ -1018,7 +1032,7 @@ function classRoomRequirementToggle(cls) {
 function classScheduleLockedToggle(cls) {
   return `
     <label class="inline-check room-required-toggle">
-      <input type="checkbox" data-entity="class" data-id="${html(cls.id)}" data-field="is_schedule_locked" ${cls.is_schedule_locked ? "checked" : ""}>
+      <input type="checkbox" data-entity="class" data-id="${html(cls.id)}" data-field="is_manual_schedule_locked" ${classScheduleLocked(cls) ? "checked" : ""}>
       手动锁定排课结果
     </label>
   `;
@@ -5025,8 +5039,8 @@ function renderClassMeta() {
     .filter(({ cls }) => classMatchesSearch(cls, keyword))
     .filter(({ cls }) => productMatchesTagFilters(cls, selected.classMetaFilters));
   const rows = limitDisplayedRows(matchedRows, visibleRowLimits.classMeta);
-  const autoClasses = allClasses.filter((cls) => !cls.is_schedule_locked).length;
-  const lockedClasses = allClasses.filter((cls) => cls.is_schedule_locked).length;
+  const autoClasses = allClasses.filter((cls) => !classScheduleLocked(cls)).length;
+  const lockedClasses = allClasses.filter((cls) => classScheduleLocked(cls)).length;
   const suiteCount = new Set(allClasses.map((cls) => cls.suite_code).filter(Boolean)).size;
   const missingScopeClasses = allClasses.filter((cls) => {
     return !cls.product_id
@@ -5221,7 +5235,7 @@ function classStatusPills(cls) {
     <span class="status-pill ${teacherClass}">${html(summary.total ? `老师 ${summary.filled}/${summary.total}` : "老师未同步")}</span>
     ${summary.shared ? `<span class="status-pill ok">${html(`共享 ${summary.shared}`)}</span>` : ""}
     ${summary.sharedMissingSource ? `<span class="status-pill warning">${html(`共享缺主班 ${summary.sharedMissingSource}`)}</span>` : ""}
-    <span class="status-pill">${html(cls.is_schedule_locked ? "手动锁定" : "自动排课")}</span>
+    <span class="status-pill">${html(classScheduleLocked(cls) ? "手动锁定" : "自动排课")}</span>
   `;
 }
 
@@ -5934,7 +5948,6 @@ function addClass() {
     preferred_teaching_area_ids: [],
     preferred_room_ids: [],
     preferred_room_is_required: false,
-    is_schedule_locked: false,
     is_manual_schedule_locked: false,
     notes: "",
     teacher_assignments: [],
@@ -6687,7 +6700,11 @@ function handleValueChange(target, event = null) {
       : rawValue;
     cls[target.dataset.field] = value;
     if (target.dataset.field === "id") selected.classId = value;
-    if (target.dataset.field === "is_schedule_locked") cls.is_manual_schedule_locked = value;
+    if (target.dataset.field === "is_manual_schedule_locked") delete cls.is_schedule_locked;
+    if (target.dataset.field === "is_schedule_locked") {
+      cls.is_manual_schedule_locked = value;
+      delete cls.is_schedule_locked;
+    }
     if (target.dataset.field === "name") {
       applyClassAutoTags(cls, true);
       return;
