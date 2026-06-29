@@ -1144,8 +1144,9 @@ def normalize_class_requirement(requirement: Dict[str, Any]) -> Dict[str, Any]:
     return {
         "subject_category": normalize_text(requirement.get("subject_category")),
         "subject": normalize_text(requirement.get("subject")),
-        "quarter": normalize_text(
-            requirement.get("quarter")
+        "window_name": normalize_text(
+            requirement.get("window_name")
+            or requirement.get("quarter")
             or requirement.get("season")
             or requirement.get("季度")
             or requirement.get("季度标签")
@@ -2463,7 +2464,7 @@ def scheduler_class_requirements(cls: Dict[str, Any]) -> List[Dict[str, Any]]:
         row = {
             "subject_category": requirement.get("subject_category", ""),
             "subject": requirement.get("subject", ""),
-            "quarter": requirement.get("quarter", ""),
+            "window_name": requirement.get("window_name") or requirement.get("quarter", ""),
             "stage": requirement.get("stage", ""),
             "course_module": requirement.get("course_module", ""),
             "course_group": requirement.get("course_group", ""),

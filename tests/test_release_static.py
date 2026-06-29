@@ -187,6 +187,8 @@ class ReleaseStaticTest(unittest.TestCase):
         self.assertNotIn('"stages": split_id_list(cls.get("selected_stages")', admin_source)
         self.assertNotIn('"quarter": course.get("window_name")', admin_source)
         self.assertIn('"window_name": course.get("window_name")', admin_source)
+        self.assertNotIn('"quarter": requirement.get("quarter"', admin_source)
+        self.assertIn('"window_name": requirement.get("window_name")', admin_source)
         self.assertNotIn('"is_schedule_locked": lock_value', schedule_data_source)
         self.assertNotIn('is_locked=clean(row.get("is_schedule_locked"))', coverage_source)
         self.assertIn('"selected_stages": selected_stages', schedule_data_source)
