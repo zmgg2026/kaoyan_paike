@@ -685,6 +685,7 @@ class ReleaseStaticTest(unittest.TestCase):
         halfday_repair_source = (ROOT / "scripts" / "repair_2757_halfday_blocks.py").read_text(encoding="utf-8")
         public_gap_repair_source = (ROOT / "scripts" / "repair_public_coverage_gaps.py").read_text(encoding="utf-8")
         quality_hotspot_repair_source = (ROOT / "scripts" / "repair_schedule_quality_hotspots.py").read_text(encoding="utf-8")
+        erp_adjusted_sync_source = (ROOT / "scripts" / "sync_erp_adjusted_schedule.py").read_text(encoding="utf-8")
         time_slot_templates_source = (ROOT / "scripts" / "time_slot_templates.py").read_text(encoding="utf-8")
 
         self.assertIn("from scripts.field_utils import normalize_iso_date_text", generator_source)
@@ -694,7 +695,9 @@ class ReleaseStaticTest(unittest.TestCase):
         self.assertIn("from scripts.time_slot_templates import adjacent_halfday_slot_map", halfday_repair_source)
         self.assertIn("from scripts.time_slot_templates import lesson_slot_order, period_slot_specs", public_gap_repair_source)
         self.assertIn("from scripts.time_slot_templates import period_slot_specs", quality_hotspot_repair_source)
+        self.assertIn("from scripts.time_slot_templates import period_slot_specs", erp_adjusted_sync_source)
         self.assertIn("from scripts.time_slot_templates import display_lesson_slot_rows", schedule_display_source)
+        self.assertIn("ERP_SLOT_LABEL_OVERRIDES", erp_adjusted_sync_source)
         self.assertIn('"lesson_templates": default_lesson_template_rows()', admin_source)
         self.assertIn("DEFAULT_LESSON_TEMPLATES", time_slot_templates_source)
         self.assertIn("def display_lesson_slot_rows", time_slot_templates_source)
@@ -703,7 +706,15 @@ class ReleaseStaticTest(unittest.TestCase):
         self.assertNotIn("const defaultLessonTemplates = [", web_admin_source)
         self.assertNotIn("STANDARD_DISPLAY_SLOTS = (", schedule_display_source)
         self.assertNotIn('"label": "晚上一"', schedule_display_source)
-        for source in (maintenance_source, halfday_repair_source, public_gap_repair_source, quality_hotspot_repair_source):
+        self.assertNotIn('("08:00", "10:00")', erp_adjusted_sync_source)
+        self.assertNotIn('("19:00", "21:00")', erp_adjusted_sync_source)
+        for source in (
+            maintenance_source,
+            halfday_repair_source,
+            public_gap_repair_source,
+            quality_hotspot_repair_source,
+            erp_adjusted_sync_source,
+        ):
             self.assertNotIn('("AM1", "上午一", "08:00", "10:00")', source)
             self.assertNotIn('("PM1", "下午一", "14:00", "16:00")', source)
             self.assertNotIn("PERIOD_SLOTS = {", source)

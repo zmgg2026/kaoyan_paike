@@ -30,6 +30,7 @@ from scripts.schedule_data import load_room_name_to_id, load_room_names, load_te
 from scripts.schedule_display import weekday_label  # noqa: E402
 from scripts.schedule_modes import assignment_is_shared, assignment_reference_class_id  # noqa: E402
 from scripts.schedule_outputs import write_day_table_html  # noqa: E402
+from scripts.time_slot_templates import period_slot_specs  # noqa: E402
 
 
 FIELDNAMES = [
@@ -56,13 +57,16 @@ FIELDNAMES = [
     "duration_hours",
 ]
 
-TIME_SLOT_MAP = {
-    ("08:00", "10:00"): ("AM", "AM1", "上午一"),
-    ("10:20", "12:20"): ("AM", "AM2", "上午二"),
-    ("14:00", "16:00"): ("PM", "PM1", "下午一"),
-    ("16:20", "18:20"): ("PM", "PM2", "下午二"),
-    ("19:00", "21:00"): ("EVENING", "EVENING1", "晚上一"),
+ERP_SLOT_LABEL_OVERRIDES = {
+    "EVENING1": "晚上一",
 }
+
+TIME_SLOT_MAP = {
+    (start_time, end_time): (period, slot_id, ERP_SLOT_LABEL_OVERRIDES.get(slot_id, slot_label))
+    for period, slots in period_slot_specs().items()
+    for slot_id, slot_label, start_time, end_time in slots
+}
+
 
 def parse_time_range(value: object) -> Tuple[str, str]:
     start, end = split_time_range_text(clean(value))

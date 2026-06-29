@@ -59,6 +59,7 @@ class PeriodUtilsTest(unittest.TestCase):
         self.assertEqual(infer_period("晚间", "08:00"), "EVENING")
         self.assertEqual(infer_period("", "18:20"), "PM")
         self.assertEqual(infer_period("", "18:40"), "EVENING")
+        self.assertEqual(period_for_time("19:00", "21:00"), ("EVENING", "EVENING1", "晚上一"))
         self.assertEqual(period_for_time("18:20", "19:00"), ("EVENING", "EVENING-18:20-19:00", "晚上"))
 
     def test_maintenance_period_for_time_reuses_shared_cutoffs(self) -> None:
