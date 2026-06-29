@@ -299,7 +299,6 @@ function hydrateLabels() {
     cls.preferred_room_is_required = Boolean(cls.preferred_room_is_required);
     cls.is_manual_schedule_locked = classScheduleLocked(cls);
     delete cls.is_schedule_locked;
-    if (!arrayValues(cls.stages).length && arrayValues(cls.selected_stages).length) cls.stages = arrayValues(cls.selected_stages);
     applyClassAutoTags(cls, false);
     pruneClassStages(cls, true);
   }
@@ -1544,19 +1543,29 @@ function classStageOptions(cls) {
   return productStages(cls.product_id, cls.subject);
 }
 
+function classSelectedStages(cls) {
+  const current = arrayValues(cls?.selected_stages);
+  return current.length ? current : arrayValues(cls?.stages);
+}
+
+function setClassSelectedStages(cls, values) {
+  cls.selected_stages = arrayValues(values);
+  delete cls.stages;
+}
+
 function pruneClassStages(cls, defaultAll = false) {
   const allowedValues = classStageOptions(cls);
   const allowed = new Set(allowedValues);
-  const selectedStages = new Set(arrayValues(cls.stages));
-  cls.stages = allowedValues.filter((stage) => allowed.has(stage) && selectedStages.has(stage));
-  if (defaultAll && allowedValues.length && !cls.stages.length) cls.stages = [...allowedValues];
-  cls.selected_stages = [...cls.stages];
+  const selectedStages = new Set(classSelectedStages(cls));
+  let nextStages = allowedValues.filter((stage) => allowed.has(stage) && selectedStages.has(stage));
+  if (defaultAll && allowedValues.length && !nextStages.length) nextStages = [...allowedValues];
+  setClassSelectedStages(cls, nextStages);
 }
 
 function classStageCheckboxOptions(cls) {
   const stages = classStageOptions(cls);
   if (!stages.length) return `<span class="muted">该产品暂无阶段</span>`;
-  return `<div class="class-stage-options">${entityCheckboxOptions("class", cls.id, "stages", stages, cls.stages)}</div>`;
+  return `<div class="class-stage-options">${entityCheckboxOptions("class", cls.id, "selected_stages", stages, classSelectedStages(cls))}</div>`;
 }
 
 function applyClassProduct(cls, productId) {
@@ -1631,7 +1640,7 @@ function applyProductAutoTags(productId, force = false) {
 
 function classProductCourses(cls) {
   const stageOptions = classStageOptions(cls);
-  const selectedStages = new Set(arrayValues(cls.stages));
+  const selectedStages = new Set(classSelectedStages(cls));
   return productCourses(cls.product_id).filter(({ course }) => {
     if (cls.subject && course.subject !== cls.subject) return false;
     if (stageOptions.length && !selectedStages.has(course.stage)) return false;
@@ -1879,7 +1888,7 @@ function deleteProductAtIndex(index) {
     cls.product_system = "";
     cls.course_nature = "";
     cls.subject_category = "";
-    cls.stages = [];
+    setClassSelectedStages(cls, []);
     cls.standard_capacity = 0;
     cls.capacity_type = "";
   }
@@ -3800,7 +3809,7 @@ function buildWarnings() {
       warnings.push(`${cls.name || cls.id} 的科目 ${cls.subject} 不在所属产品课程中`);
     }
     const allowedStages = new Set(productStages(cls.product_id, cls.subject));
-    for (const stage of arrayValues(cls.stages)) {
+    for (const stage of classSelectedStages(cls)) {
       if (!allowedStages.has(stage)) warnings.push(`${cls.name || cls.id} 的阶段 ${stage} 不在所属产品/科目课程中`);
     }
     if (!cls.teacher_assignments?.length) warnings.push(`${cls.name || cls.id} 未填写老师安排`);
@@ -4740,7 +4749,7 @@ function classSearchText(cls) {
     cls.course_nature,
     cls.subject_category,
     cls.subject,
-    arrayValues(cls.stages).join(" "),
+    classSelectedStages(cls).join(" "),
     cls.exam_season,
     cls.exam_month,
     classActualScheduleWindowIds(cls).join(" "),
@@ -5057,7 +5066,7 @@ function renderClassMeta() {
       || !cls.exam_season
       || !cls.start_date
       || !cls.end_date
-      || !arrayValues(cls.stages).length;
+      || !classSelectedStages(cls).length;
   }).length;
   const scopeTone = missingScopeClasses ? "warning" : allClasses.length ? "ok" : "neutral";
   const scopeHealthText = allClasses.length
@@ -5225,7 +5234,7 @@ function classTeacherContextChips(cls) {
   const chips = [
     ["产品", productName(cls.product_id)],
     ["科目", cls.subject],
-    ["阶段", sortStageValues(arrayValues(cls.stages)).join("/")],
+    ["阶段", sortStageValues(classSelectedStages(cls)).join("/")],
     ["套班", cls.suite_code],
     ["年度窗口", listText(classActualScheduleWindowIds(cls))],
   ];
@@ -5938,7 +5947,6 @@ function addClass() {
     course_nature: "",
     subject_category: productSubjectCategory(product?.id || "", subject),
     subject,
-    stages: [],
     selected_stages: [],
     exam_season: "",
     exam_month: "",
@@ -6504,10 +6512,11 @@ function handleValueChange(target, event = null) {
     if (target.dataset.entity === "class") {
       const cls = state.classes.find((item) => item.id === target.dataset.id);
       if (!cls) return;
-      cls[target.dataset.field] = values;
-      if (target.dataset.field === "stages") {
-        cls.selected_stages = [...values];
+      if (target.dataset.field === "selected_stages") {
+        setClassSelectedStages(cls, values);
         syncClassTeachers(cls);
+      } else {
+        cls[target.dataset.field] = values;
       }
       if (activeTab !== "classMeta") renderClasses();
     }
@@ -6702,10 +6711,16 @@ function handleValueChange(target, event = null) {
           : target.value;
     const cls = state.classes.find((item) => item.id === target.dataset.id);
     if (!cls) return;
-    const value = ["stages", "preferred_teaching_area_ids", "preferred_room_ids"].includes(target.dataset.field) && !(target instanceof HTMLSelectElement && target.multiple)
+    const value = ["selected_stages", "preferred_teaching_area_ids", "preferred_room_ids"].includes(target.dataset.field) && !(target instanceof HTMLSelectElement && target.multiple)
       ? arrayValues(rawValue)
       : rawValue;
     cls[target.dataset.field] = value;
+    if (target.dataset.field === "selected_stages") {
+      setClassSelectedStages(cls, value);
+      syncClassTeachers(cls);
+      renderActiveClassView({ preservePosition: true });
+      return;
+    }
     if (target.dataset.field === "id") selected.classId = value;
     if (target.dataset.field === "is_manual_schedule_locked") delete cls.is_schedule_locked;
     if (target.dataset.field === "is_schedule_locked") {

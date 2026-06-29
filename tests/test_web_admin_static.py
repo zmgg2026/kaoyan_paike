@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import unittest
 from pathlib import Path
 
@@ -135,6 +136,20 @@ class WebAdminStaticTest(unittest.TestCase):
         self.assertIn("const autoClasses = allClasses.filter((cls) => !classScheduleLocked(cls)).length;", source)
         self.assertIn("const lockedClasses = allClasses.filter((cls) => classScheduleLocked(cls)).length;", source)
         self.assertIn('classScheduleLocked(cls) ? "手动锁定" : "自动排课"', source)
+
+    def test_class_stage_editor_writes_current_selected_stages_field(self) -> None:
+        source = (ROOT / "web_admin" / "app.js").read_text(encoding="utf-8")
+
+        self.assertIn("function classSelectedStages", source)
+        self.assertIn("function setClassSelectedStages", source)
+        self.assertIn('delete cls.stages;', source)
+        self.assertIn('data-field="${target.dataset.field}"', source)
+        self.assertIn('entityCheckboxOptions("class", cls.id, "selected_stages"', source)
+        self.assertIn('if (target.dataset.field === "selected_stages")', source)
+        self.assertNotIn('entityCheckboxOptions("class", cls.id, "stages"', source)
+        self.assertNotIn('target.dataset.field === "stages"', source)
+        self.assertIsNone(re.search(r"(?m)^\s*stages:\s*\[\],", source))
+        self.assertNotIn("cls.stages =", source)
 
     def test_class_conflict_frontend_edits_current_fields(self) -> None:
         source = (ROOT / "web_admin" / "app.js").read_text(encoding="utf-8")
