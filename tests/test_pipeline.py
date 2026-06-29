@@ -2800,6 +2800,36 @@ class SchedulingPipelineTest(unittest.TestCase):
         self.assertFalse(normalized["is_manual_schedule_locked"])
         self.assertFalse(normalized["is_schedule_locked"])
 
+    def test_professional_import_marks_current_manual_lock_field(self) -> None:
+        from scripts.import_locked_professional_schedules import update_class_lock_flags
+
+        state = {
+            "classes": [
+                {
+                    "id": "C1",
+                    "name": "专业课班",
+                    "is_manual_schedule_locked": False,
+                    "is_schedule_locked": False,
+                    "notes": "",
+                },
+                {
+                    "id": "C2",
+                    "name": "普通班",
+                    "is_manual_schedule_locked": False,
+                    "is_schedule_locked": False,
+                    "notes": "",
+                },
+            ]
+        }
+
+        update_class_lock_flags(state, ["C1"], Path("/tmp/professional"))
+
+        self.assertTrue(state["classes"][0]["is_manual_schedule_locked"])
+        self.assertTrue(state["classes"][0]["is_schedule_locked"])
+        self.assertIn("不参与自动排课", state["classes"][0]["notes"])
+        self.assertFalse(state["classes"][1]["is_manual_schedule_locked"])
+        self.assertFalse(state["classes"][1]["is_schedule_locked"])
+
     def test_preferred_room_can_expand_to_same_teaching_area_unless_required(self) -> None:
         state = data_admin_server.normalize_payload(
             {

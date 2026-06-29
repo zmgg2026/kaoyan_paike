@@ -331,10 +331,13 @@ class ReleaseStaticTest(unittest.TestCase):
         field_utils_source = (ROOT / "scripts" / "field_utils.py").read_text(encoding="utf-8")
         import_locked_source = (ROOT / "scripts" / "import_locked_professional_schedules.py").read_text(encoding="utf-8")
         camp_maintenance_source = (ROOT / "scripts" / "build_camp_maintenance_schedule.py").read_text(encoding="utf-8")
+        wyqc_foundation_gap_source = (ROOT / "scripts" / "repair_wyqc_foundation_gaps.py").read_text(encoding="utf-8")
 
         self.assertIn("def parse_datetime_value", field_utils_source)
         self.assertIn("parse_datetime_value", import_locked_source)
         self.assertIn("parse_datetime_value", camp_maintenance_source)
+        self.assertIn("is_manual_schedule_locked", import_locked_source)
+        self.assertNotIn("def class_is_movable_public", wyqc_foundation_gap_source)
         self.assertNotIn("datetime.strptime", import_locked_source)
         self.assertNotIn("datetime.strptime", camp_maintenance_source)
 

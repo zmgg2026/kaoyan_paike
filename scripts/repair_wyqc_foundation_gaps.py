@@ -42,15 +42,6 @@ def class_sub_product(class_metadata: Dict[str, Dict[str, str]], class_id: str) 
     return clean(class_metadata.get(class_id, {}).get("sub_product"))
 
 
-def class_is_movable_public(class_metadata: Dict[str, Dict[str, str]], class_id: str) -> bool:
-    meta = class_metadata.get(class_id, {})
-    locked = clean(meta.get("is_schedule_locked")).lower()
-    return (
-        clean(meta.get("subject_category")) == "公共课"
-        and locked not in {"是", "1", "true", "yes", "y"}
-    )
-
-
 def build_module_gap_rows(data_dir: Path, schedule_csv: Path) -> List[dict]:
     schedule_input = scheduler.load_input(data_dir / "scheduler_input_draft.json")
     class_metadata = coverage.load_class_metadata(data_dir)

@@ -414,6 +414,7 @@ def update_class_lock_flags(state: Dict[str, Any], class_ids: Iterable[str], sou
     for cls in state["classes"]:
         if cls.get("id") not in target_ids:
             continue
+        cls["is_manual_schedule_locked"] = True
         cls["is_schedule_locked"] = True
         note = normalize_text(cls.get("notes"))
         addition = f"{stamp} 已导入专业课固定课表：{source_folder}；不参与自动排课。"

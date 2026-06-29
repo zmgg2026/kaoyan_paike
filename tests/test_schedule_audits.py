@@ -40,6 +40,41 @@ class ScheduleAuditTest(unittest.TestCase):
         info.is_locked = "锁定"
         self.assertFalse(is_public_auto_class(info))
 
+    def test_coverage_audit_prefers_current_manual_lock_field(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            data_dir = Path(tmp)
+            with (data_dir / "classes.csv").open("w", newline="", encoding="utf-8") as handle:
+                writer = csv.DictWriter(
+                    handle,
+                    fieldnames=["id", "name", "product_id", "is_manual_schedule_locked", "is_schedule_locked"],
+                )
+                writer.writeheader()
+                writer.writerow(
+                    {
+                        "id": "KYYY2750",
+                        "name": "考研英语寒暑集训营",
+                        "product_id": "KYHSY_ZK_YY",
+                        "is_manual_schedule_locked": "否",
+                        "is_schedule_locked": "是",
+                    }
+                )
+                writer.writerow(
+                    {
+                        "id": "KYZZ2750",
+                        "name": "考研政治寒暑集训营",
+                        "product_id": "KYHSY_ZK_ZZ",
+                        "is_manual_schedule_locked": "是",
+                        "is_schedule_locked": "否",
+                    }
+                )
+
+            metadata = load_class_metadata(data_dir)
+
+        self.assertEqual(metadata["KYYY2750"].is_locked, "否")
+        self.assertTrue(is_public_auto_class(metadata["KYYY2750"]))
+        self.assertEqual(metadata["KYZZ2750"].is_locked, "是")
+        self.assertFalse(is_public_auto_class(metadata["KYZZ2750"]))
+
     def test_quality_audit_uses_shared_compact_class_metadata(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             data_dir = Path(tmp)
