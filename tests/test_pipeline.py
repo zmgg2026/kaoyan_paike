@@ -31,6 +31,7 @@ from run_scheduling_pipeline import (
     row_counts_for_tables,
     run_pipeline,
     run_preflight,
+    sanitize_markdown_table_cell,
     table_name_for,
     write_missing_teacher_rows_template,
     write_missing_teacher_template,
@@ -1838,6 +1839,35 @@ class SchedulingPipelineTest(unittest.TestCase):
                     }
                 ]
             )
+
+    def test_scheduler_text_parsing_preserves_falsey_non_empty_values(self) -> None:
+        self.assertTrue(scheduler.rule_field_matches("0|1", 0))
+        self.assertTrue(scheduler.rule_field_matches("False", False))
+        self.assertEqual(scheduler.requirement_mapping_key({"subject": 0, "stage": False}), ("0", "False", "", ""))
+        self.assertEqual(sanitize_markdown_table_cell(0), "0")
+        self.assertEqual(sanitize_markdown_table_cell(False), "False")
+        self.assertEqual(sanitize_markdown_table_cell(" A|B\nC "), "A\\|B C")
+
+        by_class = scheduler.parse_class_window_constraints(
+            [{"class_id": 0, "class_window_id": 0, "earliest_date": "2026-07-01", "schedule_window_id": 0}],
+            {},
+        )
+
+        self.assertEqual(list(by_class), ["0"])
+        self.assertEqual(by_class["0"][0].class_window_id, "0")
+        self.assertEqual(by_class["0"][0].schedule_window_id, "0")
+
+        unavailability = scheduler.parse_teacher_unavailability(
+            [{"teacher_id": 0, "unavailable_id": 0, "reason": False, "start_date": "2026-07-01"}]
+        )
+
+        self.assertEqual(list(unavailability), ["0"])
+        self.assertEqual(unavailability["0"][0].unavailable_id, "0")
+        self.assertEqual(unavailability["0"][0].reason, "False")
+        self.assertEqual(
+            scheduler.parse_area_travel_minutes([{"from_area_id": 0, "to_area_id": False, "travel_minutes": 15}]),
+            {("0", "False"): 15},
+        )
 
     def test_parse_product_requirements_preserves_shared_filters_and_legacy_group_field(self) -> None:
         products = scheduler.parse_products(

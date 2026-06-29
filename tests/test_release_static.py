@@ -177,6 +177,8 @@ class ReleaseStaticTest(unittest.TestCase):
         self.assertNotIn("data_admin_server.normalize_text", pipeline_source)
         self.assertNotIn("isinstance(value, datetime)", pipeline_source)
         self.assertNotIn("set(number_format) == {\"0\"}", pipeline_source)
+        self.assertIsNone(re.search(r"str\([^\n]* or \"\"\)", scheduler_source))
+        self.assertIsNone(re.search(r"str\([^\n]* or \"\"\)", pipeline_source))
         self.assertNotIn("str(value or \"\").strip()", camp_maintenance_source)
 
     def test_repair_clean_helpers_reuse_shared_field_utils(self) -> None:

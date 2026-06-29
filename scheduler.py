@@ -15,6 +15,7 @@ from typing import Dict, List, Mapping, Optional, Set, Tuple
 from scripts.csv_utils import write_csv_rows
 from scripts.field_utils import (
     normalize_blank_marker as blank_marker_to_empty,
+    normalize_text,
     normalize_time_text as normalize_time_value,
     parse_bool,
     parse_bool_default,
@@ -631,7 +632,7 @@ def parse_class_window_period(
     legacy_field: str,
     default: str,
 ) -> str:
-    period = str(raw.get(primary_field) or raw.get(legacy_field) or default).strip().upper()
+    period = (normalize_text(raw.get(primary_field)) or normalize_text(raw.get(legacy_field)) or default).upper()
     if period and period not in VALID_PERIODS:
         raise ValueError(f"班级窗口 {class_id} 的 {primary_field} 只能填写 AM、PM 或 EVENING")
     return period
@@ -643,13 +644,13 @@ def parse_class_window_constraint(
 ) -> Optional[ClassWindowConstraint]:
     if not parse_bool_default(raw.get("is_class_window_included"), True):
         return None
-    class_id = str(raw.get("class_id") or "").strip()
+    class_id = normalize_text(raw.get("class_id"))
     if not class_id:
         return None
     room_ids, has_room_constraint = class_window_room_constraint(raw, rooms)
     return ClassWindowConstraint(
         class_id=class_id,
-        class_window_id=str(raw.get("class_window_id") or "").strip(),
+        class_window_id=normalize_text(raw.get("class_window_id")),
         start_date=validate_date(
             raw.get("earliest_date") or raw.get("start_date"),
             f"班级窗口 {class_id}/earliest_date",
@@ -660,9 +661,9 @@ def parse_class_window_constraint(
             f"班级窗口 {class_id}/latest_date",
         ),
         end_period=parse_class_window_period(raw, class_id, "latest_period", "end_period", "EVENING"),
-        schedule_window_id=str(raw.get("schedule_window_id") or "").strip() or None,
-        season_window_id=str(raw.get("season_window_id") or "").strip() or None,
-        season_name=str(raw.get("season_name") or raw.get("schedule_window_name") or "").strip() or None,
+        schedule_window_id=normalize_text(raw.get("schedule_window_id")) or None,
+        season_window_id=normalize_text(raw.get("season_window_id")) or None,
+        season_name=(normalize_text(raw.get("season_name")) or normalize_text(raw.get("schedule_window_name"))) or None,
         room_ids=room_ids,
         has_room_constraint=has_room_constraint,
     )
@@ -722,8 +723,8 @@ def parse_teacher_unavailability_rule(raw_rule: object, index: int) -> Optional[
         weekdays=weekdays,
         periods=periods,
         schedule_window_ids=schedule_window_ids,
-        unavailable_id=str(raw_rule.get("unavailable_id") or "").strip(),
-        reason=str(raw_rule.get("reason") or raw_rule.get("notes") or "").strip(),
+        unavailable_id=normalize_text(raw_rule.get("unavailable_id")),
+        reason=normalize_text(raw_rule.get("reason")) or normalize_text(raw_rule.get("notes")),
     )
 
 
@@ -732,7 +733,11 @@ def teacher_unavailability_label(raw_rule: dict, index: int) -> str:
 
 
 def teacher_unavailability_teacher_id(raw_rule: dict) -> str:
-    return str(raw_rule.get("teacher_id") or raw_rule.get("employee_id") or raw_rule.get("id") or "").strip()
+    return (
+        normalize_text(raw_rule.get("teacher_id"))
+        or normalize_text(raw_rule.get("employee_id"))
+        or normalize_text(raw_rule.get("id"))
+    )
 
 
 def teacher_unavailability_date_range(raw_rule: dict, label: str) -> Tuple[Optional[str], Optional[str]]:
@@ -757,8 +762,8 @@ def teacher_unavailability_scope(
 def parse_area_travel_minutes(raw_links: List[dict]) -> Dict[Tuple[str, str], int]:
     result: Dict[Tuple[str, str], int] = {}
     for raw in raw_links:
-        from_id = str(raw.get("from_teaching_area_id") or raw.get("from_area_id") or "").strip()
-        to_id = str(raw.get("to_teaching_area_id") or raw.get("to_area_id") or "").strip()
+        from_id = normalize_text(raw.get("from_teaching_area_id")) or normalize_text(raw.get("from_area_id"))
+        to_id = normalize_text(raw.get("to_teaching_area_id")) or normalize_text(raw.get("to_area_id"))
         if not from_id or not to_id or from_id == to_id:
             continue
         try:
@@ -1219,7 +1224,7 @@ def schedule_rule_matches(rule: ScheduleRule, raw_req: dict) -> bool:
 
 
 def rule_field_matches(rule_value: str, req_value: object) -> bool:
-    req_text = str(req_value or "").strip()
+    req_text = normalize_text(req_value)
     if not req_text:
         return False
     choices = split_delimited_values(rule_value)
@@ -1239,7 +1244,7 @@ def parse_classes(
     errors: List[str] = []
 
     for raw_class in raw_classes:
-        class_id = str(raw_class.get("id", "")).strip()
+        class_id = normalize_text(raw_class.get("id"))
         if not class_id:
             errors.append("班级基础信息缺少 id")
             continue
@@ -1267,7 +1272,7 @@ def parse_class_row(
     products: Dict[str, Product],
     allow_area_field_as_room_ids: bool = False,
 ) -> Optional[SchoolClass]:
-    class_id = str(raw_class.get("id", "")).strip()
+    class_id = normalize_text(raw_class.get("id"))
     bounds = parse_class_scheduling_bounds(class_id, raw_class)
     product = parse_class_product(class_id, raw_class, products)
     class_room_ids = parse_class_room_ids(raw_class, allow_area_field_as_room_ids)
@@ -1362,7 +1367,7 @@ def validate_class_period_pair(
 
 
 def parse_class_product(class_id: str, raw_class: dict, products: Dict[str, Product]) -> Optional[Product]:
-    product_id = raw_class.get("product_id")
+    product_id = normalize_text(raw_class.get("product_id"))
     product = products.get(product_id) if product_id else None
     if product_id and not product:
         raise ValueError(f"班级 {class_id} 引用了不存在的产品 {product_id}")
@@ -1435,7 +1440,7 @@ def ordered_stage_names(values: object) -> List[str]:
 
 def inferred_stage_order(raw_class: dict, product: Optional[Product]) -> List[str]:
     text = " ".join(
-        str(value or "").strip()
+        normalized
         for value in (
             raw_class.get("sub_product"),
             raw_class.get("product_line"),
@@ -1443,7 +1448,7 @@ def inferred_stage_order(raw_class: dict, product: Optional[Product]) -> List[st
             raw_class.get("product_name"),
             product.name if product else "",
         )
-        if str(value or "").strip()
+        if (normalized := normalize_text(value))
     )
     for keywords, order in STAGE_ORDER_PROFILES:
         if any(keyword in text for keyword in keywords):
@@ -1465,18 +1470,18 @@ def build_stage_order(raw_class: dict, product: Optional[Product], requirements:
 
 
 def assignment_matches_product_requirement(raw_assignment: dict, requirement: ProductRequirement, product_id: str) -> bool:
-    assignment_product = str(raw_assignment.get("product_id") or raw_assignment.get("canonical_product_id") or "").strip()
+    assignment_product = normalize_text(raw_assignment.get("product_id")) or normalize_text(raw_assignment.get("canonical_product_id"))
     if assignment_product and assignment_product != product_id:
         return False
-    subject_value = str(raw_assignment.get("subject", "") or "").strip()
+    subject_value = normalize_text(raw_assignment.get("subject"))
     if subject_value and subject_value != requirement.subject:
         return False
-    assignment_stage = str(raw_assignment.get("stage", "") or "").strip()
+    assignment_stage = normalize_text(raw_assignment.get("stage"))
     if assignment_stage and assignment_stage not in {requirement.stage or "", requirement.quarter or ""}:
         return False
     comparisons = (
-        (str(raw_assignment.get("course_module", "") or "").strip(), requirement.course_module or ""),
-        (str(raw_assignment.get("course_group") or raw_assignment.get("teacher_group") or "").strip(), requirement.course_group or ""),
+        (normalize_text(raw_assignment.get("course_module")), requirement.course_module or ""),
+        (normalize_text(raw_assignment.get("course_group")) or normalize_text(raw_assignment.get("teacher_group")), requirement.course_group or ""),
     )
     for assignment_value, requirement_value in comparisons:
         if assignment_value and assignment_value != requirement_value:
@@ -1920,7 +1925,7 @@ def requirement_key(
 
 def requirement_object_key(requirement: object) -> Tuple[str, str, str, str]:
     return requirement_key(
-        str(getattr(requirement, "subject", "") or ""),
+        normalize_text(getattr(requirement, "subject", "")),
         getattr(requirement, "stage", None),
         getattr(requirement, "course_module", None),
         getattr(requirement, "course_group", None),
@@ -1929,10 +1934,10 @@ def requirement_object_key(requirement: object) -> Tuple[str, str, str, str]:
 
 def requirement_mapping_key(row: Mapping[str, object]) -> Tuple[str, str, str, str]:
     return requirement_key(
-        str(row.get("subject") or ""),
-        str(row.get("stage") or ""),
-        str(row.get("course_module") or ""),
-        str(row.get("course_group") or ""),
+        normalize_text(row.get("subject")),
+        normalize_text(row.get("stage")),
+        normalize_text(row.get("course_module")),
+        normalize_text(row.get("course_group")),
     )
 
 
@@ -2434,7 +2439,7 @@ def candidate_hits_teacher_unavailability(
     slot_block: Tuple[TimeSlot, ...],
     schedule_input: ScheduleInput,
 ) -> bool:
-    teacher_id = str(task.teacher_id or "").strip()
+    teacher_id = normalize_text(task.teacher_id)
     if not teacher_id:
         return False
     rules = schedule_input.teacher_unavailability.get(teacher_id, [])

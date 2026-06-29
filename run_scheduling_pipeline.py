@@ -461,7 +461,7 @@ def report_table_names(tables: Dict[str, LoadedTable]) -> List[str]:
 
 
 def sanitize_markdown_table_cell(value: object) -> str:
-    return str(value or "").replace("|", "\\|").replace("\n", " ").strip()
+    return normalize_text(value).replace("|", "\\|").replace("\n", " ")
 
 
 def report_header_lines(source: Path, backup_path: Optional[Path], error: Optional[str]) -> List[str]:
@@ -577,15 +577,15 @@ def class_teacher_template_context(state: Optional[Dict[str, Any]]) -> Dict[str,
     product_meta = shared_product_catalog(state.get("products", []), state.get("product_courses", []))
     context: Dict[str, Dict[str, str]] = {}
     for cls in state.get("classes", []):
-        class_id = str(cls.get("id") or "").strip()
+        class_id = normalize_text(cls.get("id"))
         if not class_id:
             continue
-        product_id = str(cls.get("product_id") or "").strip()
+        product_id = normalize_text(cls.get("product_id"))
         meta = product_meta.get(product_id, {})
         context[class_id] = {
-            "class_name": str(cls.get("name") or "").strip(),
+            "class_name": normalize_text(cls.get("name")),
             "product_id": product_id,
-            "product_name": str(meta.get("name") or cls.get("product_name") or "").strip(),
+            "product_name": normalize_text(meta.get("name")) or normalize_text(cls.get("product_name")),
         }
     return context
 
@@ -651,7 +651,7 @@ def missing_teacher_rows_for_requirements(
 ) -> List[Dict[str, str]]:
     context = class_teacher_template_context(state)
     product_names = {
-        product_id: str(meta.get("name") or "").strip()
+        product_id: normalize_text(meta.get("name"))
         for product_id, meta in shared_product_catalog(
             state.get("products", []),
             state.get("product_courses", []),
