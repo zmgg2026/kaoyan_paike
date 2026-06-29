@@ -73,6 +73,7 @@ from scripts.schedule_week_balance import (
     balanced_week_quotas,
     week_key,
 )
+from scripts.time_slot_templates import standard_slot_specs_by_period
 from scripts.schedule_batch import (
     alternate_teacher_tasks,
     candidate_hours_by_date,
@@ -1117,19 +1118,7 @@ def merge_history_rows(rows: Sequence[dict]) -> List[dict]:
     return sorted(merged, key=lambda item: (item["date"], scheduler.period_sort_value(item["period"]), item["start_time"], item["class_id"]))
 
 
-STANDARD_SLOT_SPECS: Dict[str, Tuple[Tuple[int, str, str, str, int], ...]] = {
-    "AM": (
-        (1, "上午一", "08:00", "10:00", 2),
-        (2, "上午二", "10:20", "12:20", 2),
-    ),
-    "PM": (
-        (1, "下午一", "14:00", "16:00", 2),
-        (2, "下午二", "16:20", "18:20", 2),
-    ),
-    "EVENING": (
-        (1, "晚上", "19:00", "21:00", 2),
-    ),
-}
+STANDARD_SLOT_SPECS = standard_slot_specs_by_period()
 
 
 def standard_slots_for_row(row: dict, task_id: str) -> Tuple[scheduler.TimeSlot, ...]:
@@ -2103,31 +2092,27 @@ def build_summer_assignments(
 
 
 def autumn_sunday_slots(start: str, end: str, holidays: Set[str]) -> List[scheduler.TimeSlot]:
-    slot_specs = (
-        ("AM", "上午一", 1, "08:00", "10:00"),
-        ("AM", "上午二", 2, "10:20", "12:20"),
-        ("PM", "下午一", 1, "14:00", "16:00"),
-        ("PM", "下午二", 2, "16:20", "18:20"),
-    )
+    slot_specs = standard_slot_specs_by_period(("AM", "PM"))
     current = Date.fromisoformat(start)
     last = Date.fromisoformat(end)
     slots: List[scheduler.TimeSlot] = []
     while current <= last:
         date_text = current.isoformat()
         if current.weekday() == 6 and date_text not in holidays:
-            for period, name, order, start_time, end_time in slot_specs:
-                slots.append(
-                    scheduler.TimeSlot(
-                        id=f"{date_text}-{period}-{order}",
-                        date=date_text,
-                        period=period,
-                        name=name,
-                        order=order,
-                        start_time=start_time,
-                        end_time=end_time,
-                        duration_hours=2,
+            for period, specs in slot_specs.items():
+                for order, name, start_time, end_time, duration in specs:
+                    slots.append(
+                        scheduler.TimeSlot(
+                            id=f"{date_text}-{period}-{order}",
+                            date=date_text,
+                            period=period,
+                            name=name,
+                            order=order,
+                            start_time=start_time,
+                            end_time=end_time,
+                            duration_hours=duration,
+                        )
                     )
-                )
         current += timedelta(days=1)
     return slots
 

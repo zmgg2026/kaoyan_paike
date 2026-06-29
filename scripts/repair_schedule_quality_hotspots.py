@@ -39,6 +39,7 @@ from scripts.subject_utils import (  # noqa: E402
     CORE_PUBLIC_SUBJECT_PREFERRED_PERIODS,
     PUBLIC_SUBJECTS_WITH_CHINESE as PUBLIC_SUBJECTS,
 )
+from scripts.time_slot_templates import period_slot_specs  # noqa: E402
 
 
 FIELDNAMES = [
@@ -65,11 +66,7 @@ FIELDNAMES = [
     "duration_hours",
 ]
 
-PERIOD_SLOTS = {
-    "AM": [("AM1", "上午一", "08:00", "10:00"), ("AM2", "上午二", "10:20", "12:20")],
-    "PM": [("PM1", "下午一", "14:00", "16:00"), ("PM2", "下午二", "16:20", "18:20")],
-    "EVENING": [("EVENING1", "晚上一", "19:00", "21:00")],
-}
+PERIOD_SLOTS = period_slot_specs()
 FAR_REGION_PAIRS = {
     ("新站", "滨湖"),
     ("滨湖", "新站"),

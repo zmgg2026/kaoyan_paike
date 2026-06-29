@@ -23,18 +23,16 @@ from scripts.period_utils import PERIOD_ORDER
 from scripts.schedule_data import load_room_names
 from scripts.schedule_outputs import write_day_table_html
 from scripts.subject_utils import PUBLIC_SUBJECTS_WITH_CHINESE as PUBLIC_SUBJECTS
+from scripts.time_slot_templates import adjacent_halfday_slot_map
 
 
 DEFAULT_SCHEDULE = Path("outputs/batch_schedule_maintenance.csv")
 DEFAULT_OUTPUT_DIR = Path("outputs")
 TARGET_SUITE = "2757"
 TARGET_WINDOW = "暑假"
-SECOND_SLOT = {
-    "AM1": ("AM2", "上午二", "10:20", "12:20"),
-    "AM2": ("AM1", "上午一", "08:00", "10:00"),
-    "PM1": ("PM2", "下午二", "16:20", "18:20"),
-    "PM2": ("PM1", "下午一", "14:00", "16:00"),
-}
+SECOND_SLOT = adjacent_halfday_slot_map()
+
+
 def row_window_name(row: Dict[str, str]) -> str:
     return clean(row_value(row, "window_name", "quarter"))
 

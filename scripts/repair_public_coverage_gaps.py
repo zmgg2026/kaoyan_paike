@@ -22,6 +22,7 @@ from scripts.period_utils import PERIOD_ORDER
 from scripts.schedule_data import load_class_metadata, load_room_names
 from scripts.schedule_display import week_start, weekday_label
 from scripts.schedule_outputs import write_day_table_html
+from scripts.time_slot_templates import lesson_slot_order, period_slot_specs
 
 DEFAULT_TARGET_CLASSES = {
     "KYYY2701",
@@ -36,17 +37,8 @@ DEFAULT_TARGET_CLASSES = {
     "KYYY2727",
     "KYZZ2727",
 }
-PERIOD_SLOTS = {
-    "AM": [
-        ("AM1", "上午一", "08:00", "10:00"),
-        ("AM2", "上午二", "10:20", "12:20"),
-    ],
-    "PM": [
-        ("PM1", "下午一", "14:00", "16:00"),
-        ("PM2", "下午二", "16:20", "18:20"),
-    ],
-}
-SLOT_ORDER = {"AM1": 0, "AM2": 1, "PM1": 2, "PM2": 3, "EVENING1": 4}
+PERIOD_SLOTS = period_slot_specs(("AM", "PM"))
+SLOT_ORDER = lesson_slot_order()
 SUBJECT_ORDER = {"数学": 0, "政治": 1, "英语": 2}
 
 
