@@ -889,38 +889,32 @@ def normalize_product_course(course: Dict[str, Any]) -> Dict[str, Any]:
 def normalize_product_rule(rule: Dict[str, Any]) -> Dict[str, Any]:
     product_id = normalize_text(rule.get("product_id"))
     product_ids = split_id_list(rule.get("product_ids"))
-    if product_id:
-        product_ids = unique_list([product_id, *product_ids])
-    product_name_keywords = split_id_list(rule.get("product_name_keywords", rule.get("product_keywords")))
-    scope_type = normalize_text(rule.get("scope_type"))
-    if not scope_type:
-        scope_type = "keywords" if product_name_keywords else "product_ids"
+    if not product_id and len(product_ids) == 1:
+        product_id = product_ids[0]
+    block_hours = normalize_float(rule.get("block_hours"))
+    if block_hours <= 0:
+        block_hours = normalize_float(rule.get("block_hours_override"))
     rule_id = normalize_text(rule.get("rule_id"))
     return {
         "row": normalize_int(rule.get("row")),
         "rule_id": rule_id,
-        "rule_name": normalize_text(rule.get("rule_name")) or rule_id,
-        "scope_type": scope_type,
-        "product_id": product_id or (product_ids[0] if len(product_ids) == 1 else ""),
-        "product_ids": product_ids,
+        "product_id": product_id,
         "product_name": normalize_text(rule.get("product_name")),
         "sub_product": normalize_text(rule.get("sub_product")),
         "season_window_id": normalize_text(rule.get("season_window_id")),
         "window_name": normalize_text(rule.get("window_name")),
         "effective_after_class_start": normalize_bool(rule.get("effective_after_class_start", True)),
-        "product_name_keywords": product_name_keywords,
         "subject": normalize_text(rule.get("subject")),
         "stage": normalize_text(rule.get("stage")),
         "course_module": normalize_text(rule.get("course_module")),
         "course_group": normalize_text(rule.get("course_group")),
-        "delivery_mode": normalize_text(rule.get("delivery_mode")),
         "start_date": normalize_date_text(rule.get("start_date")),
         "end_date": normalize_date_text(rule.get("end_date")),
         "allowed_periods": split_id_list(rule.get("allowed_periods")),
         "allowed_weekdays": split_id_list(rule.get("allowed_weekdays")),
         "excluded_weekdays": split_id_list(rule.get("excluded_weekdays")),
         "exception_weekdays": split_id_list(rule.get("exception_weekdays")),
-        "block_hours": normalize_float(rule.get("block_hours")),
+        "block_hours": block_hours,
         "lessons_per_block": normalize_int(rule.get("lessons_per_block")),
         "max_hours_per_class_per_day": normalize_float(rule.get("max_hours_per_class_per_day")),
         "max_blocks_per_class_per_day": normalize_int(rule.get("max_blocks_per_class_per_day")),
@@ -928,7 +922,7 @@ def normalize_product_rule(rule: Dict[str, Any]) -> Dict[str, Any]:
         "max_weekly_hours": normalize_float(rule.get("max_weekly_hours")),
         "same_half_day_block_required": normalize_bool(rule.get("same_half_day_block_required")),
         "same_half_day_4h_same_teacher_required": normalize_bool(rule.get("same_half_day_4h_same_teacher_required")),
-        "block_hours_override": normalize_int(rule.get("block_hours_override")),
+        "delivery_mode": normalize_text(rule.get("delivery_mode")),
         "notes": normalize_text(rule.get("notes")),
     }
 
@@ -1654,11 +1648,11 @@ def validate_product_references(state: Dict[str, Any], refs: Dict[str, Any], err
         if course["product_id"] and course["product_id"] not in product_ids:
             errors.append(f"产品课程 {course['product_id']}/{course['subject']}/{course['course_module']} 关联了不存在的产品 {course['product_id']}")
     for rule in state["product_schedule_rules"]:
-        for product_id in rule.get("product_ids", []):
-            if product_id and product_id not in product_ids:
-                errors.append(f"排课规则 {rule['rule_id']} 关联了不存在的产品 {product_id}")
-        if rule["scope_type"] == "product_ids" and not rule.get("product_ids") and not rule.get("product_id"):
-            errors.append(f"排课规则 {rule['rule_id']} 需要选择产品，或改为按关键词匹配")
+        product_id = rule.get("product_id")
+        if product_id and product_id not in product_ids:
+            errors.append(f"排课规则 {rule['rule_id']} 关联了不存在的产品 {product_id}")
+        if not product_id:
+            errors.append(f"排课规则 {rule['rule_id']} 需要选择产品")
 
 
 def validate_class_references(state: Dict[str, Any], refs: Dict[str, Any], errors: List[str]) -> None:

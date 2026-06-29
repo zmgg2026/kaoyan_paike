@@ -701,8 +701,8 @@ class SchedulingPipelineTest(unittest.TestCase):
                 ],
                 "product_schedule_rules": [
                     {
-                        "rule_id": "RULE_ALL",
-                        "scope_type": "all",
+                        "rule_id": "RULE_ACTIVE",
+                        "product_id": "P_ACTIVE",
                         "season_window_id": "WINDOW_SUMMER",
                         "allowed_periods": "AM",
                     }
@@ -1568,6 +1568,32 @@ class SchedulingPipelineTest(unittest.TestCase):
         self.assertEqual(exported[0]["window_name"], "暑假")
         self.assertEqual(exported[0]["max_hours_per_class_per_day"], 4)
         self.assertEqual(exported[0]["max_blocks_per_class_per_day"], 1)
+
+    def test_normalize_product_rule_strips_legacy_matching_fields(self) -> None:
+        normalized = data_admin_server.normalize_product_rule(
+            {
+                "rule_id": "RULE_LEGACY",
+                "rule_name": "旧规则名",
+                "scope_type": "product_ids",
+                "product_ids": "P1",
+                "product_name_keywords": "无忧",
+                "block_hours_override": 4,
+                "allowed_periods": "AM|PM",
+                "allowed_weekdays": "周一|周二",
+            }
+        )
+
+        self.assertEqual(normalized["product_id"], "P1")
+        self.assertEqual(normalized["block_hours"], 4)
+        self.assertEqual(normalized["allowed_periods"], ["AM", "PM"])
+        for old_field in (
+            "rule_name",
+            "scope_type",
+            "product_ids",
+            "product_name_keywords",
+            "block_hours_override",
+        ):
+            self.assertNotIn(old_field, normalized)
 
     def test_start_date_is_window_and_first_lesson_is_optional_anchor(self) -> None:
         base_input = {
