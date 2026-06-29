@@ -30,6 +30,8 @@ from scripts.build_camp_maintenance_schedule import (
     summer_schedule_input_for_suites,
     teacher_same_day_campus_warning_lines,
 )
+from scripts.repair_schedule_quality_hotspots import parse_name_set as parse_repair_name_set
+from scripts.repair_wyqc_summer_week_balance import parse_suite_codes
 from scripts.schedule_constraints import (
     assignment_constraint_sets,
     assignments_conflicting_with_candidate,
@@ -129,6 +131,10 @@ class ScheduleScopeDateTest(unittest.TestCase):
 
     def test_split_arg_values_uses_shared_list_parser(self) -> None:
         self.assertEqual(split_arg_values(["C1 C2，C3|C1", "C4； C5"]), {"C1", "C2", "C3", "C4", "C5"})
+
+    def test_repair_script_filters_use_shared_list_parser(self) -> None:
+        self.assertEqual(parse_repair_name_set("张三，李四|王五、赵六"), {"张三", "李四", "王五", "赵六"})
+        self.assertEqual(parse_suite_codes(["2723 2724，2723"]), ["2723", "2724", "2723"])
 
 
 def make_teacher_travel_assignment(

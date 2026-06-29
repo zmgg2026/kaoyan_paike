@@ -182,6 +182,9 @@ class ReleaseStaticTest(unittest.TestCase):
         erp_lesson_map_source = (ROOT / "scripts" / "build_erp_lesson_id_map.py").read_text(encoding="utf-8")
         camp_maintenance_source = (ROOT / "scripts" / "build_camp_maintenance_schedule.py").read_text(encoding="utf-8")
         business_import_source = (ROOT / "business_class_import.py").read_text(encoding="utf-8")
+        quality_repair_source = (ROOT / "scripts" / "repair_schedule_quality_hotspots.py").read_text(encoding="utf-8")
+        teacher_travel_repair_source = (ROOT / "scripts" / "repair_teacher_travel_swaps.py").read_text(encoding="utf-8")
+        wyqc_summer_repair_source = (ROOT / "scripts" / "repair_wyqc_summer_week_balance.py").read_text(encoding="utf-8")
 
         self.assertIn("LIST_VALUE_SEPARATOR_RE", field_utils_source)
         self.assertIn("def split_delimited_values", field_utils_source)
@@ -195,6 +198,8 @@ class ReleaseStaticTest(unittest.TestCase):
             erp_export_source,
             erp_lesson_map_source,
             camp_maintenance_source,
+            quality_repair_source,
+            wyqc_summer_repair_source,
         ):
             self.assertIn("split_delimited_values", source)
 
@@ -213,6 +218,10 @@ class ReleaseStaticTest(unittest.TestCase):
         self.assertNotIn('re.split(r"[/|,，;；、\\s]+"', scheduler_source)
         self.assertNotIn('re.split(r"[,，|;\\s]+"', admin_source)
         self.assertNotIn('re.split(r"[,，|;\\s]+"', camp_maintenance_source)
+        self.assertNotIn('value.split(",")', quality_repair_source)
+        self.assertNotIn('value.split(",")', teacher_travel_repair_source)
+        self.assertNotIn('value.split(",")', wyqc_summer_repair_source)
+        self.assertIsNone(re.search(r"(?m)^def parse_name_set\(", teacher_travel_repair_source))
 
     def test_erp_date_time_normalization_lives_in_shared_field_utils(self) -> None:
         field_utils_source = (ROOT / "scripts" / "field_utils.py").read_text(encoding="utf-8")

@@ -28,6 +28,7 @@ from scripts.repair_schedule_quality_hotspots import (  # noqa: E402
     load_window_constraints,
     load_room_meta,
     move_block,
+    parse_name_set,
     regenerate_outputs,
     sort_rows,
     teacher_day_travel_score,
@@ -35,10 +36,6 @@ from scripts.repair_schedule_quality_hotspots import (  # noqa: E402
     write_csv_rows,
 )
 from scripts.repair_subject_weekly_swaps import valid_target_with_ignored  # noqa: E402
-
-
-def parse_name_set(value: str) -> Set[str]:
-    return {item.strip() for item in value.split(",") if item.strip()}
 
 
 def swap_blocks(rows: List[dict], class_meta: Dict[str, dict], left: Block, right: Block) -> None:

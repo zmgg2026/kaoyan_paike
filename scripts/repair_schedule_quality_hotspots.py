@@ -1132,7 +1132,7 @@ def append_report(report_path: Path, lines: Sequence[str], timestamp: str) -> No
 
 
 def parse_name_set(value: str) -> Set[str]:
-    return {item.strip() for item in value.split(",") if item.strip()}
+    return set(split_delimited_values(value, extra_separators="、"))
 
 
 def main() -> None:
