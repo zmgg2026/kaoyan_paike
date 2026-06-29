@@ -228,6 +228,23 @@ class ReleaseStaticTest(unittest.TestCase):
         self.assertNotIn('["考研复试", "考研集训营", "考研无忧", "考研个性化", "考研其他", "专升本", "四六级"]', web_admin_source)
         self.assertNotIn("data_admin_server.product_catalog", pipeline_source)
 
+    def test_teacher_resource_options_live_outside_admin_and_frontend(self) -> None:
+        admin_source = (ROOT / "data_admin_server.py").read_text(encoding="utf-8")
+        resource_catalog_source = (ROOT / "scripts" / "resource_catalog.py").read_text(encoding="utf-8")
+        web_admin_source = (ROOT / "web_admin" / "app.js").read_text(encoding="utf-8")
+
+        self.assertIn("from scripts.resource_catalog import", admin_source)
+        self.assertIn("TEACHER_EMPLOYMENT_TYPE_OPTIONS", resource_catalog_source)
+        self.assertIn("TEACHER_EMPLOYMENT_TYPE_OPTIONS", admin_source)
+        self.assertIn('"teacher_employment_types": list(TEACHER_EMPLOYMENT_TYPE_OPTIONS)', admin_source)
+        self.assertIn('lookupOptions("teacher_employment_types")', web_admin_source)
+        self.assertNotIn('["男", "女", "其他"]', admin_source)
+        self.assertNotIn('["管理者", "教师"]', admin_source)
+        self.assertNotIn('{"全职", "兼职", "外聘", "内部"}', admin_source)
+        self.assertNotIn('["全职", "兼职", "外聘", "内部"]', web_admin_source)
+        self.assertNotIn('["已签约", "未签约", "待续签", "已终止"]', web_admin_source)
+        self.assertNotIn('["在职", "离职", "停用", "待入职"]', web_admin_source)
+
     def test_field_normalization_lives_in_shared_field_utils(self) -> None:
         admin_source = (ROOT / "data_admin_server.py").read_text(encoding="utf-8")
         product_catalog_source = (ROOT / "scripts" / "product_catalog.py").read_text(encoding="utf-8")

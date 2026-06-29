@@ -1323,6 +1323,10 @@ function arrayValues(value) {
   return [];
 }
 
+function lookupOptions(key) {
+  return arrayValues(state.lookups?.[key]);
+}
+
 function uniqueList(values) {
   return [...new Set(arrayValues(values))];
 }
@@ -4130,14 +4134,14 @@ function teacherBaseTable(rows) {
                 <tr>
                   <td><input data-list="teachers" data-index="${index}" data-field="employee_id" value="${html(teacherId(teacher))}" placeholder="员工ID"></td>
                   <td><input data-list="teachers" data-index="${index}" data-field="name" value="${html(teacher.name)}" placeholder="教师姓名"></td>
-                  <td><select data-list="teachers" data-index="${index}" data-field="gender">${selectOptions(["男", "女", "其他"], teacher.gender, "未填")}</select></td>
+                  <td><select data-list="teachers" data-index="${index}" data-field="gender">${selectOptions(lookupOptions("teacher_genders"), teacher.gender, "未填")}</select></td>
                   <td><input data-list="teachers" data-index="${index}" data-field="project" value="${html(teacher.project)}" placeholder="如 考研"></td>
-                  <td><select data-list="teachers" data-index="${index}" data-field="teacher_role">${selectOptions(["管理者", "教师"], teacher.teacher_role || teacher.identity, "未填")}</select></td>
-                  <td><select data-list="teachers" data-index="${index}" data-field="employment_type">${selectOptions(["全职", "兼职", "外聘", "内部"], teacher.employment_type || teacher.teacher_type, "未填")}</select></td>
+                  <td><select data-list="teachers" data-index="${index}" data-field="teacher_role">${selectOptions(lookupOptions("teacher_roles"), teacher.teacher_role || teacher.identity, "未填")}</select></td>
+                  <td><select data-list="teachers" data-index="${index}" data-field="employment_type">${selectOptions(lookupOptions("teacher_employment_types"), teacher.employment_type || teacher.teacher_type, "未填")}</select></td>
                   <td><input data-list="teachers" data-index="${index}" data-field="primary_subject" value="${html(teacher.primary_subject)}" placeholder="如 英语"></td>
-                  <td><select data-list="teachers" data-index="${index}" data-field="subject_type">${selectOptions(["公共课", "专业课"], teacher.subject_type, "未填")}</select></td>
-                  <td><select data-list="teachers" data-index="${index}" data-field="contract_status">${selectOptions(["已签约", "未签约", "待续签", "已终止"], teacher.contract_status, "未填")}</select></td>
-                  <td><select data-list="teachers" data-index="${index}" data-field="employment_status">${selectOptions(["在职", "离职", "停用", "待入职"], teacher.employment_status, "未填")}</select></td>
+                  <td><select data-list="teachers" data-index="${index}" data-field="subject_type">${selectOptions(lookupOptions("teacher_subject_types"), teacher.subject_type, "未填")}</select></td>
+                  <td><select data-list="teachers" data-index="${index}" data-field="contract_status">${selectOptions(lookupOptions("teacher_contract_statuses"), teacher.contract_status, "未填")}</select></td>
+                  <td><select data-list="teachers" data-index="${index}" data-field="employment_status">${selectOptions(lookupOptions("teacher_employment_statuses"), teacher.employment_status, "未填")}</select></td>
                   <td><input data-list="teachers" data-index="${index}" data-field="notes" value="${html(teacher.notes)}"></td>
                   <td><button type="button" class="small danger" data-action="delete-teacher" data-index="${index}">删除</button></td>
                 </tr>

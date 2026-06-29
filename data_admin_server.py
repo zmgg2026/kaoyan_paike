@@ -52,6 +52,14 @@ from scripts.product_catalog import (
     stage_sort_key,
     unique_non_empty,
 )
+from scripts.resource_catalog import (
+    TEACHER_CONTRACT_STATUS_OPTIONS,
+    TEACHER_EMPLOYMENT_STATUS_OPTIONS,
+    TEACHER_EMPLOYMENT_TYPE_OPTIONS,
+    TEACHER_GENDER_OPTIONS,
+    TEACHER_ROLE_OPTIONS,
+    TEACHER_SUBJECT_TYPE_OPTIONS,
+)
 from scripts.schedule_modes import (
     assignment_is_shared,
     assignment_reference_class_id,
@@ -345,6 +353,12 @@ def build_lookups(
         "stage_order": list(DEFAULT_STAGE_ORDER),
         "stages": sort_stage_values(stages),
         "public_teacher_subjects": sorted(PUBLIC_TEACHER_SUBJECTS, key=subject_sort_value),
+        "teacher_genders": list(TEACHER_GENDER_OPTIONS),
+        "teacher_roles": list(TEACHER_ROLE_OPTIONS),
+        "teacher_employment_types": list(TEACHER_EMPLOYMENT_TYPE_OPTIONS),
+        "teacher_subject_types": list(TEACHER_SUBJECT_TYPE_OPTIONS),
+        "teacher_contract_statuses": list(TEACHER_CONTRACT_STATUS_OPTIONS),
+        "teacher_employment_statuses": list(TEACHER_EMPLOYMENT_STATUS_OPTIONS),
         "course_modules": sorted(modules),
         "course_groups": sorted(groups),
         "course_name_tags": load_course_name_tags(product_courses),
@@ -912,7 +926,7 @@ def normalize_room(room: Dict[str, Any]) -> Dict[str, Any]:
 def normalize_teacher(teacher: Dict[str, Any]) -> Dict[str, Any]:
     teacher_id = normalize_text(teacher.get("employee_id") or teacher.get("id") or teacher.get("teacher_id"))
     primary_subject = normalize_text(teacher.get("primary_subject"))
-    teacher_type_values = {"全职", "兼职", "外聘", "内部"}
+    teacher_type_values = set(TEACHER_EMPLOYMENT_TYPE_OPTIONS)
     raw_teacher_role = normalize_text(teacher.get("teacher_role") or teacher.get("identity") or teacher.get("教师角色"))
     raw_teacher_type = normalize_text(teacher.get("employment_type") or teacher.get("teacher_type") or teacher.get("教师类型"))
     raw_contract_status = normalize_text(teacher.get("contract_status"))

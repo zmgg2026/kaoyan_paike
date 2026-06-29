@@ -133,6 +133,23 @@ class WebAdminStaticTest(unittest.TestCase):
         self.assertNotIn('selectOptions(["考研", "专升本", "四六级"], product.project', source)
         self.assertNotIn('return ["考研复试", "考研集训营", "考研无忧", "考研个性化", "考研其他", "专升本", "四六级"];', source)
 
+    def test_teacher_resource_options_use_lookups(self) -> None:
+        source = (ROOT / "web_admin" / "app.js").read_text(encoding="utf-8")
+
+        self.assertIn("function lookupOptions(key)", source)
+        self.assertIn('selectOptions(lookupOptions("teacher_genders"), teacher.gender', source)
+        self.assertIn('selectOptions(lookupOptions("teacher_roles"), teacher.teacher_role', source)
+        self.assertIn('selectOptions(lookupOptions("teacher_employment_types"), teacher.employment_type', source)
+        self.assertIn('selectOptions(lookupOptions("teacher_subject_types"), teacher.subject_type', source)
+        self.assertIn('selectOptions(lookupOptions("teacher_contract_statuses"), teacher.contract_status', source)
+        self.assertIn('selectOptions(lookupOptions("teacher_employment_statuses"), teacher.employment_status', source)
+        self.assertNotIn('selectOptions(["男", "女", "其他"], teacher.gender', source)
+        self.assertNotIn('selectOptions(["管理者", "教师"], teacher.teacher_role', source)
+        self.assertNotIn('selectOptions(["全职", "兼职", "外聘", "内部"], teacher.employment_type', source)
+        self.assertNotIn('selectOptions(["公共课", "专业课"], teacher.subject_type', source)
+        self.assertNotIn('selectOptions(["已签约", "未签约", "待续签", "已终止"], teacher.contract_status', source)
+        self.assertNotIn('selectOptions(["在职", "离职", "停用", "待入职"], teacher.employment_status', source)
+
     def test_business_mapping_editor_writes_current_local_product_field_only(self) -> None:
         source = (ROOT / "web_admin" / "app.js").read_text(encoding="utf-8")
 
