@@ -28,7 +28,7 @@ from scripts.calendar_utils import (
 )
 from scripts.csv_utils import read_csv_rows
 from scripts.field_utils import (
-    normalize_blank_marker,
+    normalize_blank_marker as clean,
     parse_bool,
     parse_enabled,
     parse_datetime_value,
@@ -520,10 +520,6 @@ def class_ids_for_suite_codes(
     return list(data)
 IGNORED_HISTORY_GAP_DATES = {"2026-06-10", "2026-06-17", "2026-06-23", "2026-06-24"}
 LOCKED_SCHEDULE_PATH = Path("data/locked_scheduled_lessons.csv")
-
-
-def clean(value: object) -> str:
-    return normalize_blank_marker(value)
 
 
 def class_lock_value(row: Dict[str, object]) -> str:

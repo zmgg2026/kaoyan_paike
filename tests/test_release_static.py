@@ -298,6 +298,7 @@ class ReleaseStaticTest(unittest.TestCase):
         self.assertIsNone(re.search(r"(?m)^def normalize_int\(", product_catalog_source))
         self.assertIsNone(re.search(r"(?m)^def row_value\(", business_import_source))
         self.assertIsNone(re.search(r"(?m)^def row_value\(", camp_maintenance_source))
+        self.assertIsNone(re.search(r"(?m)^def clean\(", camp_maintenance_source))
         self.assertNotIn("data_admin_server.normalize_int", business_import_source)
         self.assertIn("parse_date_value", business_import_source)
         self.assertIn("parse_time_minutes", business_import_source)
