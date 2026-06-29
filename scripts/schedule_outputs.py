@@ -8,6 +8,7 @@ from typing import Any, Dict, List, Optional, Sequence
 import scheduler
 from scripts.csv_utils import write_csv_rows
 from scripts.period_utils import PERIOD_LABELS
+from scripts.product_catalog import DEFAULT_STAGE_ORDER
 from scripts.schedule_data import (
     assignment_course_tag,
     load_class_metadata,
@@ -20,6 +21,7 @@ from scripts.schedule_display import (
     subject_colors,
     weekday_label,
 )
+from scripts.window_utils import SEASON_WINDOW_ORDER
 
 
 BATCH_SCHEDULE_CSV_FIELDNAMES = [
@@ -49,6 +51,17 @@ BATCH_SCHEDULE_CSV_FIELDNAMES = [
 DISPLAY_SUITE_OVERRIDES = {
     "KYJSJ2773": "2775",
 }
+
+
+def stage_filter_sort_order() -> List[str]:
+    seen = set()
+    result = []
+    for value in [*SEASON_WINDOW_ORDER, *DEFAULT_STAGE_ORDER]:
+        if value and value not in seen:
+            result.append(value)
+            seen.add(value)
+    return result
+
 
 def display_suite_code(class_id: str, class_meta: Dict[str, str]) -> str:
     return DISPLAY_SUITE_OVERRIDES.get(class_id) or class_meta.get("suite_code") or ""
@@ -183,6 +196,7 @@ def build_day_table_payload(
         "rows": rows,
         "constraints": constraint_rows,
         "subjectColors": colors,
+        "stageSortOrder": stage_filter_sort_order(),
     }
 
 
@@ -712,7 +726,7 @@ function renderFilterOptions() {
   optionList(teacherSubProductSelect, payload.rows.map((row) => row.sub_product || "未分子产品"), "全部子产品");
   optionList(teacherSuiteSelect, payload.rows.map(rowSuite), "全部套班");
   optionList(teacherSubjectSelect, payload.rows.map((row) => row.subject || "未分科目"), "全部科目");
-  const preferred = ["寒假", "春季", "暑假", "秋季", "一轮", "二轮", "三轮", "四轮", "基础", "强化", "冲刺"];
+  const preferred = Array.isArray(payload.stageSortOrder) ? payload.stageSortOrder : [];
   const stages = [...new Set(payload.rows.map((row) => rowStage(row)))].sort((a, b) => {
     const ai = preferred.indexOf(a);
     const bi = preferred.indexOf(b);

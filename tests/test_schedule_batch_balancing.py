@@ -2005,6 +2005,10 @@ class ScheduleBatchBalancingTest(unittest.TestCase):
         self.assertEqual({row["course_name"] for row in payload["rows"]}, {"英语词汇"})
         self.assertEqual({row["room_name"] for row in payload["rows"]}, {"101教室"})
         self.assertEqual([row["window_name"] for row in payload["constraints"]], ["2026暑假", "2026秋季"])
+        self.assertEqual(
+            payload["stageSortOrder"],
+            ["寒假", "春季", "暑假", "秋季", "导学", "基础", "强化", "冲刺", "一轮", "二轮", "三轮", "四轮"],
+        )
         self.assertEqual(payload["constraints"][0]["teaching_area_ids"], "A1|A3")
         self.assertEqual(payload["constraints"][0]["room_ids"], "R1|R3")
         self.assertEqual(payload["constraints"][0]["room_names"], "101教室 / 103教室")
@@ -2014,6 +2018,8 @@ class ScheduleBatchBalancingTest(unittest.TestCase):
         self.assertNotIn("默认展示 2026-06-25 至 2026-12-13", html_text)
         self.assertNotIn("DEFAULT_START_DATE", html_text)
         self.assertNotIn("DEFAULT_END_DATE", html_text)
+        self.assertIn("payload.stageSortOrder", html_text)
+        self.assertNotIn('["寒假", "春季", "暑假", "秋季", "一轮", "二轮", "三轮", "四轮", "基础", "强化", "冲刺"]', html_text)
         ids = re.findall(r'id="([^"]+)"', html_text)
         duplicate_ids = [item for item, count in Counter(ids).items() if count > 1]
         self.assertEqual(duplicate_ids, [])
