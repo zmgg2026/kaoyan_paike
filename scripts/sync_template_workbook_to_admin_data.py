@@ -244,6 +244,10 @@ def enrich_rows(key: str, rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
             row.pop("module_priority", None)
             row.pop("block_hours", None)
             row.pop("teaching_area_ids", None)
+        elif key in {"locked_scheduled_lessons", "historical_scheduled_lessons", "scheduled_lessons"}:
+            if not normalize_text(row.get("window_name")):
+                row["window_name"] = normalize_text(row.get("quarter"))
+            row.pop("quarter", None)
         elif key == "product_schedule_rules":
             product_id = normalize_text(row.get("product_id"))
             product_ids = normalize_list(row.get("product_ids"))

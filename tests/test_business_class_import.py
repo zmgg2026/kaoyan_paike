@@ -12,6 +12,7 @@ from business_class_import import (
     BusinessDataError,
     assignments_by_class,
     convert_business_tables,
+    normalize_scheduled_lessons,
     product_map_from_rows,
     product_courses_by_id,
     resolve_teacher_assignment,
@@ -207,6 +208,19 @@ class BusinessClassImportTest(unittest.TestCase):
 
     def test_split_codes_uses_shared_blank_markers(self) -> None:
         self.assertEqual(split_codes(" A1，暂无|N/A;None、B2 "), ["A1", "B2"])
+
+    def test_scheduled_lessons_accept_current_window_name_field(self) -> None:
+        lessons, warnings = normalize_scheduled_lessons(
+            [
+                {
+                    **scheduled_lesson("C_REG"),
+                    "window_name": "暑假",
+                }
+            ]
+        )
+
+        self.assertEqual(warnings, [])
+        self.assertEqual(lessons[0].quarter, "暑假")
 
     def test_business_csv_pipeline_filters_scope_and_generates_schedule(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

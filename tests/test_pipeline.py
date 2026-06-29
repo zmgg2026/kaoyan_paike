@@ -1296,10 +1296,10 @@ class SchedulingPipelineTest(unittest.TestCase):
             ],
             "class_window_boundaries": [{"class_window_id": "CW1", "class_id": "C1", "preferred_room_ids": "R1", "row": 99}],
             "class_conflict_groups": [{"id": "G1", "class_ids": "C1|C2", "is_active": "是", "source": "旧来源", "row": 99}],
-            "locked_scheduled_lessons": [{"id": "L1", "class_id": "C1", "room_id": "R1", "row": 99}],
+            "locked_scheduled_lessons": [{"id": "L1", "class_id": "C1", "room_id": "R1", "quarter": "暑假", "row": 99}],
             "teaching_area_links": [{"id": "LINK1", "from_teaching_area_id": "A1", "to_teaching_area_id": "A1", "row": 99}],
             "global_blackout_dates": [{"id": "B1", "name": "停课", "row": 99}],
-            "historical_scheduled_lessons": [{"id": "H1", "class_id": "C1", "room_id": "R1", "is_locked": "是", "row": 99}],
+            "historical_scheduled_lessons": [{"id": "H1", "class_id": "C1", "room_id": "R1", "is_locked": "是", "quarter": "春季", "row": 99}],
             "erp_standard_products": [{"erp_product_key": "ERP1", "row": 99}],
             "business_product_mappings": [{"local_product_id": "P1", "canonical_product_id": "OLD", "row": 99}],
         }
@@ -1327,6 +1327,12 @@ class SchedulingPipelineTest(unittest.TestCase):
                 self.assertNotIn(old_field, rule_row)
             self.assertEqual(rule_row["product_id"], "P1")
             self.assertEqual(rule_row["block_hours"], 4)
+            locked_doc = json.loads((data_admin_server.DATA_DIR / "locked_scheduled_lessons.json").read_text(encoding="utf-8"))
+            self.assertEqual(locked_doc["locked_scheduled_lessons"][0]["window_name"], "暑假")
+            self.assertNotIn("quarter", locked_doc["locked_scheduled_lessons"][0])
+            historical_doc = json.loads((data_admin_server.DATA_DIR / "historical_scheduled_lessons.json").read_text(encoding="utf-8"))
+            self.assertEqual(historical_doc["historical_scheduled_lessons"][0]["window_name"], "春季")
+            self.assertNotIn("quarter", historical_doc["historical_scheduled_lessons"][0])
 
     def test_global_blackout_fieldnames_are_shared_by_admin_and_pipeline(self) -> None:
         self.assertEqual(data_admin_server.GLOBAL_BLACKOUT_FIELDNAMES, TABLE_FIELDNAMES["global_blackout_dates"])
@@ -1420,7 +1426,29 @@ class SchedulingPipelineTest(unittest.TestCase):
         self.assertEqual(data_admin_server.HISTORICAL_SCHEDULED_LESSON_FIELDNAMES, TABLE_FIELDNAMES["historical_scheduled_lessons"])
         self.assertIn("is_locked", data_admin_server.LOCKED_SCHEDULED_LESSON_FIELDNAMES)
         self.assertNotIn("is_locked", data_admin_server.HISTORICAL_SCHEDULED_LESSON_FIELDNAMES)
+        self.assertIn("window_name", data_admin_server.LOCKED_SCHEDULED_LESSON_FIELDNAMES)
+        self.assertIn("window_name", data_admin_server.HISTORICAL_SCHEDULED_LESSON_FIELDNAMES)
+        self.assertNotIn("quarter", data_admin_server.LOCKED_SCHEDULED_LESSON_FIELDNAMES)
+        self.assertNotIn("quarter", data_admin_server.HISTORICAL_SCHEDULED_LESSON_FIELDNAMES)
         payload = {
+            "teaching_areas": [{"id": "A1", "name": "主校区", "is_active": "是"}],
+            "rooms": [{"id": "R1", "name": "101", "teaching_area_id": "A1", "is_active": "是"}],
+            "classes": [{"id": "C1", "name": "英语1班"}],
+            "locked_scheduled_lessons": [
+                {
+                    "id": "LOCKED_1",
+                    "class_id": "C1",
+                    "class_name": "英语1班",
+                    "date": "2027-07-01",
+                    "period": "AM",
+                    "duration_hours": "2",
+                    "teacher_id": "T1",
+                    "teacher_name": "张老师",
+                    "room_id": "R1",
+                    "subject": "英语",
+                    "window_name": "暑假",
+                }
+            ],
             "historical_scheduled_lessons": [
                 {
                     "id": "HIST_1",
@@ -1433,20 +1461,34 @@ class SchedulingPipelineTest(unittest.TestCase):
                     "teacher_name": "张老师",
                     "room_id": "R1",
                     "subject": "英语",
+                    "quarter": "秋季",
                     "is_locked": "否",
                 }
             ],
             "products": [],
             "product_courses": [],
-            "classes": [],
         }
         with tempfile.TemporaryDirectory() as tmp:
             data_admin_server.DATA_DIR = Path(tmp) / "data"
             data_admin_server.save_state(payload)
+            with (data_admin_server.DATA_DIR / "locked_scheduled_lessons.csv").open(encoding="utf-8") as handle:
+                locked_rows = list(csv.DictReader(handle))
             with (data_admin_server.DATA_DIR / "historical_scheduled_lessons.csv").open(encoding="utf-8") as handle:
-                header = next(csv.reader(handle))
+                historical_rows = list(csv.DictReader(handle))
 
-        self.assertEqual(data_admin_server.HISTORICAL_SCHEDULED_LESSON_FIELDNAMES, header)
+        self.assertEqual(data_admin_server.LOCKED_SCHEDULED_LESSON_FIELDNAMES, list(locked_rows[0].keys()))
+        self.assertEqual("暑假", locked_rows[0]["window_name"])
+        self.assertNotIn("quarter", locked_rows[0])
+        self.assertEqual(data_admin_server.HISTORICAL_SCHEDULED_LESSON_FIELDNAMES, list(historical_rows[0].keys()))
+        self.assertEqual("秋季", historical_rows[0]["window_name"])
+        self.assertNotIn("quarter", historical_rows[0])
+
+    def test_teacher_assignment_key_accepts_current_window_name(self) -> None:
+        key = data_admin_server.teacher_assignment_key(
+            {"product_id": "P1", "subject": "英语", "window_name": "暑假", "course_group": "阅读类"}
+        )
+
+        self.assertEqual(key, ("P1", "英语", "暑假", "阅读类"))
 
     def test_business_product_mapping_saves_current_local_product_field_only(self) -> None:
         payload = {
@@ -1867,7 +1909,7 @@ class SchedulingPipelineTest(unittest.TestCase):
                 {
                     "subject_category": "公共课",
                     "subject": "英语",
-                    "quarter": "暑假",
+                    "window_name": "暑假",
                     "stage": "基础",
                     "course_module": "词汇",
                     "teacher_group": "阅读类",
@@ -2799,7 +2841,7 @@ class SchedulingPipelineTest(unittest.TestCase):
                     "product_name": "课程表产品名不应覆盖",
                     "product_line": "课程表体系不应覆盖",
                     "subject": "数学",
-                    "quarter": "暑假",
+                    "window_name": "暑假",
                     "stage": "强化",
                     "course_module": "刷题",
                     "course_group": "数学类",
@@ -4701,7 +4743,7 @@ class SchedulingPipelineTest(unittest.TestCase):
                     "business_product_name": "ERP 标准产品",
                     "subject_category": "公共课",
                     "subject": "英语",
-                    "quarter": "暑假",
+                    "window_name": "暑假",
                     "stage": "基础",
                     "course_module": "阅读",
                     "course_group": "英语阅读",

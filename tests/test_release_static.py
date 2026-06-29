@@ -189,6 +189,8 @@ class ReleaseStaticTest(unittest.TestCase):
         self.assertIn('"window_name": course.get("window_name")', admin_source)
         self.assertNotIn('"quarter": requirement.get("quarter"', admin_source)
         self.assertIn('"window_name": requirement.get("window_name")', admin_source)
+        self.assertNotIn('"quarter",\n    "stage",', Path("scripts/table_schema.py").read_text(encoding="utf-8"))
+        self.assertIn('"window_name",\n    "stage",', Path("scripts/table_schema.py").read_text(encoding="utf-8"))
         self.assertNotIn('"is_schedule_locked": lock_value', schedule_data_source)
         self.assertNotIn('is_locked=clean(row.get("is_schedule_locked"))', coverage_source)
         self.assertIn('"selected_stages": selected_stages', schedule_data_source)

@@ -1275,7 +1275,14 @@ def normalize_locked_scheduled_lesson(lesson: Dict[str, Any]) -> Dict[str, Any]:
         "business_product_id": normalize_text(lesson.get("business_product_id") or lesson.get("课程产品编码") or lesson.get("课程产品编号")),
         "business_product_name": normalize_text(lesson.get("business_product_name") or lesson.get("课程产品名称") or lesson.get("课程产品(内)")),
         "subject": normalize_text(lesson.get("subject") or lesson.get("科目")),
-        "quarter": normalize_text(lesson.get("quarter") or lesson.get("季度") or lesson.get("季度标签")),
+        "window_name": normalize_text(
+            lesson.get("window_name")
+            or lesson.get("quarter")
+            or lesson.get("排课窗口")
+            or lesson.get("窗口名称")
+            or lesson.get("季度")
+            or lesson.get("季度标签")
+        ),
         "stage": normalize_text(lesson.get("stage") or lesson.get("阶段")),
         "course_module": normalize_text(lesson.get("course_module") or lesson.get("课程模块") or lesson.get("模块")),
         "course_group": normalize_text(lesson.get("course_group") or lesson.get("课程组") or lesson.get("课程类别")),
@@ -1312,7 +1319,7 @@ def teacher_assignment_key(item: Dict[str, Any], product_id: str = "") -> Assign
     return (
         normalize_text(item.get("product_id") or product_id),
         normalize_text(item.get("subject")),
-        normalize_text(item.get("stage")) or normalize_text(item.get("quarter")),
+        normalize_text(item.get("stage")) or normalize_text(item.get("window_name")) or normalize_text(item.get("quarter")),
         normalize_text(item.get("course_group")),
     )
 
@@ -1975,7 +1982,7 @@ def scheduler_locked_lessons(lessons: List[Dict[str, Any]]) -> List[Dict[str, An
             "teacher_name": lesson.get("teacher_name", ""),
             "room_id": lesson.get("room_id", ""),
             "subject": lesson.get("subject", ""),
-            "quarter": lesson.get("quarter", ""),
+            "window_name": lesson.get("window_name") or lesson.get("quarter", ""),
             "stage": lesson.get("stage", ""),
             "course_module": lesson.get("course_module", ""),
             "course_group": lesson.get("course_group", ""),

@@ -192,6 +192,28 @@ class TemplateSyncTest(unittest.TestCase):
                 }
             ],
         )
+        locked_lessons = enrich_rows(
+            "locked_scheduled_lessons",
+            [
+                {
+                    "id": "L1",
+                    "class_id": "C1",
+                    "quarter": "暑假",
+                    "subject": "英语",
+                }
+            ],
+        )
+        historical_lessons = enrich_rows(
+            "historical_scheduled_lessons",
+            [
+                {
+                    "id": "H1",
+                    "class_id": "C1",
+                    "quarter": "秋季",
+                    "subject": "英语",
+                }
+            ],
+        )
 
         self.assertNotIn("actual_schedule_window_ids", classes[0])
         self.assertNotIn("stages", classes[0])
@@ -204,6 +226,10 @@ class TemplateSyncTest(unittest.TestCase):
         self.assertEqual(product_courses[0]["module_priority_in_group"], 3)
         for old_field in ("quarter", "module_priority", "block_hours", "teaching_area_ids"):
             self.assertNotIn(old_field, product_courses[0])
+        self.assertEqual(locked_lessons[0]["window_name"], "暑假")
+        self.assertNotIn("quarter", locked_lessons[0])
+        self.assertEqual(historical_lessons[0]["window_name"], "秋季")
+        self.assertNotIn("quarter", historical_lessons[0])
         self.assertEqual(product_rules[0]["product_id"], "P1")
         self.assertEqual(product_rules[0]["block_hours"], 4)
         for old_field in (

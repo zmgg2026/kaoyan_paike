@@ -835,7 +835,7 @@ def normalize_scheduled_lessons(rows: Iterable[Mapping[str, Any]]) -> Tuple[List
             business_product_id=row_value(row, "business_product_id", "课程产品编号", "课程产品编码", "product_id"),
             business_product_name=row_value(row, "business_product_name", "课程产品名称", "课程产品(内)", "product_name"),
             subject=subject,
-            quarter=row_value(row, "quarter", "季度", "季度标签"),
+            quarter=row_value(row, "window_name", "quarter", "排课窗口", "窗口名称", "季度", "季度标签"),
             stage=stage,
             course_module=course_module,
             course_group=course_group,

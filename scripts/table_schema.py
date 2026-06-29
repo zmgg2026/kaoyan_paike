@@ -164,7 +164,7 @@ LOCKED_SCHEDULED_LESSON_FIELDNAMES = [
     "business_product_id",
     "business_product_name",
     "subject",
-    "quarter",
+    "window_name",
     "stage",
     "course_module",
     "course_group",

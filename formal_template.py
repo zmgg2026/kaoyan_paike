@@ -385,7 +385,7 @@ def generate_formal_launch_template(source: Path, output_dir: Path, timestamp: s
         {"field": "room_id", "required": "建议", "description": "教室编码"},
         {"field": "business_product_id", "required": "建议", "description": "业务课程产品编号"},
         {"field": "subject", "required": "是", "description": "科目"},
-        {"field": "quarter", "required": "可选", "description": "季度标签，例如 寒假、春季、暑假、秋季"},
+        {"field": "window_name", "required": "可选", "description": "排课窗口期标签，例如 寒假、春季、暑假、秋季"},
         {"field": "stage", "required": "是", "description": "阶段"},
         {"field": "course_module", "required": "是", "description": "课程模块"},
         {"field": "course_group", "required": "是", "description": "课程组"},

@@ -74,8 +74,8 @@ python3 run_scheduling_pipeline.py --source incoming
 | `class_window_boundaries` / `班级排课窗口表` | `class_id`, `schedule_window_id`, `earliest_date`, `latest_date`, `preferred_room_ids`, `is_class_window_included` | 逐班、逐年度窗口维护日期、时段、教学区和教室；寒暑营、无忧寒等跨窗口资源差异统一放这里。 |
 | `class_teacher_assignments` / `班级老师安排表` | `class_id`, `subject`, `stage`, `course_group`, `class_schedule_mode`, `actual_scheduled_class_id`, `teacher_id`, `teacher_name` | 老师安排按班级、科目、阶段、课程组维护；合班共享课表通过实际排课班级表达。 |
 | `teacher_unavailability` / `教师不可排日期时段表` | `employee_id`, `unavailable_type`, `start_date`, `end_date`, `weekdays`, `periods`, `schedule_window_ids`, `is_active` | 只记录兼职限制、请假、培训等不可排例外；全职老师默认可排。 |
-| `scheduled_lessons` / `已排课明细` / `历史课表` | `class_id`, `date`, `start_time`, `end_time`, `duration_hours`, `teacher_id`, `teacher_name`, `room_id`, `business_product_id`, `subject`, `stage`, `course_module`, `course_group` | 2024-03-01 至 2026-06-30 已排课节明细，用于学习老师安排、抵扣 2026-07-01 前已排课时、生成规则和合班候选参考。 |
-| `locked_scheduled_lessons` / `锁定课表` | `class_id`, `date`, `start_time`, `end_time`, `room_id`, `subject`, `quarter`, `stage`, `course_module`, `course_group` | 已经人工排定且不能移动的课节。导出排课输入后会占用对应教室课节和套班互斥关系；教师为空时不参与现有教师冲突。 |
+| `scheduled_lessons` / `已排课明细` / `历史课表` | `class_id`, `date`, `start_time`, `end_time`, `duration_hours`, `teacher_id`, `teacher_name`, `room_id`, `business_product_id`, `subject`, `window_name`, `stage`, `course_module`, `course_group` | 2024-03-01 至 2026-06-30 已排课节明细，用于学习老师安排、抵扣 2026-07-01 前已排课时、生成规则和合班候选参考。旧版 `quarter` 列仍可导入。 |
+| `locked_scheduled_lessons` / `锁定课表` | `class_id`, `date`, `start_time`, `end_time`, `room_id`, `subject`, `window_name`, `stage`, `course_module`, `course_group` | 已经人工排定且不能移动的课节。导出排课输入后会占用对应教室课节和套班互斥关系；教师为空时不参与现有教师冲突。旧版 `quarter` 列仍可导入，但标准模板统一使用 `window_name`。 |
 
 若进入排课范围的班级缺产品映射或缺课程老师安排，pipeline 会阻塞并在导入报告中列出问题。业务导出自带 `合班详情` 时，在 `班级老师安排表` 维护共享课表关系即可，不需要额外维护第二张合班表。
 

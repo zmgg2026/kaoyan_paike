@@ -844,7 +844,7 @@ def locked_lesson_course_fields(raw: dict) -> Dict[str, object]:
     return {
         "subject_category": raw.get("subject_category", ""),
         "subject": raw.get("subject", "已定课程"),
-        "quarter": raw.get("quarter"),
+        "quarter": raw.get("window_name") or raw.get("quarter"),
         "stage": raw.get("stage"),
         "course_module": raw.get("course_module"),
         "course_group": raw.get("course_group"),
