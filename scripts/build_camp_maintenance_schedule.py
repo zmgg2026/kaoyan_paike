@@ -21,7 +21,7 @@ if str(ROOT) not in sys.path:
 
 import scheduler
 from scripts.csv_utils import read_csv_rows
-from scripts.field_utils import split_delimited_values as split_pipe_values
+from scripts.field_utils import parse_datetime_value, split_delimited_values as split_pipe_values
 from scripts.schedule_class_windows import (
     ClassWindowConstraint,
     load_class_window_constraint_items,
@@ -503,15 +503,7 @@ def clean(value: object) -> str:
 
 
 def parse_dt(value: object) -> datetime:
-    if isinstance(value, datetime):
-        return value
-    text = str(value or "").strip()
-    for fmt in ("%Y-%m-%d %H:%M:%S", "%Y/%m/%d %H:%M:%S", "%Y-%m-%d %H:%M", "%Y/%m/%d %H:%M"):
-        try:
-            return datetime.strptime(text, fmt)
-        except ValueError:
-            pass
-    raise ValueError(f"无法解析历史课表时间: {value!r}")
+    return parse_datetime_value(value, "历史课表时间")
 
 
 def date_text(value: object) -> str:

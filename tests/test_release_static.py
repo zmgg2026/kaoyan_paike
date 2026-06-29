@@ -236,6 +236,17 @@ class ReleaseStaticTest(unittest.TestCase):
         self.assertIsNone(re.search(r"(?m)^def display_date\(", erp_export_source))
         self.assertIsNone(re.search(r"(?m)^def display_date\(", failed_review_source))
 
+    def test_lesson_datetime_parsing_lives_in_shared_field_utils(self) -> None:
+        field_utils_source = (ROOT / "scripts" / "field_utils.py").read_text(encoding="utf-8")
+        import_locked_source = (ROOT / "scripts" / "import_locked_professional_schedules.py").read_text(encoding="utf-8")
+        camp_maintenance_source = (ROOT / "scripts" / "build_camp_maintenance_schedule.py").read_text(encoding="utf-8")
+
+        self.assertIn("def parse_datetime_value", field_utils_source)
+        self.assertIn("parse_datetime_value", import_locked_source)
+        self.assertIn("parse_datetime_value", camp_maintenance_source)
+        self.assertNotIn("datetime.strptime", import_locked_source)
+        self.assertNotIn("datetime.strptime", camp_maintenance_source)
+
     def test_period_normalization_lives_in_shared_period_utils(self) -> None:
         scheduler_source = (ROOT / "scheduler.py").read_text(encoding="utf-8")
         business_import_source = (ROOT / "business_class_import.py").read_text(encoding="utf-8")

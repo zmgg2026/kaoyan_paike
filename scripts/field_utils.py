@@ -111,6 +111,40 @@ def normalize_iso_date_text(value: Any, label: str = "日期") -> str:
         raise ValueError(f"{label} 日期格式无法识别: {normalize_text(value)}") from exc
 
 
+def parse_datetime_value(value: Any, label: str = "日期时间", allow_date: bool = False) -> datetime:
+    if isinstance(value, datetime):
+        return value
+    if isinstance(value, Date):
+        if allow_date:
+            return datetime.combine(value, Time.min)
+        raise ValueError(f"无法解析{label}: {value!r}")
+
+    text = normalize_excel_text(value)
+    candidates = [text]
+    if "T" in text:
+        candidates.append(text.replace("T", " ", 1))
+
+    formats = [
+        "%Y-%m-%d %H:%M:%S",
+        "%Y/%m/%d %H:%M:%S",
+        "%Y.%m.%d %H:%M:%S",
+        "%Y-%m-%d %H:%M",
+        "%Y/%m/%d %H:%M",
+        "%Y.%m.%d %H:%M",
+    ]
+    if allow_date:
+        formats.extend(("%Y-%m-%d", "%Y/%m/%d", "%Y.%m.%d", "%Y%m%d"))
+
+    for candidate in candidates:
+        for fmt in formats:
+            try:
+                return datetime.strptime(candidate, fmt)
+            except ValueError:
+                pass
+
+    raise ValueError(f"无法解析{label}: {value!r}")
+
+
 def parse_date_value(value: Any, label: str = "日期") -> Date:
     text = normalize_date_text(value)
     try:

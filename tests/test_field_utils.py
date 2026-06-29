@@ -14,6 +14,7 @@ from scripts.field_utils import (
     normalize_int,
     normalize_text,
     parse_date_value,
+    parse_datetime_value,
     normalize_time_text,
     parse_bool,
     parse_bool_default,
@@ -69,6 +70,19 @@ class FieldUtilsTest(unittest.TestCase):
         self.assertEqual(parse_date_value("2026/7/1", "开课日期"), date(2026, 7, 1))
         with self.assertRaisesRegex(ValueError, "开课日期 日期格式无法识别: 待确认"):
             parse_date_value("待确认", "开课日期")
+
+    def test_parse_datetime_value_accepts_common_lesson_formats(self) -> None:
+        self.assertEqual(parse_datetime_value("2026/7/1 8:30", "起始时间"), datetime(2026, 7, 1, 8, 30))
+        self.assertEqual(
+            parse_datetime_value("2026.07.01 08:30:00", "起始时间"),
+            datetime(2026, 7, 1, 8, 30),
+        )
+        self.assertEqual(
+            parse_datetime_value("2026-07-01", "起始时间", allow_date=True),
+            datetime(2026, 7, 1, 0, 0),
+        )
+        with self.assertRaisesRegex(ValueError, "无法解析起始时间"):
+            parse_datetime_value("待确认", "起始时间")
 
     def test_time_helpers_normalize_import_time_text(self) -> None:
         self.assertEqual(normalize_time_text(None), "")

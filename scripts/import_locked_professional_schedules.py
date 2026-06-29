@@ -26,6 +26,7 @@ from data_admin_server import (
     save_state,
     split_id_list,
 )
+from scripts.field_utils import parse_datetime_value
 
 
 CLASS_ID_RE = re.compile(r"(KY[A-Z]+[0-9]+)")
@@ -70,19 +71,7 @@ def is_blank_marker(value: Any) -> bool:
 
 
 def parse_datetime_cell(value: Any, label: str) -> datetime:
-    if isinstance(value, datetime):
-        return value
-    text = clean_cell(value)
-    for fmt in ("%Y-%m-%d %H:%M:%S", "%Y/%m/%d %H:%M:%S", "%Y-%m-%d %H:%M", "%Y/%m/%d %H:%M"):
-        try:
-            return datetime.strptime(text, fmt)
-        except ValueError:
-            pass
-    if re.fullmatch(r"\d{4}-\d{1,2}-\d{1,2}", text):
-        return datetime.strptime(text, "%Y-%m-%d")
-    if re.fullmatch(r"\d{4}/\d{1,2}/\d{1,2}", text):
-        return datetime.strptime(text, "%Y/%m/%d")
-    raise ValueError(f"无法解析{label}: {value!r}")
+    return parse_datetime_value(value, label, allow_date=True)
 
 
 def parse_optional_float(value: Any) -> Optional[float]:
