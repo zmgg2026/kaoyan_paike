@@ -126,7 +126,7 @@ def key_row(key: CoverageKey, meta: Dict[str, ClassMeta]) -> dict:
         "class_subject": info.subject,
         "suite_code": info.suite_code,
         "subject": subject,
-        "quarter": quarter,
+        "window_name": quarter,
         "stage": stage,
         "course_module": module,
         "course_group": group,
@@ -283,7 +283,7 @@ def main() -> None:
         "class_subject",
         "suite_code",
         "subject",
-        "quarter",
+        "window_name",
         "stage",
         "course_module",
         "course_group",
@@ -540,11 +540,14 @@ def main() -> None:
             f"{float(row['extra_display_hours']):.1f} | {row['reason']} |"
         )
 
+    with schedule_csv.open(encoding="utf-8-sig") as schedule_handle:
+        schedule_row_count = sum(1 for _ in schedule_handle) - 1
+
     combined_lines = [
         "# 课表覆盖审计总览",
         "",
         f"- 审计时间: {stamp}",
-        f"- 维护页明细行数: {sum(1 for _ in schedule_csv.open(encoding='utf-8-sig')) - 1}",
+        f"- 维护页明细行数: {schedule_row_count}",
         "",
         "## 口径 1：自动排课需求覆盖",
         "",

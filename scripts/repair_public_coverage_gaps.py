@@ -100,7 +100,7 @@ def gap_key(row: dict) -> Tuple[str, str, str, str, str, str, str]:
     return (
         clean(row.get("class_id")),
         clean(row.get("subject")),
-        clean(row.get("quarter")),
+        clean(row.get("window_name")) or clean(row.get("quarter")),
         clean(row.get("stage")),
         clean(row.get("course_module")),
         clean(row.get("course_group")),
@@ -189,6 +189,7 @@ def make_gap_tasks(
                     "class_id": class_id,
                     "class_name": class_rows[class_id]["name"],
                     "subject": key[1],
+                    "window_name": key[2],
                     "quarter": key[2],
                     "stage": key[3],
                     "course_module": key[4],
@@ -259,6 +260,7 @@ def candidate_windows(task: dict, class_rows: Dict[str, dict], relax_deadline: b
 
 def halfday_rows(task: dict, date_text: str, period: str, fieldnames: Sequence[str]) -> List[dict]:
     rows: List[dict] = []
+    window_name = task.get("window_name") or task.get("quarter") or ""
     for slot_id, slot_label, start_time, end_time in PERIOD_SLOTS[period]:
         row = {field: "" for field in fieldnames}
         row.update(
@@ -273,7 +275,6 @@ def halfday_rows(task: dict, date_text: str, period: str, fieldnames: Sequence[s
                 "class_id": task["class_id"],
                 "class_name": task["class_name"],
                 "subject": task["subject"],
-                "quarter": task["quarter"],
                 "stage": task["stage"],
                 "course_module": task["course_module"],
                 "course_group": task["course_group"],
@@ -286,6 +287,10 @@ def halfday_rows(task: dict, date_text: str, period: str, fieldnames: Sequence[s
                 "duration_hours": "2",
             }
         )
+        if "window_name" in row:
+            row["window_name"] = window_name
+        if "quarter" in row:
+            row["quarter"] = window_name
         rows.append(row)
     return rows
 

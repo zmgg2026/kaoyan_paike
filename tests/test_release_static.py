@@ -202,6 +202,8 @@ class ReleaseStaticTest(unittest.TestCase):
         self.assertIn('"window_name",\n    "stage",', schedule_outputs_source)
         self.assertNotIn('"quarter": assignment.task.quarter', schedule_outputs_source)
         self.assertIn('"window_name": assignment.task.quarter', schedule_outputs_source)
+        self.assertNotIn('"quarter",\n        "stage",', coverage_source)
+        self.assertIn('"window_name",\n        "stage",', coverage_source)
         self.assertNotIn('"is_schedule_locked": lock_value', schedule_data_source)
         self.assertNotIn('is_locked=clean(row.get("is_schedule_locked"))', coverage_source)
         self.assertIn('"selected_stages": selected_stages', schedule_data_source)
