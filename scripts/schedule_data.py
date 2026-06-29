@@ -87,6 +87,7 @@ def load_class_metadata(path: Path) -> Dict[str, Dict[str, str]]:
             continue
         subject = infer_class_subject(row)
         lock_value = row_value(row, "is_manual_schedule_locked", "is_schedule_locked")
+        selected_stages = row_value(row, "selected_stages", "stages", "stage")
         result[class_id] = {
             "id": row.get("id", ""),
             "name": row.get("name", ""),
@@ -99,7 +100,7 @@ def load_class_metadata(path: Path) -> Dict[str, Dict[str, str]]:
             "course_nature": row.get("course_nature", ""),
             "subject_category": infer_class_subject_category(row, subject),
             "subject": subject,
-            "stages": row.get("stages", ""),
+            "selected_stages": selected_stages,
             "start_date": row.get("start_date", ""),
             "start_period": row.get("start_period", ""),
             "first_lesson_date": row.get("first_lesson_date", ""),

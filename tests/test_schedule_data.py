@@ -81,6 +81,37 @@ class ScheduleDataTest(unittest.TestCase):
         self.assertEqual(metadata["CLASS_LOCKED_LEGACY"]["is_manual_schedule_locked"], "是")
         self.assertNotIn("is_schedule_locked", metadata["CLASS_LOCKED_LEGACY"])
 
+    def test_load_class_metadata_prefers_current_selected_stages_field(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            data_dir = Path(tmp)
+            classes_path = data_dir / "classes.csv"
+            with classes_path.open("w", newline="", encoding="utf-8") as handle:
+                writer = csv.DictWriter(handle, fieldnames=["id", "selected_stages", "stages", "stage"])
+                writer.writeheader()
+                writer.writerow(
+                    {
+                        "id": "CLASS_CURRENT",
+                        "selected_stages": "基础|强化",
+                        "stages": "旧阶段",
+                        "stage": "更旧阶段",
+                    }
+                )
+                writer.writerow(
+                    {
+                        "id": "CLASS_LEGACY",
+                        "selected_stages": "",
+                        "stages": "冲刺",
+                        "stage": "更旧阶段",
+                    }
+                )
+
+            metadata = load_class_metadata(data_dir)
+
+        self.assertEqual(metadata["CLASS_CURRENT"]["selected_stages"], "基础|强化")
+        self.assertNotIn("stages", metadata["CLASS_CURRENT"])
+        self.assertEqual(metadata["CLASS_LEGACY"]["selected_stages"], "冲刺")
+        self.assertNotIn("stages", metadata["CLASS_LEGACY"])
+
     def test_load_class_metadata_infers_subject_for_compact_class_rows(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             data_dir = Path(tmp)

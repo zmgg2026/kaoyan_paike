@@ -185,6 +185,8 @@ class ReleaseStaticTest(unittest.TestCase):
         self.assertNotIn('"stages": cls["stages"]', admin_source)
         self.assertNotIn('"is_schedule_locked": lock_value', schedule_data_source)
         self.assertNotIn('is_locked=clean(row.get("is_schedule_locked"))', coverage_source)
+        self.assertIn('"selected_stages": selected_stages', schedule_data_source)
+        self.assertNotIn('"stages": row.get("stages"', schedule_data_source)
         self.assertNotIn("datetime.strptime(candidate, fmt)", business_import_source)
         self.assertNotIn("data_admin_server.normalize_text", pipeline_source)
         self.assertNotIn("isinstance(value, datetime)", pipeline_source)
