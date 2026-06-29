@@ -34,7 +34,7 @@ python3 run_scheduling_pipeline.py --source examples/csv_minimal --data-dir /tmp
 python3 run_scheduling_pipeline.py --source examples/csv_minimal --data-dir /tmp/ai_schedule_demo_data --output-dir /tmp/ai_schedule_demo_outputs
 ```
 
-`verify_release.sh` 会先检查 shell 语法、编译根目录核心 Python 和全部 `scripts/*.py`，再确认根目录核心入口与 `scripts/` 中带命令行参数的脚本都能打开 `--help`，随后继续跑发布包审计、单元测试、公开最小样例、覆盖审计和质量审计。
+`verify_release.sh` 会先检查 shell 语法、编译根目录核心 Python 和发布包内的 `scripts/*.py`，再确认根目录核心入口与 `scripts/` 中带命令行参数的脚本都能打开 `--help`，随后继续跑发布包审计、单元测试、公开最小样例、覆盖审计和质量审计。
 
 启动本地数据管理网页：
 

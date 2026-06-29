@@ -27,13 +27,22 @@ verify_cli_help() {
   fi
 }
 
+release_script_files() {
+  local suffix="$1"
+  if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    git ls-files "scripts/*.${suffix}" | sort
+  else
+    find scripts -name "*.${suffix}" -print | sort
+  fi
+}
+
 cd "$ROOT_DIR"
 
 echo "Release verification workspace: $WORK_DIR"
 
 while IFS= read -r script_path; do
   run bash -n "$script_path"
-done < <(find scripts -name "*.sh" -print | sort)
+done < <(release_script_files sh)
 
 run "$PYTHON_BIN" -m py_compile \
   scheduler.py \
@@ -45,7 +54,7 @@ run "$PYTHON_BIN" -m py_compile \
 
 while IFS= read -r script_path; do
   run "$PYTHON_BIN" -m py_compile "$script_path"
-done < <(find scripts -name "*.py" -print | sort)
+done < <(release_script_files py)
 
 for script_path in \
   scheduler.py \
@@ -58,7 +67,7 @@ done
 
 while IFS= read -r script_path; do
   verify_cli_help "$script_path"
-done < <(find scripts -name "*.py" -print | sort)
+done < <(release_script_files py)
 
 run "$PYTHON_BIN" scripts/audit_release_package.py --root "$ROOT_DIR"
 

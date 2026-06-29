@@ -7,7 +7,7 @@
 - `python3 -m unittest discover -v` 通过；具体测试数量以本次命令输出为准。
 - `python3 scheduler.py --input examples/input_example.json --output /tmp/ai_schedule_example.csv --html-output /tmp/ai_schedule_example.html` 可生成样例 CSV 和 HTML。
 - `python3 run_scheduling_pipeline.py --source examples/csv_minimal --data-dir /tmp/ai_schedule_demo_data --output-dir /tmp/ai_schedule_demo_outputs` 可用公开最小 CSV 示例生成完整排课结果。
-- `bash scripts/verify_release.sh` 可一键执行脚本语法检查、全部 Python 脚本编译、根目录和 `scripts/` CLI 入口 `--help` 冒烟检查、发布包内容审计、临时 release zip 审计、单元测试、核心 JSON 样例、公开 CSV 最小闭环、覆盖审计和质量审计。
+- `bash scripts/verify_release.sh` 可一键执行脚本语法检查、发布包内 Python 脚本编译、根目录和 `scripts/` CLI 入口 `--help` 冒烟检查、发布包内容审计、临时 release zip 审计、单元测试、核心 JSON 样例、公开 CSV 最小闭环、覆盖审计和质量审计。
 - 本地后台 `http://127.0.0.1:8765/` 可访问。
 - `.gitignore` 已排除 `data/`、`outputs/`、缓存和本地环境文件。
 - 低频 ERP 辅助脚本不再携带个人下载目录默认值；ERP 导出、导入模板、专业课固定课表等本地文件均通过显式命令行参数传入，`tests/test_release_static.py` 会阻止个人路径重新进入 `scripts/`。

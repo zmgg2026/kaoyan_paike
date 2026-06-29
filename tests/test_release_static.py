@@ -70,7 +70,9 @@ class ReleaseStaticTest(unittest.TestCase):
         script = (ROOT / "scripts" / "verify_release.sh").read_text(encoding="utf-8")
 
         self.assertIn('export PYTHONPYCACHEPREFIX="$WORK_DIR/pycache"', script)
-        self.assertIn('find scripts -name "*.py"', script)
+        self.assertIn("release_script_files()", script)
+        self.assertIn('git ls-files "scripts/*.${suffix}"', script)
+        self.assertIn('find scripts -name "*.${suffix}"', script)
         self.assertIn("-m py_compile \"$script_path\"", script)
         self.assertIn("verify_cli_help()", script)
         self.assertIn('verify_cli_help "$script_path"', script)
