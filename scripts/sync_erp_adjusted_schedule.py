@@ -23,7 +23,7 @@ from scripts.build_camp_maintenance_schedule import (  # noqa: E402
     load_class_metadata,
 )
 from scripts.csv_utils import clean_cell as clean, read_csv_rows, write_csv_rows  # noqa: E402
-from scripts.field_utils import normalize_date_text as normalize_date, split_time_range_text  # noqa: E402
+from scripts.field_utils import normalize_date_text as normalize_date, row_value, split_time_range_text  # noqa: E402
 from scripts.period_utils import PERIOD_ORDER, period_from_time_text  # noqa: E402
 from scripts.schedule_conflicts import write_teacher_time_conflicts_csv  # noqa: E402
 from scripts.schedule_data import load_room_name_to_id, load_room_names, load_teacher_name_to_id  # noqa: E402
@@ -43,7 +43,7 @@ FIELDNAMES = [
     "class_id",
     "class_name",
     "subject",
-    "quarter",
+    "window_name",
     "stage",
     "course_module",
     "course_group",
@@ -206,6 +206,10 @@ def course_detail_for_code(
     return candidates[0] if candidates else {}
 
 
+def schedule_window_name(row: dict) -> str:
+    return clean(row_value(row, "window_name", "quarter"))
+
+
 def should_include_erp_row(row: dict, current_class_ids: set[str], start_date: str, end_date: str) -> bool:
     class_id = clean(row.get("班级编码"))
     if class_id not in current_class_ids:
@@ -314,7 +318,7 @@ def build_normalized_rows(
                 "class_id": class_id,
                 "class_name": clean(meta.get("name")) or clean(row.get("班级名称")) or class_id,
                 "subject": clean(meta.get("subject")) or clean(row.get("课程科目")),
-                "quarter": clean(course_detail.get("quarter")),
+                "window_name": schedule_window_name(course_detail),
                 "stage": clean(course_detail.get("stage")),
                 "course_module": clean(course_detail.get("course_module")),
                 "course_group": clean(course_detail.get("course_group")),
@@ -347,7 +351,7 @@ def fill_shared_rows_from_donors(
             ].append(row)
 
     fill_fields = [
-        "quarter",
+        "window_name",
         "stage",
         "course_module",
         "course_group",
@@ -371,14 +375,14 @@ def fill_shared_rows_from_donors(
             donor = donors[0]
         if donor is not None:
             for field in fill_fields:
-                row[field] = donor.get(field, "")
+                row[field] = schedule_window_name(donor) if field == "window_name" else donor.get(field, "")
             counters["shared_rows_filled_from_erp_donor"] += 1
             continue
 
         current = current_by_exact_slot.get((row["class_id"], row["date"], row["start_time"], row["end_time"]))
         if current:
             for field in fill_fields:
-                row[field] = current.get(field, "")
+                row[field] = schedule_window_name(current) if field == "window_name" else current.get(field, "")
             counters["shared_rows_filled_from_previous_schedule"] += 1
             continue
 

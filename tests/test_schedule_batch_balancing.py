@@ -1946,6 +1946,8 @@ class ScheduleBatchBalancingTest(unittest.TestCase):
                 "duration_hours": "4",
                 "class_id": "KYJXZ2751",
                 "subject": "政治",
+                "window_name": "暑假",
+                "quarter": "旧窗口",
                 "teacher_id": "143724",
                 "teacher_name": "张珊珊",
                 "room_id": "R_NY",
@@ -1953,6 +1955,7 @@ class ScheduleBatchBalancingTest(unittest.TestCase):
             "TEST:1",
         )
         self.assertEqual([slot.id for slot in assignment.candidate.slots], ["2026-07-22-PM-1", "2026-07-22-PM-2"])
+        self.assertEqual(assignment.task.quarter, "暑假")
 
     def test_relaxed_candidates_do_not_expose_legacy_teacher_slot_field(self) -> None:
         assignment = make_teacher_travel_assignment(

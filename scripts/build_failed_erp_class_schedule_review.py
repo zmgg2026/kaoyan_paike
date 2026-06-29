@@ -24,6 +24,7 @@ from scripts.field_utils import (
     display_date_text as display_date,
     normalize_date_text as normalize_date,
     normalize_excel_text as clean,
+    row_value,
 )
 from scripts.schedule_display import weekday_label
 
@@ -49,6 +50,10 @@ HEADER_FILL = "D9EAF7"
 FAILED_FILL = "FFF2CC"
 RELATED_FILL = "E2F0D9"
 THIN = Side(style="thin", color="C8D0D8")
+
+
+def schedule_window_name(row: Dict[str, str]) -> str:
+    return clean(row_value(row, "window_name", "quarter"))
 
 
 def read_result_rows(path: Path) -> List[Dict[str, str]]:
@@ -201,7 +206,7 @@ def lesson_text(row: Dict[str, str], is_failed: bool) -> str:
         part
         for part in [
             f"{prefix}{class_id} {subject}",
-            "/".join(part for part in [clean(row.get("quarter")), stage, module] if part),
+            "/".join(part for part in [schedule_window_name(row), stage, module] if part),
             f"{teacher} {room}".strip(),
             course_name,
         ]
@@ -393,7 +398,7 @@ def main() -> None:
                 clean(row.get("class_id")),
                 clean(row.get("class_name")),
                 clean(row.get("subject")),
-                clean(row.get("quarter")),
+                schedule_window_name(row),
                 clean(row.get("stage")),
                 clean(row.get("course_module")),
                 clean(row.get("course_group")),

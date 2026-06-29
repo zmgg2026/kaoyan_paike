@@ -23,6 +23,7 @@ from scripts.field_utils import (  # noqa: E402
     normalize_excel_text as clean,
     normalize_date_text as normalize_date,
     normalize_time_text as normalize_time,
+    row_value,
     split_delimited_values as split_values,
 )
 
@@ -151,7 +152,7 @@ def load_shared_class_keys(path: Path) -> Dict[Tuple[str, str, str, str], str]:
 def is_shared_merge_row(row: Dict[str, str], shared_keys: Dict[Tuple[str, str, str, str], str]) -> bool:
     class_id = clean(row.get("class_id"))
     subject = clean(row.get("subject"))
-    quarter = clean(row.get("quarter"))
+    quarter = schedule_window_name(row)
     stage = clean(row.get("stage"))
     group = clean(row.get("course_group"))
     stage_candidates = [stage]
@@ -163,9 +164,13 @@ def is_shared_merge_row(row: Dict[str, str], shared_keys: Dict[Tuple[str, str, s
     )
 
 
+def schedule_window_name(row: Dict[str, str]) -> str:
+    return clean(row_value(row, "window_name", "quarter"))
+
+
 def remark(row: Dict[str, str]) -> str:
     parts = [
-        clean(row.get("quarter")),
+        schedule_window_name(row),
         clean(row.get("stage")),
         clean(row.get("course_module")),
     ]

@@ -153,7 +153,7 @@ def load_locked_csv_assignments(
                 class_size=None,
                 subject_category="",
                 subject=row.get("subject") or "已定课程",
-                quarter=row.get("quarter") or None,
+                quarter=row.get("window_name") or row.get("quarter") or None,
                 stage=row.get("stage") or None,
                 course_module=row.get("course_module") or None,
                 course_group=row.get("course_group") or None,

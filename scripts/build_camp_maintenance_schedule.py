@@ -301,7 +301,11 @@ AUTUMN_SPECIAL_SUBJECT_RULES = {
 
 
 def row_matches_phase(row: dict, phases: Set[str]) -> bool:
-    return (row.get("quarter") or "") in phases or (row.get("stage") or "") in phases
+    return row_window_name(row) in phases or (row.get("stage") or "") in phases
+
+
+def row_window_name(row: dict) -> str:
+    return row_value(row, "window_name", "quarter")
 
 
 def task_matches_phase(task: scheduler.CourseBlock, phases: Set[str]) -> bool:
@@ -313,7 +317,7 @@ def assignment_matches_phase(assignment: scheduler.Assignment, phases: Set[str])
 
 
 def online_merge_phase_for_row(row: dict) -> str:
-    quarter = row.get("quarter") or ""
+    quarter = row_window_name(row)
     stage = row.get("stage") or ""
     if quarter in {"春季", "秋季"}:
         return quarter
@@ -1192,7 +1196,7 @@ def assignment_from_row(row: dict, task_id: str) -> scheduler.Assignment:
         class_size=None,
         subject_category=row.get("subject_category") or "公共课",
         subject=row.get("subject") or "",
-        quarter=row.get("quarter") or None,
+        quarter=row_window_name(row) or None,
         stage=row.get("stage") or None,
         course_module=row.get("course_module") or None,
         course_group=row.get("course_group") or None,
@@ -1348,7 +1352,7 @@ def load_existing_summer(path: Path) -> List[scheduler.Assignment]:
             row.get("period") or "",
             row.get("class_id") or "",
             row.get("subject") or "",
-            row.get("quarter") or "",
+            row_window_name(row),
             row.get("stage") or "",
             row.get("course_module") or "",
             row.get("teacher_id") or "",
@@ -1414,7 +1418,7 @@ def shared_assignment_note_for_row(row: dict) -> str:
     subject = clean(row.get("subject"))
     course_group = clean(row.get("course_group"))
     phases = [
-        clean(row.get("quarter")),
+        clean(row_window_name(row)),
         clean(row.get("stage")),
         stage_for_display_date(clean(row.get("date"))) if clean(row.get("date")) else "",
     ]
@@ -4396,7 +4400,7 @@ def build_2731_stage_priority_blocks(
                     class_size=None,
                     subject_category=clean(row.get("subject_category")) or "公共课",
                     subject=subject,
-                    quarter=clean(row.get("quarter")) or None,
+                    quarter=clean(row_window_name(row)) or None,
                     stage=stage,
                     course_module=course_module or None,
                     course_group=course_group or None,
@@ -9921,7 +9925,7 @@ def load_existing_output_assignments_for_classes(
             clean(row.get("duration_hours")),
             class_id,
             clean(row.get("subject")),
-            clean(row.get("quarter")),
+            clean(row_window_name(row)),
             clean(row.get("stage")),
             clean(row.get("course_module")),
             clean(row.get("teacher_id") or row.get("teacher_name")),

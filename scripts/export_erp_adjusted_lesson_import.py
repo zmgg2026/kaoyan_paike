@@ -37,6 +37,7 @@ from scripts.export_erp_lesson_import import (  # noqa: E402
     display_date,
     load_course_code_lookup,
     load_shared_class_keys,
+    schedule_window_name,
     split_values,
     validate_template_headers,
 )
@@ -91,7 +92,7 @@ def should_include_erp_row(row: Dict[str, str], schedule_class_ids: set[str], st
 def is_shared_merge_row(row: Dict[str, str], shared_keys: Dict[Tuple[str, str, str, str], str]) -> bool:
     class_id = clean(row.get("class_id"))
     subject = clean(row.get("subject"))
-    quarter = clean(row.get("quarter"))
+    quarter = schedule_window_name(row)
     stage = clean(row.get("stage"))
     group = clean(row.get("course_group"))
     stage_candidates = [stage]
